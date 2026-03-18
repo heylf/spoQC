@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spoqc"
+version = "0.0.1"
+description = "todo."
+requires-python = ">=3.12"
+
+# Put your real runtime deps here (not click/cookiecutter unless you truly need them)
+dependencies = []
+
+[project.scripts]
+spoqc = "spoqc.__main__:main"

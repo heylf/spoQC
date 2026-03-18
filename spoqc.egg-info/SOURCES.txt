@@ -1,0 +1,6 @@
+README.md
+setup.py
+spoqc.egg-info/PKG-INFO
+spoqc.egg-info/SOURCES.txt
+spoqc.egg-info/dependency_links.txt
+spoqc.egg-info/top_level.txt

@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: spoqc
+Version: 0.0.1
+Summary: A short description of the project.
+Author: Florian Heyl
+License: MIT
+Dynamic: author
+Dynamic: license
+Dynamic: summary
