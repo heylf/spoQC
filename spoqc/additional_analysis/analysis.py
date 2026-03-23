@@ -545,7 +545,10 @@ def celltype_cluster_analysis(
             umap_cats.extend(['hqcr_mask', 'hqcr_beliefs'])
 
         if ( modality == 'hqpr' ):
+            print(stainings)
             for staining in stainings:
+                print(staining)
+                
                 # mask and beliefs
                 metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/hqpr_{staining}_output_mask_{suffix}', columns=[f"hqpr_{staining}_beliefs", f"hqpr_{staining}_mask"], engine="pyarrow")
                 hqr.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[f"hqpr_{staining}_mask"].compute().to_numpy(), f"hqpr_{staining}_mask", figure_path, 'markov_labels', true_false_binary=True)

@@ -379,6 +379,9 @@ def map_values_to_cells(
     # Define output matrix size
     height, width = int(dim_x), int(dim_y)
 
+    print(height)
+    print(width)
+
     # Define transform: (origin_x, origin_y, pixel_width, pixel_height)
     transform = from_origin(0, height, 1, 1)  # top-left at (0, height), cell size = 1
 
@@ -398,6 +401,9 @@ def map_values_to_cells(
     # Flatten the arrays
     flat_index = index_map.ravel()
     flat_labels = labels.ravel()
+
+    print(len(flat_index))
+    print(len(flat_labels))
 
     # Extract only valid pixels (index_map > 0 or > -1 depending on background)
     valid = flat_index >= 0  # change to >0 if background is 0
