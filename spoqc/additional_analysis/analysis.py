@@ -1063,7 +1063,10 @@ def celltype_cluster_analysis(
             compression="gzip", 
             compression_opts=9
         )
+        
     if ( subdir == 'cluster' ):
+        if ( 'nuclei_idxs' in sdata.table.obs.columns ):
+            sdata.table.obs.drop(columns=['nuclei_idxs'], inplace=True)
         rna.write_h5ad(
             f"{CONST.FIGURE_PATH}/analysis/rna_cluster.h5ad", 
             compression="gzip", 
