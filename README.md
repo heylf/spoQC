@@ -55,7 +55,7 @@ SpoQC needs an HPC infrastructure to perform all task on a full SRT datset with 
 Optional step if you do not have a cell type annotation yet, then spoQC can do an analysis using an unsupervised (Leiden) clustering.
 
 ```
-python3 -m spoqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -s "annotation"
+python3 -m spoqc -s "annotation" -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores]
 ```
 
 This will generate you an annotation file in spoQC format `[spoqc_tmp_folder]/report/annotation/unsupervised_cell_annotation.tsv`
@@ -65,7 +65,7 @@ This will generate you an annotation file in spoQC format `[spoqc_tmp_folder]/re
 You can execute spoQC completly with:
 
 ```
-python3 -m spoqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -s all -a [annotation_file]
+python3 -m spoqc -s all -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
 
 
@@ -74,7 +74,7 @@ python3 -m spoqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp
 You can execute spoQC for each step individually with:
 
 ```
-python3 -m spoqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -s [step] -a [annotation_file]
+python3 -m spoqc -s [step] -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
 
 with [step] in the following order (if you do not follow this order things will break):
@@ -111,5 +111,5 @@ with [step] in the following order (if you do not follow this order things will 
 For example for the first step you execute the command:
 
 ```
-python3 -m spoqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -s generalqc -a [annotation_file]
+python3 -m spoqc -s generalqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
