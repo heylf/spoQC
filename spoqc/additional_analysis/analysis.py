@@ -924,24 +924,24 @@ def celltype_cluster_analysis(
 
             for x in ['leiden', CONST.ANNOTATION_KEY]:
 
-                    bar_plot_pct = pd.DataFrame(
-                        rna.obs
-                        .groupby(x)[umap_cat]
-                        .mean() * 100
-                    )
-                    bar_plot_pct.columns = ['pct']
-                    bar_plot_pct[x] = list(bar_plot_pct.index)
+                bar_plot_pct = pd.DataFrame(
+                    rna.obs
+                    .groupby(x)[umap_cat]
+                    .mean() * 100
+                )
+                bar_plot_pct.columns = ['pct']
+                bar_plot_pct[x] = list(bar_plot_pct.index)
 
-                    fig_pct = px.bar(
-                        bar_plot_pct,
-                        x=x,
-                        y="pct",
-                        title=f"Percentage of cells classified as {umap_cat}"
-                    )
-                    fig_pct.update_yaxes(range=[0, 100])
-                    fig_pct.update_layout(xaxis_title="leiden cluster")
-                    fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}_{x}.html")
-                    fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}_{x}.png", scale=3)
+                fig_pct = px.bar(
+                    bar_plot_pct,
+                    x=x,
+                    y="pct",
+                    title=f"Percentage of cells classified as {umap_cat}"
+                )
+                fig_pct.update_yaxes(range=[0, 100])
+                fig_pct.update_layout(xaxis_title="leiden cluster")
+                fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}_{x}.html")
+                fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}_{x}.png", scale=3)
 
     # --- cell composition plot -----
     ctf_df = create_celltype_fraction_df('leiden', CONST.ANNOTATION_KEY, rna)
