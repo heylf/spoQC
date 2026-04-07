@@ -1,5 +1,7 @@
 # spoQC
 
+[![rewrites.bio - Follows best practice principles for rewriting bioinformatics tools with AI](https://rewrites.bio/badges/rewrites-bio.svg)](https://rewrites.bio)
+
 <img src="figures/logo/complex.png" width="300">
 
 > [!NOTE]
@@ -121,8 +123,10 @@ We used AI for the following scripts:
 * `markov_random_field_zarr.py` and `markov_random_field_zarr_parallel.py`
     * an intial version was written `markov_random_field.py` by hand
     * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
+    * correctness of AI implementation (optization) was done by equal comparison of the results between human and AI implementation
 * `image_metrices.py`
     * several metrics were written by AI
+    * correctness of AI implementation (optization) was done by equal comparison of the results between human and AI implementation
 * `pixel_scoring_dask.py`
     * an intial version was written by hand
     * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
