@@ -113,3 +113,19 @@ For example for the first step you execute the command:
 ```
 python3 -m spoqc -s generalqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
+
+# AI usage
+
+We used AI for the following scripts:
+
+* `markov_random_field_zarr.py` and `markov_random_field_zarr_parallel.py`
+    * an intial version was written `markov_random_field.py` by hand
+    * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
+* `image_metrices.py`
+    * several metrics were written by AI
+* `pixel_scoring_dask.py`
+    * an intial version was written by hand
+    * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
+* `Dockerfile`
+    * Dockerfile was intially written by AI and optimized by hand
+* AI added to many scripts docstrings and type hints
