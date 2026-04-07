@@ -116,20 +116,27 @@ For example for the first step you execute the command:
 python3 -m spoqc -s generalqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
 
-# AI usage
+# AI Assistance Disclosure
+<!-- badges: start -->
+![](https://img.shields.io/badge/AI_assisted-:robot:-blue)
+<!-- badges: end -->
+
+This tool was written with the assistance of AI coding agents (Claude, GitHub Copilot).
 
 We used AI for the following scripts:
 
 * `markov_random_field_zarr.py` and `markov_random_field_zarr_parallel.py`
     * an intial version was written `markov_random_field.py` by hand
     * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
-    * correctness of AI implementation (optimization) was done by equal comparison of the results between human and AI implementation
 * `image_metrices.py`
     * several metrics were written by AI
-    * correctness of AI implementation (optimization) was done by equal comparison of the results between human and AI implementation
 * `pixel_scoring_dask.py`
     * an intial version was written by hand
     * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
 * `Dockerfile`
     * Dockerfile was intially written by AI and optimized by hand
 * AI added to many scripts docstrings and type hints
+
+
+Correctness was validated by equal comparison of the output of the different implementations. Humans defined the validation criteria and verified the results.
+
