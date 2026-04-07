@@ -1,6 +1,6 @@
 # spoQC
 
-[![rewrites.bio - Follows best practice principles for rewriting bioinformatics tools with AI](https://rewrites.bio/badges/rewrites-bio.svg)](https://rewrites.bio)
+[![rewrites.bio - Follows best practice principles for rewriting bioinformatics tools with AI](https://rewrites.bio/badges/rewrites-bio.svg)](https://rewrites.bio) [![AI Assisted Yes](https://img.shields.io/badge/AI%20Assisted-Yes-green?style=for-the-badge)](https://github.com/mefengl/made-by-ai)
 
 <img src="figures/logo/complex.png" width="300">
 
@@ -117,11 +117,8 @@ python3 -m spoqc -s generalqc -i [input_spatial_data_bundle] -o [output_folder] 
 ```
 
 # AI Assistance Disclosure
-<!-- badges: start -->
-![](https://img.shields.io/badge/AI_assisted-:robot:-blue)
-<!-- badges: end -->
 
-This tool was written with the assistance of AI coding agents (Claude, GitHub Copilot).
+This tool was written with the assistance of AI coding agents (ChatGPT).
 
 We used AI for the following scripts:
 
