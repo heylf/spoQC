@@ -8,6 +8,8 @@ from __future__ import annotations
 # TODO maybe for all spatial plots remove x and y axsis and just call the labels spatialdim1, spatialdim2, spatialdim3 ...
 # TODO remove packages that are not used anymroe
 # TODO put every metric into their own script, so it is easier for people to find them and add new metrics
+# TODO why do I have negative values for canorm_transcript counts?
+# TODO change x and y axis for the correct once from the coordinate system. For all plots.
 
 # In[]
 
@@ -187,9 +189,6 @@ def main(argv: list[str] | None = None) -> None:
 
 # In[]
 
-    # TODO why do I have negative values for canorm_transcript counts?
-    # TODO change x and y axis for the correct once from the coordinate system. For all plots.
-
     # Setting matplot styles
     plot_config.set_pub_style()
 
@@ -209,13 +208,13 @@ def main(argv: list[str] | None = None) -> None:
     class _Const(object):
         @constant
         def TESTING(): # set to > 100 to turn on testing case
-            if args['dev_test']:
-                return 3000
+            if args['dev_test'] or args['step'] == 'unittest' :
+                return 2000
             else:
                 return 0
         @constant
         def THREADS():
-            if args['dev_test']:
+            if args['dev_test'] or args['step'] == 'unittest':
                 return 8
             else:
                 return int(args['threads'])
@@ -351,8 +350,7 @@ def main(argv: list[str] | None = None) -> None:
         importlib.reload(helperfuncs)
         start = 10500
         end = CONST.TESTING
-        #cropped_sdata, _, _ = helperfuncs.image_crop(sdata, start, start, start+end, start+end+500, 'global')
-        cropped_sdata, _, _ = helperfuncs.image_crop(sdata, 10500, 10500, 11500, 13000, 'global')
+        cropped_sdata, _, _ = helperfuncs.image_crop(sdata, start, start, start+end, start+end+500, 'global')
         sdata = cropped_sdata
 
     # In[]
@@ -466,7 +464,7 @@ def main(argv: list[str] | None = None) -> None:
     ########################
     ###### GENERAL QC ######
     ########################
-    if ( CONST.STEP in ['all', 'generalqc'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'generalqc'] ):
         print('[NOTE] General QC')
         figure_path = f'{CONST.FIGURE_PATH}/generalqc/'
 
@@ -509,22 +507,12 @@ def main(argv: list[str] | None = None) -> None:
         )
         print("[finish]")
 
-        # print('[NOTE] Staining QC')
-        # # This is useful in order to figure out if an image resolution boosting would help.
-        # # Idea is if the inesities do not overlap properly for cells, nucelus or transcripts one would try
-        # # to improve the image first before they do another semgmentation algorithm.
-        # # One can improve the image with FFT or images based resolution improvement methods 
-        # # (see joplin How to SpatilOmics under image improvement under Preprocessing).
-        # whole_slide.whole_slide_metrices.staining_qc(sdata, figure_path, CONST.IMAGE_TYPE, CONST.RESOLUTION, CONST.THREADS)
-        print("[finish]")
-
-
     # In[]
     # Low resources and quick
     #######################
     ###### BUBBLE QC ######
     #######################
-    if ( CONST.STEP in ['all', 'bubbleqc'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'bubbleqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/bubbleqc/'
         cell_analysis.qc_bubble.bubbleqc(sdata, figure_path, 'cell_boundaries')
 
@@ -537,7 +525,7 @@ def main(argv: list[str] | None = None) -> None:
     ###### DOUBLET QC ######
     ########################
     # High resources and slow (takes 18-19 hours for a full dataset)
-    if ( CONST.STEP in ['all', 'doubletqc'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'doubletqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/doubletqc/'
         mean_diameter = np.mean(sdata['cell_circles']['radius'])*2
 
@@ -584,7 +572,7 @@ def main(argv: list[str] | None = None) -> None:
     #####################
     importlib.reload(void.qc_void)
     importlib.reload(helperfuncs)
-    if ( CONST.STEP in ['all', 'voidqc'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'voidqc'] ):
         print("[NOTE] Void QC")
         figure_path = f'{CONST.FIGURE_PATH}/voidqc/'
         # You can also provide contaminants with:
@@ -613,7 +601,7 @@ def main(argv: list[str] | None = None) -> None:
     importlib.reload(helperfuncs)
 
     # Low resources and quicks for full dataset (40-50 min)
-    if ( CONST.STEP in ['all', 'cellqc'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'cellqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/cellqc/'
 
         print("[NOTE] Convexity QC")
@@ -658,7 +646,7 @@ def main(argv: list[str] | None = None) -> None:
     importlib.reload(hqr.hqcr)
     importlib.reload(hqr.markov_random_field_zarr_parallel)
     # Low resources and for a full dataset it takes 30 - 40 min.
-    if ( CONST.STEP in ['all', 'hqcr_ident'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqcr_ident'] ):
         cell_df, qc_metrices = hqr.hqcr.start_hqcr(sdata, CONST.TMP_PATH, imagedim, CONST, seed)
         hqr.hqcr.plots_hqcr(sdata, CONST.FIGURE_PATH, cell_df, qc_metrices)
         print("[finish]")
@@ -701,7 +689,7 @@ def main(argv: list[str] | None = None) -> None:
     ###### AMBIENT ######
     #####################
 
-    if ( CONST.STEP in ['all', 'hqtr', 'ambientqc'] ):
+    if ( CONST.STEP in ['all', 'hqtr', 'unittest', 'ambientqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/ambientqc/'
         _ = ambient.qc_ambient.start_qc_ambient(sdata, figure_path, CONST.TMP_PATH, CONST.THREADS)
 
@@ -747,7 +735,6 @@ def main(argv: list[str] | None = None) -> None:
     ############################
 
     # TODO Bento (see joplin note) --> needs to be install locally right now
-
     # TODO can yo identify with bento stressed cells? (cells with transcript agglomerations that are related to stress)
     # Which you can see with stress granules. 
     # Calssification of subcellular transcript aggregation forms (different form e.g.. circles) 
@@ -1005,9 +992,3 @@ def main(argv: list[str] | None = None) -> None:
 
 
     print("[FINISH]")
-
-    # In[]
-    # TODO centrality scores as done by squidpy
-    # TODO co-occurrence probability as done by squidpy
-    # TODO neighbourhood enrichment as done by squidpy
-    # ( TODO concordex domain inspection with annotation )

@@ -496,7 +496,7 @@ def transcript_ac_image(
 
 def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
 
-    if ( CONST.STEP in ['all', 'hqtr', 'hqtr_metrices'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_metrices'] ):
 
         image_analysis.structure_analysis.start_image_struc_analyis(
             sdata,
@@ -513,7 +513,7 @@ def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
 
         print('[finish]')
 
-    if ( CONST.STEP in ['all', 'hqtr', 'hqtr_qv'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_qv'] ):
 
         transcript_qv_image(
             sdata,
@@ -529,7 +529,7 @@ def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
 
         print('[finish]')
 
-    if ( CONST.STEP in ['all', 'hqtr', 'hqtr_ac'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_ac'] ):
 
         transcript_ac_image(
             sdata,
@@ -547,7 +547,7 @@ def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
         print('[finish]')
 
 
-    if ( CONST.STEP in ['all', 'hqtr', 'hqtr_clustering'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_clustering'] ):
 
         image_analysis.pixel_scoring_dask.start_pixel_qc(
             sdata,
@@ -566,7 +566,7 @@ def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
         print("[finish]")
 
 
-    if ( CONST.STEP in ['all', 'hqtr', 'hqtr_refinement'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_refinement'] ):
 
         image_analysis.pixel_scoring_refinement.start_pixel_mask_refinement (
                 CONST.FIGURE_PATH,
@@ -580,7 +580,7 @@ def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
 
         print('[finish]')
 
-    if ( CONST.STEP in ['all', 'hqtr', 'hqtr_bounding_box'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_bounding_box'] ):
 
         image_analysis.bounding_boxes.define_bounding_boxes(
             sdata,

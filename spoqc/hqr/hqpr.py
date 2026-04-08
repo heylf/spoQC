@@ -14,7 +14,7 @@ def get_hqpr(
     ):
 
     # Memory depends on threads. The more threads you choose the more memory you need.
-    if ( CONST.STEP in ['all', 'hqpr', 'hqpr_metrices'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_metrices'] ):
         
         image_analysis.structure_analysis.start_image_struc_analyis(
             sdata,
@@ -33,7 +33,7 @@ def get_hqpr(
         print('[finish]')
 
 
-    if ( CONST.STEP in ['all', 'hqpr', 'hqpr_clustering'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_clustering'] ):
 
         image_analysis.pixel_scoring_dask.start_pixel_qc(
             sdata,
@@ -54,7 +54,7 @@ def get_hqpr(
 
         print('[finish]')   
 
-    if ( CONST.STEP in ['all', 'hqpr', 'hqpr_refinement'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_refinement'] ):
 
         image_analysis.pixel_scoring_refinement.start_pixel_mask_refinement (
                 CONST.FIGURE_PATH,
@@ -70,7 +70,7 @@ def get_hqpr(
         print('[finish]')
 
 
-    if ( CONST.STEP in ['all', 'hqpr', 'hqpr_bounding_box'] ):
+    if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_bounding_box'] ):
 
         image_analysis.bounding_boxes.define_bounding_boxes(
             sdata,
