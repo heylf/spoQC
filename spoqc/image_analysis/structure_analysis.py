@@ -136,7 +136,6 @@ def start_image_struc_analyis(
     step = 'relevance'
     if ( step in steps ):
         # Just check which pixel are have intensities bigger than background.
-        # TODO check Otsu thresholding here.
         print('[NOTE] Investigate pixel relevance')
         timer.start()
         pixel_relevance = image_analysis.image_metrices.pixel_relevance(figure_path, xy_intensities, 
