@@ -11,6 +11,10 @@ Currently this code is under private usage. It is not allowed to distrbute or pu
 
 <img src="figures/extra/grapical_abstract.png" width="800">
 
+# Cite
+
+IF you use spoQC then please cite:
+
 # Installation
 
 ## Docker
