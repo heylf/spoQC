@@ -47,11 +47,11 @@ from spoqc import multiplet
 from spoqc import hqr
 from spoqc import void
 from spoqc import helperfuncs
-from spoqc import ambient
 from spoqc import process_datasets
 from spoqc import folder_structure
 from spoqc import additional_analysis
 from spoqc import plot_config
+from spoqc import subworkflows
 
 def build_parser() -> argparse.ArgumentParser:
 
@@ -666,7 +666,7 @@ def main(argv: list[str] | None = None) -> None:
     ##################
     ###### HQPR ######
     ##################
-    hqr.hqpr.get_hqpr(
+    subworkflows.hqpr.get_hqpr(
         sdata,
         CONST.TMP_PATH,
         imagedim,
@@ -680,7 +680,7 @@ def main(argv: list[str] | None = None) -> None:
 
     # In[]
     if ( CONST.ANNOTATION_FILE ):
-        hqr.hqpr.celltype_refinement_of_hqpr(sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST)
+        subworkflows.hqpr.celltype_refinement_of_hqpr(sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST)
     else:
         print("[NOTE] No annotation file provided so I will not perform celltype_refinement_of_hqpr")
 
@@ -691,7 +691,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if ( CONST.STEP in ['all', 'hqtr', 'unittest', 'ambientqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/ambientqc/'
-        _ = ambient.qc_ambient.start_qc_ambient(sdata, figure_path, CONST.TMP_PATH, CONST.THREADS)
+        _ = subworkflows.qc_ambient.start_qc_ambient(sdata, figure_path, CONST.TMP_PATH, CONST.THREADS)
 
     # In[]
     ##################

@@ -13,6 +13,7 @@ from sklearn.cluster import MiniBatchKMeans
 
 from .. import helperfuncs
 from .. import image_analysis
+from .. import metrics
 from .. import hqr
 
 def read_data_as_ddf(tmp_files, chunk_size):
@@ -241,7 +242,13 @@ def start_pixel_qc(
         timer.start()
         # Intensities already flipped
         intensity = da.from_array(
-            hqr.hqtr.generate_transcript_density_image(sdata, figure_path, imagedim, image_type, resolution), 
+            metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
+                sdata,
+                figure_path,
+                imagedim,
+                image_type,
+                resolution
+            ), 
             chunks=chunk_size
         )
         timer.stop()
@@ -255,7 +262,7 @@ def start_pixel_qc(
 
     # TODO potential probelm with memory.
     if ( modality == 'hqpr' ):
-        background_intensity, _, _ = image_analysis.image_metrices.estimate_background_intensity(
+        background_intensity, _, _ = metrics.image.utility.estimate_background_intensity(
                                                 image_ddf['intensity'].compute().to_numpy()
                                      )
 

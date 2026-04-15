@@ -1,133 +1,13 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
-import plotly.graph_objects as go
 import concurrent.futures
-import geopandas as gpd
-import matplotlib.patches as patches
-import gc
 import scipy.sparse as sp
 import concurrent.futures
 
-from esda.moran import Moran
-from libpysal.weights import Queen
 from libpysal.weights import KNN
 from scipy.spatial import cKDTree
 
-from .. import helperfuncs
-
-# Use local or global autocorrelation to detect regions where the gene expression varies 
-# significantly from the surrounding areas. This could indicate patches of ambient RNA.
-# Moran's I can help identify regions where gene expression is spatially dependent, 
-# which might indicate a local patch of ambient RNA.
-def compute_for_b(b, bb_ws, bb_hs, ss_w, ss_h, imagedim, sdata, helperfuncs, figure_path, min_cells=10):
-    stepcount = 0
-    bb_mean_moran_Is = []
-    
-    x = imagedim.bb_xmin
-    y = imagedim.bb_ymin
-    
-    while (x + bb_ws[b]) < imagedim.bb_xmax:
-        print(f'x {x}')  #TODO can be removed later
-        while (y + bb_hs[b]) < imagedim.bb_ymax:
-            print(f'y {y}')  #TODO can be removed later
-
-            cropped_sdata, bb_xmin, bb_ymin = helperfuncs.image_crop(sdata, 
-                                             x, y,
-                                             x + bb_ws[b], y + bb_hs[b],
-                                             'global')
-            
-            print('cropped')
-
-            if ( cropped_sdata != None ):
-
-                sdata_filtered_cs = sdata.filter_by_coordinate_system("global")
-                f, ax = plt.subplots(figsize=(10, 10))
-                sdata_filtered_cs.pl.render_shapes(elements="cell_circles").pl.show(ax=ax)
-                rect = patches.Rectangle((bb_xmin, bb_ymin), bb_ws[b], bb_hs[b], 
-                                        linewidth=5, edgecolor="red", facecolor="none")
-                ax.add_patch(rect)
-                f.savefig(f'{figure_path}/image_cropped_window_{bb_ws[b]}_{bb_hs[b]}_step_{stepcount}.png')
-                plt.close()
-
-                del sdata_filtered_cs
-                gc.collect()
-
-                if cropped_sdata['table'].n_obs > min_cells:
-                    rna_adata = cropped_sdata.tables['table']
-                    
-                    moran_variances = [-1] * rna_adata.n_vars
-                    moran_Is = [-1] * rna_adata.n_vars
-                    
-                    for i in range(0, rna_adata.n_vars):
-                        print(i)
-                        
-                        data = pd.DataFrame({
-                            'x': rna_adata.obsm['spatial'][:, 0],
-                            'y': rna_adata.obsm['spatial'][:, 1]
-                        })
-                        
-                        gdf = gpd.GeoDataFrame(data, geometry=gpd.points_from_xy(data.x, data.y))
-                        
-                        # Create spatial-neighbor weights using queen contiguity
-                        w = Queen.from_dataframe(gdf)
-                        
-                        moran = Moran(rna_adata.X[:, i].todense(), w, permutations=999)
-                        
-                        moran_variances[i] = moran.VI_sim
-                        moran_Is[i] = moran.I
-                    
-                    # Some times there are nan values. I assume because genes are not really expressed in the window.
-                    bb_mean_moran_Is.append(np.mean(np.array(moran_Is)[~np.isnan(moran_Is)]))
-
-                    # TODO find a better way. Right now If a step does not any counts no value
-                    # is appended thus the figure has less step counts than actual counts.
-                    # What can I do here? Dummy value is also not possible.
-
-                    stepcount += 1
-        
-            y += ss_h
-        y = imagedim.bb_ymin
-        x += ss_w
-    
-    data = pd.DataFrame({
-        'step': [i for i in range(stepcount)],
-        'mean_moran_I': bb_mean_moran_Is
-    })
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data['step'], y=data['mean_moran_I'], mode='lines', name='Line'))
-    
-    fig.update_layout(
-        xaxis_title="Window Step",
-        yaxis_title="Mean Moran's I"
-    )
-
-    helperfuncs.apply_general_plotly_layout(fig, True)
-    
-    fig.write_html(f"{figure_path}/contamination_local_steps_{bb_ws[b]}_{bb_hs[b]}.html")
-    fig.write_image(f"{figure_path}/contamination_local_steps_{bb_ws[b]}_{bb_hs[b]}.png", scale=3)
-    
-    print(bb_mean_moran_Is)
-
-    return b, np.mean(bb_mean_moran_Is)
-
-# Calculate Moran's I for each gene
-def compute_for_gene(gene, rna_adata):
-    data = pd.DataFrame({
-        'x': rna_adata.obsm['spatial'][:, 0],
-        'y': rna_adata.obsm['spatial'][:, 1]
-    })
-    
-    gdf = gpd.GeoDataFrame(data, geometry=gpd.points_from_xy(data.x, data.y))
-    
-    # Create spatial-neighbor weights using queen contiguity
-    w = Queen.from_dataframe(gdf)
-
-    moran = Moran(rna_adata.X[:, list(rna_adata.var_names).index(gene)].todense(), w, permutations=999)
-    
-    return [gene, moran.VI_sim, moran.I]
-
+from ... import helperfuncs
 
 # Vectorized Moran-I for all genes in a neighborhood
 def moran_I_all_genes(X_dense: np.ndarray, w) -> np.ndarray:
@@ -191,9 +71,8 @@ def compute_one_i(i: int, num_genes, distance_matrix, center_cell_ids, coords_al
     I_all = moran_I_all_genes(X_sub, w)
     return center_cell_id, I_all
 
-# ----------------------------
+
 # Chunked worker: write into preallocated output
-# ----------------------------
 def worker_chunk(i_start: int, i_end: int, num_genes, distance_matrix, center_cell_ids, coords_all, rna_X):
     ids = np.empty((i_end - i_start,), dtype=np.int64)
     I_block = np.empty((i_end - i_start, num_genes), dtype=np.float32)
@@ -203,7 +82,8 @@ def worker_chunk(i_start: int, i_end: int, num_genes, distance_matrix, center_ce
         I_block[t, :] = I_all
     return i_start, ids, I_block
 
-def calculate_local_ambient_values(sdata, threads):
+
+def calculate_local_moran_I_values(sdata, threads):
 
     # ----------------------------
     # Precompute once (avoid .todense())
@@ -339,58 +219,3 @@ def calculate_local_ambient_values(sdata, threads):
     transcripts_df["local_moran_I"] = local_I
     print('... done calculating local morans I')
     return np.array(transcripts_df["local_moran_I"])
-
-
-
-def plot_global_ambient_qc(sdata, figure_path, spoqc_tmp_folder, threads):
-
-    rna_adata = sdata['table']
-
-    gene_svariance_moransI_list = []
-
-    # Create Moran's I variances and values
-    genes_list = list(rna_adata.var_names)
-
-    # TODO 
-    # Be careful with the order because of threading the list is filled based on how fast the indidivudal thread is.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
-        futures = [executor.submit(compute_for_gene, gene, rna_adata) for gene in genes_list]
-        for future in concurrent.futures.as_completed(futures):
-            gene_svariance_moransI_list.append(future.result())
-
-    data = pd.DataFrame(gene_svariance_moransI_list)
-    data.columns = ['genes', 'spatial_variance', 'morans_I']
-
-    # Sort the DataFrame by Moran's I in descending order and select the top x genes
-    data_sorted = data.sort_values(by='morans_I', ascending=False)
-
-    # Create the bar plot with flipped axes
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=data_sorted['morans_I'], y=data_sorted['genes'], orientation='h'))
-    fig.update_layout(
-        xaxis_title="Moran's I",
-        yaxis_title="Genes",
-        title=f"Autocorrelation for all Genes"
-    )
-    helperfuncs.apply_general_plotly_layout(fig, True)
-    fig.write_html(f"{figure_path}/contamination_global_morans_I.html")
-    fig.write_image(f"{figure_path}/contamination_global_morans_I.png", scale=3)
-    
-    helperfuncs.df_to_parquet(data_sorted, 'ambient', spoqc_tmp_folder, [], 'genes')
-    return data_sorted
-
-# Low resources, medium fast
-# TODO Plot the top_x_genes as scatter spatialdata plots 
-# TODO cellbender assessment: Density plot of cellbenders assignment of ambient RNA
-def start_qc_ambient(sdata, figure_path, spoqc_tmp_folder, threads):
-    sdata['table'].X = sdata['table'].layers['normlog']
-
-    # TODO check this again it definitly needs optimization !!!!
-    # print("[Note] Investigate local ambient contamination")
-    # plot_local_ambiant_qc(sdata, imagedim, figure_path, threads, [2000], [2000], 1900, 1900)
-
-    print("[Note] Investigate global ambient contamination")
-    global_ambient = plot_global_ambient_qc(sdata, figure_path, spoqc_tmp_folder, threads)
-
-    print("[finish]")
-    return global_ambient
