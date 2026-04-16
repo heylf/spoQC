@@ -1,12 +1,10 @@
 import os
 import dask.dataframe as dd
 import dask.array as da
-import pandas as pd
 import numpy as np
 import sys
 
 from scipy.stats import norm
-from sklearn.mixture import GaussianMixture
 from dask_ml.preprocessing import MinMaxScaler
 from dask_ml.wrappers import Incremental
 from sklearn.cluster import MiniBatchKMeans
@@ -183,20 +181,7 @@ def start_pixel_qc(
     # Transcript image specific
     if ( modality == 'hqtr' ):
 
-        qv_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_qv_prob', columns=["norm_p_qv_density"],
-                                 engine="pyarrow")
-        ac_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_ac_prob', columns=["norm_p_ac_density"],
-                                 engine="pyarrow")
-
-        # Informative pixel probability for hqtr = p(structure) + p(good qv) + p(not ambient)
-        a = image_ddf['norm_p_informative_pixel'].to_dask_array(lengths=True)
-        b = qv_ddf['norm_p_qv_density'].to_dask_array(lengths=True)
-        c = ac_ddf['norm_p_ac_density'].to_dask_array(lengths=True)
-        series = a + b + c 
-        image_ddf = image_ddf.assign(norm_p_informative_pixel=series)
-
-        scaled_ddf = scaler.fit_transform(image_ddf[['norm_p_informative_pixel']])
-        image_ddf = image_ddf.assign(norm_p_informative_pixel=scaled_ddf.iloc[:,0])
+        image_ddf = priors.combine_priors.combine_priors_hqtr(spoqc_tmp_folder, image_ddf)
 
         helperfuncs.plot_pixels(
             figure_path,

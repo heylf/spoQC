@@ -12,13 +12,11 @@ from __future__ import annotations
 # TODO change x and y axis for the correct once from the coordinate system. For all plots.
 
 # In[]
-
 import sys
 
 # Utility imports
 import os
 import random
-import shutil
 import argparse
 import importlib
 import numpy as np
@@ -28,14 +26,6 @@ import re
 # Tool imports
 import spatialdata as sd
 import spatialdata_plot
-import matplotlib.pyplot as plt
-import scanpy as sc
-
-# Tool froms
-from spatialdata_io import xenium
-from plotly.subplots import make_subplots
-from scipy.stats import pearsonr
-from scipy.stats import median_abs_deviation
 
 # Own scripts
 from spoqc import general
@@ -517,16 +507,14 @@ def main(argv: list[str] | None = None) -> None:
     ##################
     # Low resources and for a full dataset it takes 30 - 40 min.
     if ( CONST.STEP in ['all', 'unittest', 'hqcr_ident'] ):
-        cell_df, qc_metrices = hqr.hqcr.start_hqcr(sdata, CONST.TMP_PATH, imagedim, CONST, seed)
-        hqr.hqcr.plots_hqcr(sdata, CONST.FIGURE_PATH, cell_df, qc_metrices)
+        subworkflows.hqcr.start_hqcr(sdata, CONST.TMP_PATH, imagedim, CONST, seed)
         print("[finish]")
 
     # In[]
-    importlib.reload(hqr.hqcr)
     # Low resources and quick.
     if ( CONST.STEP in ['all', 'hqcr_celltype'] ):
         if ( CONST.ANNOTATION_FILE ):
-            hqr.hqcr.start_hqcr_celltype(sdata, CONST.TMP_PATH, imagedim, CONST)
+            subworkflows.hqcr.start_hqcr_celltype(sdata, CONST.TMP_PATH, imagedim, CONST)
             print("[finish]")
         else:
             print("[NOTE] No annotation file provided so I will not perform start_hqcr_celltype")
@@ -580,9 +568,6 @@ def main(argv: list[str] | None = None) -> None:
     #############################
     ###### COMBINE ALL HQR ######
     #############################
-    importlib.reload(helperfuncs)
-    importlib.reload(hqr.combine_masks)
-
     if ( CONST.STEP in ['all', 'combine_masks'] ):
 
         hqr.combine_masks.start_combining_masks(

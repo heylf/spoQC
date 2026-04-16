@@ -4,7 +4,7 @@ import plotly.express as px
 import dask.dataframe as dd
 
 from .. import helperfuncs
-from .. import hqr
+from .. import subworkflows
 
 def start_image_celltype_analysis(
         sdata,
@@ -66,17 +66,17 @@ def start_image_celltype_analysis(
 
     # Cell df
     helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
-    cell_df = hqr.hqcr.load_cell_df(counts, sdata)
+    cell_df = subworkflows.hqcr.load_cell_df(counts, sdata)
     cell_df[annotation_key] = sdata['table'].obs[annotation_key]
     cell_df['nucleus_free'] = sdata['table'].obs['wnucleus_free']
-    hqr.hqcr.cell_artefact_assignment(cell_df, sdata)
+    subworkflows.hqcr.cell_artefact_assignment(cell_df, sdata)
 
     figures = []
     for object in ['cell', 'nucleus']:
-        polys = hqr.hqcr.create_polygon_dataframe(sdata, imagedim, f'{object}_boundaries')
+        polys = subworkflows.hqcr.create_polygon_dataframe(sdata, imagedim, f'{object}_boundaries')
 
         for qc_metric in qc_metrics:
-            hqr.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
+            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
                                     image_df[qc_metric], qc_metric, figure_path, 'mean_values')
 
             fig = px.violin(
@@ -92,7 +92,7 @@ def start_image_celltype_analysis(
             fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}_{object}.png", scale=3)
 
         if ( object == 'cell' ):
-            hqr.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
+            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
                                     mask_df[f'{prefix}_mask'], f'{prefix}_class', figure_path, 'markov_labels')
             
             bar_plot_df_1 = (

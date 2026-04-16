@@ -3,9 +3,7 @@ import sys
 import numpy as np
 
 from .. import helperfuncs
-from .. import image_analysis
 from .. import metrics
-from .. import hqr
 
 def start_image_struc_analyis(
         sdata,

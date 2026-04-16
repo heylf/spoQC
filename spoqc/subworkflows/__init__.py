@@ -10,5 +10,6 @@ from . import qc_sc
 from . import qc_transcript
 from . import qc_void
 from . import qc_wsi
+from . import hqcr
 from . import hqpr
 from . import hqtr
