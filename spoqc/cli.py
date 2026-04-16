@@ -39,17 +39,10 @@ from scipy.stats import median_abs_deviation
 
 # Own scripts
 from spoqc import general
-from spoqc import whole_slide
-from spoqc import marker
-from spoqc import model_preparation
-from spoqc import cell_analysis
-from spoqc import multiplet
 from spoqc import hqr
-from spoqc import void
 from spoqc import helperfuncs
 from spoqc import process_datasets
 from spoqc import folder_structure
-from spoqc import additional_analysis
 from spoqc import plot_config
 from spoqc import subworkflows
 
@@ -458,8 +451,6 @@ def main(argv: list[str] | None = None) -> None:
     print("[finish]")
 
     # In[]
-    importlib.reload(helperfuncs)
-    importlib.reload(general.qc_adata)
     # Low resources and quick
     ########################
     ###### GENERAL QC ######
@@ -467,17 +458,7 @@ def main(argv: list[str] | None = None) -> None:
     if ( CONST.STEP in ['all', 'unittest', 'generalqc'] ):
         print('[NOTE] General QC')
         figure_path = f'{CONST.FIGURE_PATH}/generalqc/'
-
-        helperfuncs.plot_original_image_cell_circles(sdata, figure_path, '1')
-
-        general.qc_adata.quick_viz_images(figure_path, list(sdata.images), sdata)
-        general.qc_adata.rawqc(sdata, figure_path, CONST.ANNOTATION_FILE, CONST.ANNOTATION_KEY)
-        general.normalizations.cell_area_normalization(sdata)
-        general.valid_geometries.check_for_valid_geometries(sdata, figure_path)
-
-        print("[NOTE] Write results")
-        obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
-        print("[finish]")
+        subworkflows.qc_sc.run_qc_sc(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     # Low resources and quick
@@ -487,20 +468,8 @@ def main(argv: list[str] | None = None) -> None:
     if ( CONST.STEP in ['all', 'whole_slide_qc'] ):
         print('[NOTE] Domain QC')
         figure_path = f'{CONST.FIGURE_PATH}/whole_slide_qc/'
-
-        ax = sdata.pl.render_images(CONST.IMAGE_TYPE).pl.show(
-            title='',
-            frameon=False, 
-            return_ax=True,
-            pad_extent=0,
-            dpi=300
-        )   
-        ax.axis('off')
-        ax.invert_yaxis()
-        plt.savefig(f'{figure_path}/input_domain_thickness_analysis.png', bbox_inches='tight')
-        plt.close()
-
-        whole_slide.whole_slide_metrices.measure_stripe_thickness_and_black_area(
+        subworkflows.qc_wsi.generate_input(sdata, figure_path, CONST)
+        subworkflows.qc_wsi.measure_stripe_thickness_and_black_area(
             f'{figure_path}/input_domain_thickness_analysis.png',
             np.array([68,1,84]),
             f'{figure_path}'
@@ -514,11 +483,7 @@ def main(argv: list[str] | None = None) -> None:
     #######################
     if ( CONST.STEP in ['all', 'unittest', 'bubbleqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/bubbleqc/'
-        cell_analysis.qc_bubble.bubbleqc(sdata, figure_path, 'cell_boundaries')
-
-        print("[NOTE] Write results")
-        obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
-        print("[finish]")
+        subworkflows.qc_bubble.run_qc_bubble(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     ########################
@@ -527,124 +492,29 @@ def main(argv: list[str] | None = None) -> None:
     # High resources and slow (takes 18-19 hours for a full dataset)
     if ( CONST.STEP in ['all', 'unittest', 'doubletqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/doubletqc/'
-        mean_diameter = np.mean(sdata['cell_circles']['radius'])*2
-
-        print(f"[NOTE] Estimated cell diameter is {mean_diameter}")
-
-        # TODO maybe introduce also leiden clustering for estimation
-        ncelltypes = -1
-        if ( CONST.ANNOTATION_FILE and CONST.N_CELLTYPES == None ):
-            ncelltypes = annotation.ncelltypes
-        else:
-            ncelltypes = CONST.N_CELLTYPES
-
-        timer.start()
-        print(f"[NOTE] Doublet QC with {annotation.ncelltypes} estimated celltypes")
-        multiplet.qc_multiplet.doubletqc(
-            sdata,
-            figure_path,
-            CONST.TMP_PATH,
-            'transcripts',
-            ncelltypes,
-            mean_diameter,
-            3,
-            2,
-            3,
-            [10, 60],
-            1,
-            10
-        )
-        timer.stop()
-
-        print("[NOTE] Calculate overlap areas")
-        timer.start()
-        multiplet.qc_multiplet.calculate_overlap_areas(sdata)
-        timer.stop()
-
-        print("[NOTE] Write results")
-        obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
-        print("[finish]")
+        subworkflows.qc_doublets.run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns)
 
     # In[]
     # Low resource but long (takes 4-5 hours)
     #####################
     ###### VOID QC ######
     #####################
-    importlib.reload(void.qc_void)
-    importlib.reload(helperfuncs)
     if ( CONST.STEP in ['all', 'unittest', 'voidqc'] ):
-        print("[NOTE] Void QC")
-        figure_path = f'{CONST.FIGURE_PATH}/voidqc/'
-        # You can also provide contaminants with:
-        # void.qc_void.voidqc(sdata, figure_path, CONST.TMP_PATH, 30, ['CD3D', 'CD14', 'CD68'], CONST.THREADS)
-        void.qc_void.voidqc(sdata, figure_path, CONST.TMP_PATH, 30, [], CONST.THREADS)
-
-        print("[NOTE] Write results")
-        obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
-        print("[finish]")
-
-        #TODO activate this again if you mangage to speed up the counting for all transcripts
-        # helperfuncs.plot_scatter_density(
-        #     sdata['table'], figure_path, None, 
-        #     1, None, 'convexhull_all_transcripts', None, 'Density of convexhull'
-        # )
-
-        # TODO Check if border score differe between inner domain borders and outer slide edges borders.
-        # TODO does not work correctly yet. The quality clusters sometiems just go to different cell islands.
-        # I need to define bacgkround distribution first and define the bad quality cluster on that.
+        subworkflows.qc_void.run_qc_void(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     #####################
     ###### CELL QC ######
     #####################
-    importlib.reload(general.qc_transcript)
-    importlib.reload(helperfuncs)
-
     # Low resources and quicks for full dataset (40-50 min)
     if ( CONST.STEP in ['all', 'unittest', 'cellqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/cellqc/'
-
-        print("[NOTE] Convexity QC")
-        timer.start()
-        cell_analysis.cell_metrices.convexityqc(sdata, figure_path)
-        timer.stop()
-
-        print("[NOTE] Multinuclei QC")
-        # TODO check this again in contradicts the convexity analysis
-        timer.start()
-        cell_analysis.cell_metrices.multi_nuceli_qc(sdata, figure_path)
-        timer.stop()
-
-        print("[NOTE] Border cell inspection")
-        #TODO combine island score and border score to really just pick border cells and not smalle cell islands.
-        timer.start()
-        cell_analysis.cell_metrices.define_border_cells(sdata, figure_path, 1.0, 50, 10, CONST.THREADS)
-        timer.stop()
-
-        print("[NOTE] Cell island inspection")
-        timer.start()
-        hqr.hqcr.islandqc(sdata, figure_path, 15, 10)
-        timer.stop()
-
-        print("[NOTE] Low transcript quality inspection")
-        timer.start()
-        transcript_df = sdata['transcripts'].compute()
-        # at 10x Genomics they use a threshold of qv < 20 (see 10x Baysor tutorial)
-        general.qc_transcript.get_low_qc_transcript_count(transcript_df, sdata, 20, figure_path)
-        timer.stop()
-
-        print("[NOTE] Write results")
-        obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
-        print("[finish]")
-
+        subworkflows.qc_cell.run_qc_cell(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     ##################
     ###### HQCR ######
     ##################
-    importlib.reload(helperfuncs)
-    importlib.reload(hqr.hqcr)
-    importlib.reload(hqr.markov_random_field_zarr_parallel)
     # Low resources and for a full dataset it takes 30 - 40 min.
     if ( CONST.STEP in ['all', 'unittest', 'hqcr_ident'] ):
         cell_df, qc_metrices = hqr.hqcr.start_hqcr(sdata, CONST.TMP_PATH, imagedim, CONST, seed)
@@ -697,12 +567,11 @@ def main(argv: list[str] | None = None) -> None:
     ##################
     ###### HQTR ######
     ##################
-    importlib.reload(hqr.hqtr)
-    hqr.hqtr.get_hqtr(sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST, seed)
+    subworkflows.hqtr.get_hqtr(sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST, seed)
 
     # In[]
     if ( CONST.ANNOTATION_FILE ):
-        hqr.hqtr.celltype_refinement_of_hqtr(sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST)
+        subworkflows.hqtr.celltype_refinement_of_hqtr(sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST)
     else:
         print("[NOTE] No annotation file provided so I will not perform celltype_refinement_of_hqtr")
 
@@ -728,43 +597,20 @@ def main(argv: list[str] | None = None) -> None:
 
         print('[finish]')
 
-
-    # In[]
-    ############################
-    ###### SUBCELLULAR QC ######
-    ############################
-
-    # TODO Bento (see joplin note) --> needs to be install locally right now
-    # TODO can yo identify with bento stressed cells? (cells with transcript agglomerations that are related to stress)
-    # Which you can see with stress granules. 
-    # Calssification of subcellular transcript aggregation forms (different form e.g.. circles) 
-    # could corrspond to different function (e.g., stress granules).
-
     # In[]
     ###########################
     ###### TRANSCRIPT QC ######
     ###########################
-    importlib.reload(general.qc_transcript)
     if ( CONST.STEP in ['all', 'transcriptqc'] ):
-        # TODO include MT coverage
-        # TODO include Rb coverage
-        # TODO Hb coverage
-        # TODO include transcript count histogram on x and y axsis as in MerQuaCo
         print('[NOTE] Transcript QC')
         figure_path = f'{CONST.FIGURE_PATH}/transcriptqc/'
-        # general.qc_transcript.transcriptqc(
+        # subworkflows.qc_transcript.transcriptqc(
         #     sdata,
         #     figure_path,
         #     f'{CONST.TRANSCRIPT_REFERENCE}',
         #     'transcripts'
         # )
-
-        general.qc_transcript.negativeprobeqc(sdata, figure_path, 'transcripts')
-
-        # How many molecules of the gene panel have the z-level? (same height) --> plot distribution. 
-        # This helps to categorize the thickness of the tissue slide.
-        importlib.reload(general.qc_transcript)
-        #general.qc_transcript.transcriptz(sdata, figure_path, 'transcripts')
+        subworkflows.qc_transcript.negativeprobeqc(sdata, figure_path, 'transcripts')
         print("[finish]")
 
     # In[]
@@ -775,38 +621,7 @@ def main(argv: list[str] | None = None) -> None:
     if ( CONST.STEP in ['all', 'cellcycleqc'] ):
         print("[TASK] Cell cycle check")
         figure_path = f'{CONST.FIGURE_PATH}/cellcycleqc/'
-
-        plot_colors_phase = ['red', 'blue', 'yellow']
-
-        # Get cell cylce genes
-        cell_cycle_genes = [x.strip() for x in open(f'{CONST.CELLCYCLE_GENE_FILE}')]
-        cell_cycle_genes = list(set(cell_cycle_genes))
-        s_genes = cell_cycle_genes[:43]
-        g2m_genes = cell_cycle_genes[43:]
-
-        # Filter for genes that are in the sdata
-        cell_cycle_genes = list(set(cell_cycle_genes) & set(rna_adata.var_names))
-        s_genes = list(set(s_genes) & set(rna_adata.var_names))
-        g2m_genes = list(set(g2m_genes) & set(rna_adata.var_names))
-
-        # Just do cellcycle QC if genes are available
-        if ( len(s_genes) == 0 ):
-            print("[WARN] Sorry it seems your data has no S phase genes")
-        elif ( len(g2m_genes) == 0 ):
-            print("[WARN] Sorry it seems your data has no G2M phase genes")
-        elif ( len(cell_cycle_genes) > 0 ):
-            rna_adata = marker.qc_cellcycle.cellcycle_qc(
-                rna_adata,
-                figure_path,
-                cell_cycle_genes,
-                s_genes,
-                g2m_genes,
-                ['red', 'blue', 'yellow']
-            )
-            marker.qc_cellcycle.spatial_cellcycle_qc(figure_path, sdata)
-        else:
-            print("[WARN] Something else went wrong")
-
+        subworkflows.qc_cellcycle.run_qc_cellcycle(sdata, figure_path, CONST)
         print("[finish]")
 
     # In[]
@@ -816,27 +631,7 @@ def main(argv: list[str] | None = None) -> None:
     # Low resources and quick
     if ( CONST.STEP in ['all', 'modelqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/modelqc/'
-
-        # For model QC we need to get the normalized data
-        sdata['table'].X = sdata['table'].layers['normlogscale']
-
-        sc.tl.pca(rna_adata, n_comps=100)
-
-        df = pd.DataFrame({
-                'x': rna_adata.obsm['spatial'][:,0],
-                'y': rna_adata.obsm['spatial'][:,1]
-            })
-
-        X_pca = rna_adata.obsm['X_pca']
-
-        for i in range(0, CONST.nPCs):
-            df[f'PC{i}'] = X_pca[:,i]
-
-        sc.pl.pca_variance_ratio(rna_adata, n_pcs=100, log=True, save='.png')
-        shutil.move("figures/pca_variance_ratio.png", f"{figure_path}/pca_variance_ratio.png")
-
-        model_preparation.model_analysis.plot_pca_scatter(df, figure_path, CONST.nPCs)
-        model_preparation.model_analysis.plot_spatial_vs_exression_variance(sdata, figure_path, df, CONST.nPCs)
+        subworkflows.qc_model.run_qc_model(sdata, figure_path, CONST)
         print("[finish]")
 
     # In[]
@@ -846,149 +641,26 @@ def main(argv: list[str] | None = None) -> None:
     # Low resources, fast
     if ( CONST.STEP in ['all', 'markerqc'] ):
         if ( CONST.ANNOTATION_FILE ):
-
             figure_path = f'{CONST.FIGURE_PATH}/markerqc'
-            importlib.reload(helperfuncs)
-
-            sdata['table'].X = sdata['table'].layers['normlog']
-
-            # TODO for testing - remove later
-            # celltypes = ['A', 'B', 'C', 'D', 'E']
-            # rna_adata.obs['celltype'] = random.choices(celltypes, k=rna_adata.n_obs)
-            celltypes = list(set(rna_adata.obs['celltype']))
-
-            negative_markers = dict({'Invasive_Tumor': ['KRT14', 'MMP1', 'FOXC2'],
-                                    'CD8+_T_Cells': ['CD19', 'CD14', 'ITGAM'],
-                                    'B_Cells': ['CD3D', 'CD4', 'ITGAM'],
-                                    'Stromal': ['CD3D', 'CD14', 'CD68']
-                                    })
-
-            positive_markers = dict({'Invasive_Tumor': ['GATA3', 'ERBB2', 'EPCAM'],
-                                    'CD8+_T_Cells': ['CD8A', 'CD3D', 'CD247'],
-                                    'B_Cells': ['CD19', 'CD79B', 'CD1C'],
-                                    'Stromal': ['ACTA2']
-                                    })
-
-            # sanity check
-            for marker_list in negative_markers.values():
-                for m in marker_list:
-                    if m not in list(rna_adata.var.index):
-                        print(f'[ERROR] I could not find negative marker {m} in rna_adata.var')
-                    
-            for marker_list in positive_markers.values():
-                for m in marker_list:
-                    if m not in list(rna_adata.var.index):
-                        print(f'[ERROR] I could not find postive marker {m} in rna_adata.var')
-
-            marker.qc_marker.plot_marker_density_and_scatter(sdata, figure_path, negative_markers, 'negative_markers')
-            marker.qc_marker.plot_marker_density_and_scatter(sdata, figure_path, negative_markers, 'positive_markers')
-
-            marker.qc_marker.plot_marker_boxplot(
-                sdata,
-                figure_path,
-                negative_markers,
-                CONST.ANNOTATION_KEY,
-                'negative_markers'
-            )
-
-            marker.qc_marker.plot_marker_boxplot(
-                sdata,
-                figure_path,
-                positive_markers, 
-                CONST.ANNOTATION_KEY,
-                'positive_markers'
-            )
-
-            marker.qc_marker.plot_marker_radius_line(
-                sdata,
-                figure_path,
-                negative_markers,
-                'negative_markers',
-                CONST.THREADS,
-                CONST.ANNOTATION_KEY,
-                CONST.RADI
-            )
-            marker.qc_marker.plot_marker_radius_line(
-                sdata,
-                figure_path,
-                positive_markers,
-                'positive_markers',
-                CONST.THREADS,
-                CONST.ANNOTATION_KEY,
-                CONST.RADI
-            )
-
-            marker.qc_marker.plot_sanpy_score_genes(sdata, figure_path, negative_markers, 'negative_markers')
-            marker.qc_marker.plot_sanpy_score_genes(sdata, figure_path, positive_markers, 'positive_markers')
-
+            subworkflows.qc_marker.run_qc_marker(sdata, figure_path, CONST)
             print("[finish]")
         else:
             print("[NOTE] Marker QC will not be performmed because no annotation was provided.")
-
 
     # In[]
     #################################
     ###### ADDITIONAL ANALYSIS ######
     #################################
-
-    staining_list = [0]
-    if ( len(stainings) > 1 ):
-        staining_list = [str(x) for x in range(0, len(stainings))]
-    if ( 'dummy' in stainings ):
-        staining_list.remove(str(stainings.index('dummy')))
-
-    # In[]
-    importlib.reload(additional_analysis.analysis)
-    if ( CONST.STEP in ['all', 'analysis_overview'] and CONST.ANNOTATION_FILE):
-        additional_analysis.analysis.celltype_cluster_analysis(
-                sdata,
-                'overview',
-                CONST,
-                seed,
-                'raw',
-                dim_x,
-                dim_y,
-                imagedim,
-                staining_list,
-                annotation,
-        )
-        helperfuncs.sort_files(f'{CONST.FIGURE_PATH}/analysis/overview', 'prefix', ['res.txt', 'done.txt'])
-        print(f"[finish] {CONST.STEP}")
-
-
-    # In[]
-    importlib.reload(additional_analysis.analysis)
-    if ( CONST.STEP in ['all', 'analysis_cluster'] and CONST.ANNOTATION_FILE):
-        additional_analysis.analysis.celltype_cluster_analysis(
-                sdata,
-                'cluster',
-                CONST,
-                seed,
-                'raw',
-                dim_x,
-                dim_y,
-                imagedim,
-                staining_list,
-                annotation,
-        )
-        helperfuncs.sort_files(f'{CONST.FIGURE_PATH}/analysis/cluster', 'prefix', ['res.txt', 'done.txt'])
-        print(f"[finish] {CONST.STEP}")
-
-    # In[]
-    importlib.reload(additional_analysis.analysis)
-    if ( CONST.STEP in ['all', 'analysis_category'] and CONST.ANNOTATION_FILE):
-        additional_analysis.analysis.cell_category_analysis(
-                sdata,
-                'category',
-                CONST,
-                seed,
-                'raw',
-                dim_x,
-                dim_y,
-                imagedim,
-                staining_list,
-        )
-        print(f"[finish] {CONST.STEP}")
-
+    subworkflows.qc_additional_analysis.run_qc_additional_analysis(
+        sdata,
+        CONST,
+        annotation,
+        seed,
+        imagedim,
+        dim_x,
+        dim_y,
+        stainings
+    )
 
     print("[FINISH]")
+# %%

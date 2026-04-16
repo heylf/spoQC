@@ -394,3 +394,74 @@ def plot_sanpy_score_genes(sdata, figure_path, markers, name):
 
     fig.write_html(f"{figure_path}/boxplot_{name}_scanpy_gene_scores_plot.html")
     fig.write_image(f"{figure_path}/boxplot_{name}_scanpy_gene_scores_plot.png", scale=3)
+
+
+def run_qc_marker(sdata, figure_path, CONST):
+
+    sdata['table'].X = sdata['table'].layers['normlog']
+    rna_adata = sdata.table
+
+    # TODO for testing - remove later
+    negative_markers = dict({'Invasive_Tumor': ['KRT14', 'MMP1', 'FOXC2'],
+                            'CD8+_T_Cells': ['CD19', 'CD14', 'ITGAM'],
+                            'B_Cells': ['CD3D', 'CD4', 'ITGAM'],
+                            'Stromal': ['CD3D', 'CD14', 'CD68']
+                            })
+
+    positive_markers = dict({'Invasive_Tumor': ['GATA3', 'ERBB2', 'EPCAM'],
+                            'CD8+_T_Cells': ['CD8A', 'CD3D', 'CD247'],
+                            'B_Cells': ['CD19', 'CD79B', 'CD1C'],
+                            'Stromal': ['ACTA2']
+                            })
+
+    # sanity check
+    for marker_list in negative_markers.values():
+        for m in marker_list:
+            if m not in list(rna_adata.var.index):
+                print(f'[ERROR] I could not find negative marker {m} in rna_adata.var')
+            
+    for marker_list in positive_markers.values():
+        for m in marker_list:
+            if m not in list(rna_adata.var.index):
+                print(f'[ERROR] I could not find postive marker {m} in rna_adata.var')
+
+    plot_marker_density_and_scatter(sdata, figure_path, negative_markers, 'negative_markers')
+    plot_marker_density_and_scatter(sdata, figure_path, negative_markers, 'positive_markers')
+
+    plot_marker_boxplot(
+        sdata,
+        figure_path,
+        negative_markers,
+        CONST.ANNOTATION_KEY,
+        'negative_markers'
+    )
+
+    plot_marker_boxplot(
+        sdata,
+        figure_path,
+        positive_markers, 
+        CONST.ANNOTATION_KEY,
+        'positive_markers'
+    )
+
+    plot_marker_radius_line(
+        sdata,
+        figure_path,
+        negative_markers,
+        'negative_markers',
+        CONST.THREADS,
+        CONST.ANNOTATION_KEY,
+        CONST.RADI
+    )
+    plot_marker_radius_line(
+        sdata,
+        figure_path,
+        positive_markers,
+        'positive_markers',
+        CONST.THREADS,
+        CONST.ANNOTATION_KEY,
+        CONST.RADI
+    )
+
+    plot_sanpy_score_genes(sdata, figure_path, negative_markers, 'negative_markers')
+    plot_sanpy_score_genes(sdata, figure_path, positive_markers, 'positive_markers')

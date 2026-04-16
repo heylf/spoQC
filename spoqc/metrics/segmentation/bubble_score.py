@@ -4,9 +4,9 @@ import plotly.express as px
 
 from typing import Any, Dict
 
-from .. import helperfuncs
+from ... import helperfuncs
 
-def bubbleqc(sdata: Dict[str, Any], figure_path: str, bubble_key: str) -> None:
+def calc_bubble_score(sdata: Dict[str, Any], figure_path: str, bubble_key: str) -> None:
     """
     Analyze and visualize cell geometries to identify potential bubble-like structures in spatial data.
 

@@ -4,12 +4,12 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 
-from .. import helperfuncs
+from ... import helperfuncs
 
 # window_sizes = for plotting. You can selected more windowsizes. This is just to zoom in or out for double plots.
 # num_doublet = is just the amount of doublet that will be plottet as examples.
 # distance = Threshold to use to call a cell a doublet cell if its close to the detected doublet signal of ovrlpy.
-def doubletqc(
+def calc_doublet_score(
         sdata,
         figure_path,
         spoqc_tmp_folder,
@@ -191,14 +191,3 @@ def doubletqc(
     transcript_doublet_df.index = transcript_coordinates_df.index
 
     helperfuncs.df_to_parquet(transcript_doublet_df, 'doublet', spoqc_tmp_folder, [], 'transcripts')
-
-# TODO speed_up
-def calculate_overlap_areas(sdata):
-    cells = sdata['cell_boundaries']
-    overlap_areas = []
-    
-    for i, cell in cells.iterrows():
-        overlapping_area = sum(cells.loc[cells.index != i, "geometry"].intersection(cell.geometry).area)
-        overlap_areas.append(overlapping_area)
-
-    sdata['table'].obs['cell_overlap_area'] = overlap_areas

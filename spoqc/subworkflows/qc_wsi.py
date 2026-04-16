@@ -136,3 +136,16 @@ def min_distance(coords: Tuple[float, float], compare_coords: List[Tuple[float, 
         float: The minimum Euclidean distance between `coords` and the coordinates in `compare_coords`.
     """
     return np.min([helperfuncs.euclidean_distance(x, coords) for x in compare_coords])
+
+def generate_input(sdata, figure_path, CONST):
+    ax = sdata.pl.render_images(CONST.IMAGE_TYPE).pl.show(
+        title='',
+        frameon=False, 
+        return_ax=True,
+        pad_extent=0,
+        dpi=300
+    )   
+    ax.axis('off')
+    ax.invert_yaxis()
+    plt.savefig(f'{figure_path}/input_domain_thickness_analysis.png', bbox_inches='tight')
+    plt.close()

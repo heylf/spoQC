@@ -5,25 +5,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 import random
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
-import spatialdata_plot
 
 from scipy.stats import pearsonr
 
-from .. import helperfuncs
-from .. import general
-
-def quick_viz_images(figure_path, image_names, sdata):
-
-    for i, image in enumerate(image_names):
-        sdata.pl.render_images(image).pl.show(title=image, dpi=300)
-    plt.savefig(f'{figure_path}/all_images.png')
-    plt.close()
-
-    for i in image_names:
-        sdata.pl.render_images(i).pl.show(title=i)
-        plt.savefig(f'{figure_path}/{i}.png')
-        plt.close()
+from ... import helperfuncs
+from ... import general
 
 def add_pearsoncorr_to_plotly(fig, x, y, xpos=0.05, ypos=0.95):
     """Calculate Pearson correlation and add as annotation to Plotly figure."""
@@ -111,7 +97,7 @@ def prepate_qc(sdata, figure_path=None):
     return rna
 
 
-def rawqc(sdata, figure_path, annotation_path, annotation_key):
+def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
     ####################################################################################################################
     ###### GLOBAL VARS and DIRECTORIES #################################################################################

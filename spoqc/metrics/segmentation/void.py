@@ -11,7 +11,7 @@ import seaborn as sns
 import concurrent.futures
 import os
 
-from .. import helperfuncs
+from ... import helperfuncs
 
 def count_stuff_in_triangles(triangle_array, stuff):
     counts = np.zeros(len(triangle_array), dtype=int)
@@ -87,7 +87,7 @@ def build_triangle_graph_using_neighbors(delaunay, points):
 
 # Interesting voids hold still a lot of information.
 # Less interesting voids almost have nothing in there.
-def voidqc(
+def calc_void(
         sdata,
         figure_path,
         spoqc_tmp_folder,

@@ -9,6 +9,11 @@ from typing import Any
 
 from .. import helperfuncs
 
+# TODO include MT coverage
+# TODO include Rb coverage
+# TODO Hb coverage
+# TODO include transcript count histogram on x and y axsis as in MerQuaCo
+
 # data from https://www.gencodegenes.org/human/
 def parse_gtf(file_path: str) -> None:
     """

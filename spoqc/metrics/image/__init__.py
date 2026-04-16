@@ -5,4 +5,5 @@ from . import relevance
 from . import uniformity
 from . import homogenity
 from . import lbp
+from . import pixel_score
 from . import utility

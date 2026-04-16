@@ -125,3 +125,36 @@ def spatial_cellcycle_qc(figure_path: str, sdata: Any) -> None:
     })
 
     helperfuncs.plot_scatter_density_by_category_df(df, 'phase', figure_path, '1', ['yellow'], None)
+
+
+def run_qc_cellcycle(sdata, figure_path, CONST):
+    rna_adata = sdata.table
+
+    # Get cell cylce genes
+    cell_cycle_genes = [x.strip() for x in open(f'{CONST.CELLCYCLE_GENE_FILE}')]
+    cell_cycle_genes = list(set(cell_cycle_genes))
+    s_genes = cell_cycle_genes[:43]
+    g2m_genes = cell_cycle_genes[43:]
+
+    # Filter for genes that are in the sdata
+    cell_cycle_genes = list(set(cell_cycle_genes) & set(rna_adata.var_names))
+    s_genes = list(set(s_genes) & set(rna_adata.var_names))
+    g2m_genes = list(set(g2m_genes) & set(rna_adata.var_names))
+
+    # Just do cellcycle QC if genes are available
+    if ( len(s_genes) == 0 ):
+        print("[WARN] Sorry it seems your data has no S phase genes")
+    elif ( len(g2m_genes) == 0 ):
+        print("[WARN] Sorry it seems your data has no G2M phase genes")
+    elif ( len(cell_cycle_genes) > 0 ):
+        rna_adata = cellcycle_qc(
+            rna_adata,
+            figure_path,
+            cell_cycle_genes,
+            s_genes,
+            g2m_genes,
+            ['red', 'blue', 'yellow']
+        )
+        spatial_cellcycle_qc(figure_path, sdata)
+    else:
+        print("[WARN] Something else went wrong")

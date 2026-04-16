@@ -5,6 +5,8 @@ import pandas as pd
 import seaborn as sns
 import plotly.graph_objects as go
 import geopandas as gpd
+import scanpy as sc
+import shutil
 
 from plotly.subplots import make_subplots
 from esda.moran import Moran
@@ -168,3 +170,27 @@ def plot_spatial_vs_exression_variance(sdata, figure_path, df, nPCs):
 
     fig.write_html(f"{figure_path}/pca_evaluation_moransi.html")
     fig.write_image(f"{figure_path}/pca_evaluation_moransi.png", scale=3)
+
+
+def run_qc_model(sdata, figure_path, CONST):
+    # For model QC we need to get the normalized data
+    sdata['table'].X = sdata['table'].layers['normlogscale']
+    rna_adata = sdata.table
+
+    sc.tl.pca(rna_adata, n_comps=100)
+
+    df = pd.DataFrame({
+            'x': rna_adata.obsm['spatial'][:,0],
+            'y': rna_adata.obsm['spatial'][:,1]
+        })
+
+    X_pca = rna_adata.obsm['X_pca']
+
+    for i in range(0, CONST.nPCs):
+        df[f'PC{i}'] = X_pca[:,i]
+
+    sc.pl.pca_variance_ratio(rna_adata, n_pcs=100, log=True, save='.png')
+    shutil.move("figures/pca_variance_ratio.png", f"{figure_path}/pca_variance_ratio.png")
+
+    plot_pca_scatter(df, figure_path, CONST.nPCs)
+    plot_spatial_vs_exression_variance(sdata, figure_path, df, CONST.nPCs)
