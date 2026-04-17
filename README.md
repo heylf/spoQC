@@ -12,6 +12,8 @@
 
 Currently this code is under private usage. It is not allowed to distrbute or publish it. If you are invited to work on this project then please keep a copy/fork of this repo private.
 
+You want to contribute to spoQC or reuse some of our code then checkout [how to contribute to spoQC](#contribute).
+
 <img src="figures/extra/grapical_abstract.png" width="800">
 
 # Cite
@@ -123,6 +125,9 @@ For example for the first step you execute the command:
 python3 -m spoqc -s generalqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
 
+# Contribute
+SpoQC was written with a modular code design. We describe in the [contribution guide](docs/contribute.md), where you find important code snippets, such as metrics, priors and subworkflows. SpoQC was built under the idea that additional metrics and subworkflows can be provided in order to enhance spoQC's capability to identify high quality regions.
+
 # AI Assistance Disclosure
 
 This tool was written with the assistance of AI coding agents (ChatGPT).
@@ -132,7 +137,7 @@ We used AI for the following scripts:
 * `markov_random_field_zarr.py` and `markov_random_field_zarr_parallel.py`
     * an intial version was written `markov_random_field.py` by hand
     * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
-* `image_metrices.py`
+* `metrics/`
     * several metrics were written by AI
 * `pixel_scoring_dask.py`
     * an intial version was written by hand
