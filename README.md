@@ -7,6 +7,9 @@
 > [!NOTE]
 > :bangbang: SpoQC is under active developement and still in apha phase. You will experience lots of issues. If you are an alpha tester and run into problems please contact us or write an issue. We are happy to receive feeback and PRs to improve spoQC. :bangbang:
 
+> [!NOTE]
+> :bangbang: SpoQC needs an HPC infrastructure to perform all tasks on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data. In order to reduce runtime please check out how to run [spoQC with Nextflow](#nextflow-subworkflow). We are continously to improve the performance for spoQC to support an easier local usage. :bangbang:
+
 Currently this code is under private usage. It is not allowed to distrbute or publish it. If you are invited to work on this project then please keep a copy/fork of this repo private.
 
 <img src="figures/extra/grapical_abstract.png" width="800">
@@ -47,7 +50,7 @@ pip install spoqc
 
 # Nextflow subworkflow
 
-You can use the tool sequential, but it will take 4-5 days to complete everything. In order to speed things up, we provide a nextflow subworkflow that will reduce the time to 1-2 days. You can find the subworkflow under [nf-core/spatialxe](https://github.com/nf-core/spatialxe/tree/dev) in the spoQC branch. SpoQC needs an HPC infrastructure to perform all task on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data.
+You can use the tool sequential, but it will take 4-5 days to complete everything. In order to speed things up, we provide a nextflow subworkflow that will reduce the time to 1-2 days. You can find the subworkflow under [nf-core/spatialxe](https://github.com/nf-core/spatialxe/tree/dev) in the spoQC branch. SpoQC needs an HPC infrastructure to perform all tasks on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data.
 
 > [!NOTE]
 > We are developing a Nextflow SRT QC sub-workflow repository to support all technologies. If new data modalities are added to spoQC they will also be present in this repository: [soon to come]().
