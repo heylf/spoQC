@@ -1,6 +1,25 @@
 import dask.dataframe as dd
 from dask_ml.preprocessing import MinMaxScaler
 
+from .. import priors
+from .. import helperfuncs
+
+def combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts):
+
+    prior_transcript_counts, cell_df = priors.hqcr.transcript_counts.calc_transcript_counts_probs(
+        sdata, 
+        figure_path,
+        cell_df,
+        qc_domains_adata,
+        counts
+    )
+
+    prior_doublet_distance = priors.hqcr.doublet_distance.calc_probs_doublet_distance(sdata, nstds=100)
+    final_prior = prior_transcript_counts + prior_doublet_distance
+    final_prior = helperfuncs.min_max_normalize(final_prior)
+    sdata['table'].obs['good_quality_probabilities'] = final_prior
+
+
 # We will combine the pixel scorep prior with more priors
 def combine_priors_hqtr(spoqc_tmp_folder, image_ddf):
     scaler = MinMaxScaler()
@@ -21,5 +40,6 @@ def combine_priors_hqtr(spoqc_tmp_folder, image_ddf):
     image_ddf = image_ddf.assign(norm_p_informative_pixel=scaled_ddf.iloc[:,0])
 
     return image_ddf
+
 
 # %%

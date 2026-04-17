@@ -73,11 +73,16 @@ def calc_transcript_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, 
     })
 
     distance_matrix = helperfuncs.points_within_radius(df_coords, 30, False)
-    bad_quality_probabilities =  [get_bad_quality_probability(x, cell_df, distance_matrix, bad_cluster, 'qc_cluster') \
-                                  for x in range(sdata['table'].n_obs)]
-    
+    bad_quality_probabilities =  np.array([get_bad_quality_probability(
+        x,
+        cell_df,
+        distance_matrix,
+        bad_cluster,
+        'qc_cluster'
+    ) for x in range(sdata['table'].n_obs)])
+    good_quality_probabilities = 1 - bad_quality_probabilities
 
-    return bad_quality_probabilities, cell_df
+    return good_quality_probabilities, cell_df
 
 
 def calc_celltype_transcript_counts_probs(
@@ -103,7 +108,13 @@ def calc_celltype_transcript_counts_probs(
 
     # Calculate bad quality probability
     distance_matrix = helperfuncs.points_within_radius(df_coords, 30, False)
-    bad_quality_probs_celltype =  [get_bad_quality_probability(x, cell_df, distance_matrix, 1, 'qc_celltype_class') \
-                                   for x in range(sdata['table'].n_obs)]
+    bad_quality_probs_celltype =  np.array([get_bad_quality_probability(
+        x,
+        cell_df,
+        distance_matrix,
+        1,
+        'qc_celltype_class'
+    ) for x in range(sdata['table'].n_obs)])
+    good_quality_probabilities = 1 - bad_quality_probs_celltype
     
-    return bad_quality_probs_celltype, cell_df
+    return good_quality_probabilities, cell_df
