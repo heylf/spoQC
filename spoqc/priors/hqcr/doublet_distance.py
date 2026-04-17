@@ -21,6 +21,5 @@ def calc_probs_doublet_distance(sdata, nstds=None):
     if ( len(distances[distances == 100_000]) != len(distances) ):
         probs = helperfuncs.min_max_normalize(prob_densities)
 
-    print(probs)
     probs_good_quality = 1 - probs
     return probs_good_quality
