@@ -505,6 +505,9 @@ def main(argv: list[str] | None = None) -> None:
     ##################
     ###### HQCR ######
     ##################
+    from spoqc import priors
+    importlib.reload(priors.combine_priors)
+    importlib.reload(priors.hqcr.doublet_distance)
     # Low resources and for a full dataset it takes 30 - 40 min.
     if ( CONST.STEP in ['all', 'unittest', 'hqcr_ident'] ):
         subworkflows.hqcr.start_hqcr(sdata, CONST.TMP_PATH, imagedim, CONST, seed)
