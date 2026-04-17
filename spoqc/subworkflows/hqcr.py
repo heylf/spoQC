@@ -446,7 +446,6 @@ def clustering_for_hqcr(qc_domains_adata, figure_path, seed, test_res_n_clusters
     sc.tl.leiden(qc_domains_adata, resolution=1.2)
 
 
-# TODO so far I only use counts to define bad quality cells, consider later to inroduce other metrices as well.
 def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
     figure_path = f'{CONST.FIGURE_PATH}/hqcr/hqcr_ident/'
 
@@ -464,6 +463,10 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
         qc_domains_adata,
         counts
     )
+
+    # TODO
+    # TODO so far I only use counts to define bad quality cells, consider later to inroduce other metrices as well.
+    # priors.combine_priors.combine_priors_hqtr(spoqc_tmp_folder, image_ddf)
 
     sdata['table'].obs['bad_quality_probabilities'] = bad_quality_probabilities
 
