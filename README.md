@@ -39,7 +39,7 @@ pip install spoqc
 * 10x Xenium
 
 > [!NOTE]
-> CosMx: We currently working on to support this data. 
+> CosMx: We currently working to support this data. 
 
 # Input
 
