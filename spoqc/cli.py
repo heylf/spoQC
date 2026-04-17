@@ -490,6 +490,7 @@ def main(argv: list[str] | None = None) -> None:
     ###### VOID QC ######
     #####################
     if ( CONST.STEP in ['all', 'unittest', 'voidqc'] ):
+        figure_path = f'{CONST.FIGURE_PATH}/voidqc/'
         subworkflows.qc_void.run_qc_void(sdata, figure_path, CONST, obs_columns)
 
     # In[]
