@@ -311,7 +311,6 @@ def main(argv: list[str] | None = None) -> None:
     timer = helperfuncs.Timer()
 
     # ---------------- Folder Structure ------------
-    importlib.reload(folder_structure)
     folder_structure.create_folder_structure(CONST)
 
     # In[]
@@ -330,7 +329,6 @@ def main(argv: list[str] | None = None) -> None:
     # Cropping for testing
     if ( CONST.TESTING > 0 ):
         print('[NOTE] Cropping for testing')
-        importlib.reload(helperfuncs)
         start = 10500
         end = CONST.TESTING
         cropped_sdata, _, _ = helperfuncs.image_crop(sdata, start, start, start+end, start+end+500, 'global')
