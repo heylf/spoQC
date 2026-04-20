@@ -3,8 +3,7 @@ import sys
 import numpy as np
 
 from .. import helperfuncs
-from .. import image_analysis
-from .. import hqr
+from .. import metrics
 
 def start_image_struc_analyis(
         sdata,
@@ -38,7 +37,13 @@ def start_image_struc_analyis(
     intensities = None
     if ( modality == 'hqtr' ):
         # Intensities already flipped
-        intensities = hqr.hqtr.generate_transcript_density_image(sdata, figure_path, imagedim, image_type, resolution)
+        intensities = metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
+            sdata,
+            figure_path,
+            imagedim,
+            image_type,
+            resolution
+        )
         xy_intensities = intensities.reshape(dim_x, dim_y)
     else:
         xy_intensities = sdata[image_type][resolution].image.values[int(staining)]
@@ -81,7 +86,7 @@ def start_image_struc_analyis(
     bin_edges = None
 
     if ( modality == 'hqpr' ):
-        background_intensity, hist, bin_edges = image_analysis.image_metrices.estimate_background_intensity_dask(
+        background_intensity, hist, bin_edges = metrics.image.utility.estimate_background_intensity_dask(
             sdata,
             image_type,
             resolution,
@@ -94,7 +99,7 @@ def start_image_struc_analyis(
         # Not valid for hqtr because the background is a constant of 0.0.
         print('[NOTE] Evaluate pixel intensity')
         timer.start()
-        signal_noise_ratio_log2fc = image_analysis.image_metrices.pixel_intensity_qc(figure_path, intensities, 
+        signal_noise_ratio_log2fc = metrics.image.utility.pixel_intensity_qc(figure_path, intensities, 
                                                                  background_intensity, hist, bin_edges, 
                                                                  dim_x, dim_y, imagedim)
         timer.stop()
@@ -107,7 +112,7 @@ def start_image_struc_analyis(
         # Mostly useful to identify if windows have specific patterns you want to cluster.
         print('[NOTE] Investigate local binary patterns')
         timer.start()
-        lbp = image_analysis.image_metrices.pixel_lbp(figure_path, xy_intensities, 100, 3, imagedim)
+        lbp = metrics.image.lbp.pixel_lbp(figure_path, xy_intensities, 100, 3, imagedim)
         timer.stop()
         helperfuncs.nparr_to_parquet(lbp, step, spoqc_tmp_folder, tmp_suffix)
 
@@ -120,7 +125,7 @@ def start_image_struc_analyis(
         # EDGE STRENGTH - Edge detection
         print('[NOTE] Calculate edge strength')
         timer.start()
-        edge_strength = image_analysis.image_metrices.pixel_edge_strength(figure_path, xy_intensities, imagedim)
+        edge_strength = metrics.image.edge_strength.pixel_edge_strength(figure_path, xy_intensities, imagedim)
         timer.stop()
         helperfuncs.nparr_to_parquet(edge_strength, step, spoqc_tmp_folder, tmp_suffix)
 
@@ -129,7 +134,7 @@ def start_image_struc_analyis(
         # How much inforamtion has a pixel?
         print('[NOTE] Calculate pixel energy')
         timer.start()
-        pixel_energy = image_analysis.image_metrices.pixel_energy(figure_path, xy_intensities, 5, imagedim)
+        pixel_energy = metrics.image.energy.pixel_energy(figure_path, xy_intensities, 5, imagedim)
         timer.stop()
         helperfuncs.nparr_to_parquet(pixel_energy, step, spoqc_tmp_folder, tmp_suffix)
 
@@ -138,7 +143,7 @@ def start_image_struc_analyis(
         # Just check which pixel are have intensities bigger than background.
         print('[NOTE] Investigate pixel relevance')
         timer.start()
-        pixel_relevance = image_analysis.image_metrices.pixel_relevance(figure_path, xy_intensities, 
+        pixel_relevance = metrics.image.relevance.pixel_relevance(figure_path, xy_intensities, 
                                                                         background_intensity, imagedim)
         timer.stop()
         helperfuncs.nparr_to_parquet(pixel_relevance, step, spoqc_tmp_folder, tmp_suffix)
@@ -149,7 +154,7 @@ def start_image_struc_analyis(
         # Computational expensive.
         print("[NOTE] Calculate pixel entropy")
         timer.start()
-        pixel_entropy = image_analysis.image_metrices.pixel_entropy(figure_path, xy_intensities, 5, imagedim)
+        pixel_entropy = metrics.image.entropy.pixel_entropy(figure_path, xy_intensities, 5, imagedim)
         timer.stop()
         helperfuncs.nparr_to_parquet(pixel_entropy, step, spoqc_tmp_folder, tmp_suffix)
 
@@ -162,7 +167,7 @@ def start_image_struc_analyis(
         # Is the pixel in a noisy region?
         print("[NOTE] Calculate pixel uniformity with")
         timer.start()
-        pixel_uniformity = image_analysis.image_metrices.pixel_uniformity(figure_path, xy_intensities, 5, imagedim)
+        pixel_uniformity = metrics.image.uniformity.pixel_uniformity(figure_path, xy_intensities, 5, imagedim)
         timer.stop()
         helperfuncs.nparr_to_parquet(pixel_uniformity, step, spoqc_tmp_folder, tmp_suffix)
 
@@ -173,6 +178,6 @@ def start_image_struc_analyis(
         # Computational expensive.
         print("[NOTE] Calculate pixel homogeneity")
         timer.start()
-        pixel_homogeneity = image_analysis.image_metrices.pixel_homogeneity(figure_path, xy_intensities, imagedim, 5)
+        pixel_homogeneity = metrics.image.homogenity.pixel_homogeneity(figure_path, xy_intensities, imagedim, 5)
         timer.stop()
         helperfuncs.nparr_to_parquet(pixel_homogeneity, step, spoqc_tmp_folder, tmp_suffix)
