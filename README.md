@@ -39,7 +39,7 @@ pip install spoqc
 * 10x Xenium
 
 > [!NOTE]
-> CosMx: We currently working to support this data. 
+> Atera: We currently working to support this data. 
 
 # Input
 
