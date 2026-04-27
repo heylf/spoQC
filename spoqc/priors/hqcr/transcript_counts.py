@@ -24,7 +24,6 @@ def reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
     helperfuncs.plot_scatter(qc_domains_adata, figure_path, 'leiden', None, 'leiden', None, None)
 
     # Shrink down number of leidenclusters into 3 main quality levels (low, mid, high) based QC metrices.
-    # TODO so far I just unse transcripts count. Think about to incooporate different or more QC metrices.
     mean_counts = [np.mean(cell_df.loc[cell_df['leiden'] == c][counts]) for c in clusters]
 
     n = len(clusters)

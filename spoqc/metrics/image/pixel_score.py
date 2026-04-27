@@ -21,7 +21,6 @@ def read_data_as_ddf(tmp_files, chunk_size):
         array_columns.append(col_arr[:, None])  # make 2D for stacking
 
     # Stack columns into 2D Dask Array
-    # TODO remove .astype(np.float32) as soon as I have recaulcuated values as floats
     dask_array = da.hstack(array_columns).astype(np.float32)  # Much cheaper than dd.concat
     dask_array = dask_array.rechunk((chunk_size, -1))
     # Optional but recommended to avoid re-reading Parquet each epoch:
@@ -93,7 +92,6 @@ def calc_pixel_score(
     print('[NOTE] Refine pixel intensities')
     background_intensity = 0.0
 
-    # TODO potential probelm with memory.
     if ( modality == 'hqpr' ):
         background_intensity, _, _ = metrics.image.utility.estimate_background_intensity(
                                                 image_ddf['intensity'].compute().to_numpy()

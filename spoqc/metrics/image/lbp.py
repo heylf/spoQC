@@ -4,12 +4,10 @@ from ... import helperfuncs
 
 def pixel_lbp(figure_path, xy_intensities, n_points, radius, imagedim):
     """
-    #TODO change description
-
     Calculate the Local Binary Pattern (LBP) of a grayscale image.
 
     Args:
-        img #TODO
+        img: Provided image data.
         radius (int): Radius of the circle for LBP computation.
         n_points (int): Number of points in the circular neighborhood.
 

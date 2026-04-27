@@ -48,7 +48,6 @@ def first_version_loopy_belief_propagation(prob_map, beta=1.0, alpha=0.3, max_it
     for it in range(max_iter):
         print(it)
 
-        # TODO discuss those directions or should I consider also diagonal neighbours?
         # Theoretically it should be fine since the message treavels from the diagonal neighbours to the direkct neighbours
         # and then to center point,
         up = messages[0, 0:(n_pad-2), 1:(m_pad-1)]

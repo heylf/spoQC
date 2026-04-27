@@ -287,7 +287,6 @@ def fast_kde2d(
 
 
 # Create a function to generate density plots for each category of a key
-# TODO make this compatible with anndata
 def plot_density_by_category(df: pd.DataFrame, key: str, figure_path: Union[str, None], flip=False) -> None:
     """
     Generate and save density plots for each category in a given column of a DataFrame.
@@ -308,7 +307,6 @@ def plot_density_by_category(df: pd.DataFrame, key: str, figure_path: Union[str,
 
     ax = plt.gca()
     
-    # TODO plotly plot here?
     for i, category in enumerate(categories):
         plt.subplot(1, len(categories), i + 1)
         
@@ -340,7 +338,6 @@ def plot_density_by_category(df: pd.DataFrame, key: str, figure_path: Union[str,
     plt.close()
 
 # Same as kde but scatter plot
-# TODO make this compatible with anndata
 def plot_scatter_by_category(df: pd.DataFrame, key: str, figure_path: str, suffix: str,
                              title: Optional[str], palette: Union[str, Dict[str, str]],
                              pointsize=1.0, flip=False) -> None:
@@ -383,7 +380,6 @@ def plot_scatter_by_category(df: pd.DataFrame, key: str, figure_path: str, suffi
     plt.close()
 
 
-# TODO docstring needs update
 def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path: Union[str, None], suffix: str,
                                         palette: Union[str, dict, None],
                                         title: Optional[str], pointsize=1.0, flip=False) -> None:
@@ -739,7 +735,6 @@ def points_within_radius(df: pd.DataFrame, radius: float, num: bool) -> List[Uni
     for i, point in df.iterrows():
         x1, y1 = point['x'], point['y']
         
-        # TODO just do this once and add distance to cell_spatial_coords?
         # Calculate the distance from this point to all other points
         distances = np.sqrt((df['x'] - x1)**2 + (df['y'] - y1)**2)
         

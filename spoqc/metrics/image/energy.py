@@ -6,11 +6,10 @@ from ... import helperfuncs
 
 def pixel_energy(figure_path, xy_intensities, window_size, imagedim):
     """
-    # TODO adjust description
     Calculate the energy in a local neighborhood for each pixel in a grayscale image.
 
     Args:
-        img: #TODO
+        img: provided image data.
         window_size (int): Size of the sliding window (must be odd).
 
     Returns:

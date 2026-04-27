@@ -87,7 +87,6 @@ def generate_transcript_ambient_density_image(
     xy_kernel_transcript_density = np.flipud(xy_kernel_transcript_density)
     # xy_kernel_transcript_density = xy_kernel_transcript_density.astype(np.uint16) # conversion needed for cv2
 
-    # TODO this plot needs to be checked again.
     if ( figure_path != None ):
         helperfuncs.plot_pixels(
             figure_path,
@@ -125,7 +124,6 @@ def generate_transcript_ambient_density_image(
     local_xy_kernel_transcript_density = convolve(local_xy_transcript_density, kernel, mode='constant', cval=0)
     local_xy_kernel_transcript_density = np.flipud(local_xy_kernel_transcript_density)
 
-    # TODO this plot needs to be checked again.
     if ( figure_path != None ):
         helperfuncs.plot_pixels(
             figure_path,

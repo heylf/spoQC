@@ -73,7 +73,6 @@ def generate_transcript_quality_density_image(
     timer.stop()
     #xy_kernel_transcript_density = xy_kernel_transcript_density.astype(np.uint16) # conversion needed for cv2
 
-    # TODO this plot needs to be checked again.
     if ( figure_path != None ):
         if ( flip ):
             helperfuncs.plot_pixels(
@@ -131,7 +130,6 @@ def transcript_qv_image(
                                          figure_path, "Transcript QV", "transcript_qv")
     timer.stop()
     
-    # TODO should I apply zero truncated negative binomial instead?
     # At 10x Genomics they use a threshold of qv < 20 (see 10xBaysor tutorial)
     print("[NOTE] Calculate qv probabilities")
     timer.start()

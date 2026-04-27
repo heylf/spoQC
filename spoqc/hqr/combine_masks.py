@@ -26,9 +26,6 @@ def start_combining_masks(
         suffix = 'celltype_refined'
 
     hqcr_mask = pd.read_parquet(f'{spoqc_tmp_folder}/hqcr_output_mask_{suffix}.parquet')
-    
-    # TODO HQCR is not correctly oriented
-    #hqcr_mask['hqcr_mask'] = np.fliplr(np.array(hqcr_mask['hqcr_mask']).reshape(dim_x, dim_y)).flatten()
     hqcr_mask['hqcr_beliefs'] = np.array(hqcr_mask['hqcr_beliefs']).reshape(dim_x, dim_y).flatten()
     hqcr_mask['hqcr_mask'] = np.array(hqcr_mask['hqcr_mask']).reshape(dim_x, dim_y).flatten()
     

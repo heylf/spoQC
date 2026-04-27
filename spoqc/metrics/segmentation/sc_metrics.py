@@ -364,7 +364,6 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
     figures.append(fig)
     fig.write_image(f'{figure_path}/scatterplot_total_counts_vs_n_genes_by_counts.png', scale=int(DPI/100))
 
-    # TODO this plot seems to cause issue. It is not so important now. Could also be removed.
     # nGENES = 30
     # idx = np.argsort(rna.var["n_cells_by_counts"])[-nGENES:]
     # expression = rna.X.todense()[:, idx]
