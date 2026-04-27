@@ -59,7 +59,6 @@ def start_image_struc_analyis(
     else:
         sys.exit('[ERROR] Modality not supported')
 
-    # TODO I need to generate log here to make the image stick out more
     helperfuncs.plot_pixels(
         figure_path,
         np.log10(xy_intensities + 1),
@@ -105,7 +104,6 @@ def start_image_struc_analyis(
         timer.stop()
         helperfuncs.nparr_to_parquet(signal_noise_ratio_log2fc, step, spoqc_tmp_folder, tmp_suffix)
 
-    # TODO not used so far
     step = 'lbp'
     if ( step in steps ):
         # Pixel pattern information. Does a pixel live in a specific pattern?

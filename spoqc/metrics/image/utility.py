@@ -92,9 +92,6 @@ def estimate_background_intensity(intensities):
 
     hist, bin_edges = np.histogram(intensities, bins=nbins)
 
-    # TODO so far I assume that bin with the highest density is background because
-    # most of the image is background. Is this correct?
-
     # Find the bin with the highest count
     max_count = np.max(hist)
     max_bin_index = np.argmax(hist)

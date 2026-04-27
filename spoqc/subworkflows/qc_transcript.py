@@ -9,11 +9,6 @@ from typing import Any
 
 from .. import helperfuncs
 
-# TODO include MT coverage
-# TODO include Rb coverage
-# TODO Hb coverage
-# TODO include transcript count histogram on x and y axsis as in MerQuaCo
-
 # data from https://www.gencodegenes.org/human/
 def parse_gtf(file_path: str) -> None:
     """
@@ -128,10 +123,6 @@ def transcriptqc(sdata, figure_path, annotation_file, key_transcripts):
     rna_types_sdata = np.array([get_rna_type(var, gene_biotype_dict) \
                                 for var in list(sdata.points[key_transcripts]['feature_name'])])
 
-
-    # TODO create local density plots here.
-
-    
     # Pie chart for transcript types-
     fig = go.Figure(data=[go.Pie(labels=df.index, values=df['count'], marker=dict(colors=df['colors']))])
     fig.update_traces(textfont=dict(size=18))

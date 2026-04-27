@@ -10,7 +10,6 @@ def run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns):
 
     print(f"[NOTE] Estimated cell diameter is {mean_diameter}")
 
-    # TODO maybe introduce also leiden clustering for estimation
     ncelltypes = -1
     if ( CONST.ANNOTATION_FILE and CONST.N_CELLTYPES == None ):
         ncelltypes = annotation.ncelltypes

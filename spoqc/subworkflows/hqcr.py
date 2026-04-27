@@ -16,9 +16,6 @@ from .. import helperfuncs
 from .. import priors
 
 # Function to print all HQCRs
-# TODO Some very small islands even just 1 cell is identified as high quality and missing in the output. Change this
-# so these cells are merge with bigger islands.
-# TODO do not remove the cells just flag them as outlier cells.
 def plot_hqcr(sdata, figure_path, min_number_good_cells_hqcr, minimum_number_of_total_cells):
     islands = list(set(sdata['table'].obs['island_index']))
     sdata['table'].obs['cell_region'] = np.array(['undefined'] * len(sdata['table']))
@@ -34,7 +31,6 @@ def plot_hqcr(sdata, figure_path, min_number_good_cells_hqcr, minimum_number_of_
         if ( num_bad_qc_cells == 0 ):
             good_bad_ration = 100
         else:
-            # TODO apply log2?
             good_bad_ration = num_good_qc_cells / num_bad_qc_cells
 
         title = ''
@@ -150,9 +146,9 @@ def generate_hqcr_html(figure_path, df_plot, cat, ncat, catnames, qc_metrics):
 def load_cell_df(counts, sdata):
 
     cell_df = pd.DataFrame({
-        counts: sdata['table'].obs[counts], # TODO implement an option to choose: sdata['table'].obs['transcript_counts'],
+        counts: sdata['table'].obs[counts],
         'control_probe_counts': sdata['table'].obs['control_probe_counts'],
-        'n_genes_by_counts': sdata['table'].obs['canorm_n_genes_by_counts'], # TODO implement an option to choose: sdata['table'].obs['n_genes_by_counts'],
+        'n_genes_by_counts': sdata['table'].obs['canorm_n_genes_by_counts'],
         'convexity_metric_cell': sdata['table'].obs['convexity_metric_cell'],
         'convexity_min_nuceli': sdata['table'].obs['convexity_min_nuceli'],
         'nuceli_count': sdata['table'].obs['nuceli_count'],
@@ -176,7 +172,6 @@ def cell_artefact_assignment(cell_df, sdata):
     cell_df.loc[cell_df['doublet'] == 1, 'artefact'] = 'doublet'
     mean_overlap = cell_df['cell_overlap_area'].mean()
 
-    # TODO how to treat multinuceli? different artefact?
     cell_df.loc[(cell_df['nuceli_count'] > 1) & (cell_df['cell_overlap_area'] > mean_overlap), 'artefact'] = 'doublet'
     cell_df.loc[cell_df['nucleus_free'] == 1, 'artefact'] = 'nucleus_free'
     sdata['table'].obs['artefact'] = cell_df['artefact']
@@ -441,8 +436,6 @@ def clustering_for_hqcr(qc_domains_adata, figure_path, seed, test_res_n_clusters
     if ( test_res ):
         ss = helperfuncs.test_resolutions_leiden(qc_domains_adata, figure_path, test_res_n_clusters)
 
-    # TODO automatic search for res
-    # TODO instead of leiden mayb h-NNE clustering?
     sc.tl.leiden(qc_domains_adata, resolution=1.2)
 
 
@@ -464,8 +457,6 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
         counts
     )
 
-    # TODO
-    # TODO so far I only use counts to define bad quality cells, consider later to inroduce other metrices as well.
     # priors.combine_priors.combine_priors_hqtr(spoqc_tmp_folder, image_ddf)
 
     sdata['table'].obs['bad_quality_probabilities'] = bad_quality_probabilities

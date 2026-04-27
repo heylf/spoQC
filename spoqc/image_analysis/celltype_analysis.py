@@ -44,7 +44,6 @@ def start_image_celltype_analysis(
                                columns=[f'{prefix}_mask'], engine="pyarrow")
     mask_df = mask_ddf.compute()
 
-    # TODO here I have to make this better that I do not run into this flipping issue
     for col in image_df.columns:
         image_df[col] = np.flipud(np.array(image_df[col]).reshape(dim_x, dim_y)).flatten()
 

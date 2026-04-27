@@ -28,7 +28,6 @@ def read_data_as_ddf(tmp_files, chunk_size):
         array_columns.append(col_arr[:, None])  # make 2D for stacking
 
     # Stack columns into 2D Dask Array
-    # TODO remove .astype(np.float32) as soon as I have recaulcuated values as floats
     dask_array = da.hstack(array_columns).astype(np.float32)  # Much cheaper than dd.concat
     dask_array = dask_array.rechunk((chunk_size, -1))
     # Optional but recommended to avoid re-reading Parquet each epoch:
@@ -161,7 +160,7 @@ def start_pixel_qc(
     print("[NOTE] Min-max normalization")
     timer.start()
     scaler = MinMaxScaler()
-    # TODO I can do min max already before to the probs of pixel clsuter, is then faster because
+    
     # I only normlize cluster probs and not all pixel probs.
     scaled_ddf = scaler.fit_transform(image_ddf[['p_informative_pixel']])
     image_ddf = image_ddf.assign(norm_p_informative_pixel=scaled_ddf.iloc[:,0])

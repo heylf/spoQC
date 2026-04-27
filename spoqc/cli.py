@@ -2,15 +2,6 @@
 # coding: utf-8
 from __future__ import annotations
 
-# TODO create under helperfunc a general plot layout
-# TODO check the orientation of the plots again (if it makes sense to invert y axis).
-# TODO check topology methods for more stuff.
-# TODO maybe for all spatial plots remove x and y axsis and just call the labels spatialdim1, spatialdim2, spatialdim3 ...
-# TODO remove packages that are not used anymroe
-# TODO put every metric into their own script, so it is easier for people to find them and add new metrics
-# TODO why do I have negative values for canorm_transcript counts?
-# TODO change x and y axis for the correct once from the coordinate system. For all plots.
-
 # In[]
 import sys
 
@@ -18,7 +9,6 @@ import sys
 import os
 import random
 import argparse
-import importlib
 import numpy as np
 import pandas as pd
 import re
@@ -351,7 +341,6 @@ def main(argv: list[str] | None = None) -> None:
             .astype(int)
     )
 
-    # TODO need a plot for that
     # Check for nan's in transcripts feature names
     transcripts = sdata.points['transcripts'].assign(
         feature_name=sdata.points['transcripts']['feature_name'].astype('string').fillna('NaN').astype('category')
@@ -368,7 +357,6 @@ def main(argv: list[str] | None = None) -> None:
     rna_adata.layers['raw'] = rna_adata.X
 
     # Add annotation
-    # TODO check adding the annotation again. I found during hitchhikersguide a potential error.
     annotation = helperfuncs.AnnotationStruct(0, [""])
     if ( CONST.ANNOTATION_FILE ):
         print(f"[NOTE] Adding annotation {CONST.ANNOTATION_FILE}")
@@ -519,7 +507,6 @@ def main(argv: list[str] | None = None) -> None:
             print("[NOTE] No annotation file provided so I will not perform start_hqcr_celltype")
 
     # In[]
-    # TODO I have not taking the z axis varability into account.
     ##################
     ###### HQPR ######
     ##################

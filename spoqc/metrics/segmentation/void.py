@@ -38,7 +38,6 @@ def process_triangle_block(block_index, triangle_block, stuff):
     
     return counts, indices, block_index
 
-# TODO speed_up
 def count_stuff_in_triangles_fast(triangle_array, stuff, threads):
     count_list = [None] * threads
     indices_list = [None] * threads
@@ -125,7 +124,6 @@ def calc_void(
     timer.stop()
 
     # Set as threshold for edge length the 3rd quartile.
-    # TODO test out different thresholds.
     min_edge_length = np.quantile(edge_length_list, q=.75)
 
     # Create traingular graph.
@@ -348,14 +346,11 @@ def calc_void(
     triangles_df['transcripts_counts_outside_cell'] = counts
 
     ###### Calculate
-    # TODO this needs optimization before it can be used
     # Calculate the variance of z coordiantes for each triangle.
     # print(f'[NOTE] Calculate the variance of z coordiantes for each triangle.')
     # timer.start()
     # triangle_z_var = [-1] * len(triangles_df)
     # for i in range(0, len(triangles_df)):
-    #     # TODO check why this happens 
-    #     # TODO for some reasons it is double packed check this !!!! 
     #     # Something weird is heppening here
     #     if ( len(indices[i]) > 0 ):
     #         triangle_z_var[i] = np.var(transcripts_df.iloc[indices[i]]['z'])
@@ -404,7 +399,6 @@ def calc_void(
     ###### Count
     # Count nuclei in triangles. 
     # This is more of a sanity.
-    # TODO slowest part. Optimize further.
     print(f'[NOTE] counting nuclei for {len(triangles_pointcoords)} triangles')
     timer.start()
     nuclei_centoid_coords = np.array( 
@@ -510,7 +504,6 @@ def calc_void(
     timer.stop()
 
     ###### Count
-    # TODO slowest step in void qc right now, Turn this back on if it is optimized.
     # print("[NOTE] Count all transcripts in the convexhull of the cell")
 
     # # For convexhull investigation lets also take all transcripts into account.
@@ -520,7 +513,6 @@ def calc_void(
 
     # print(f'[NOTE] counting transcripts for {len(triangles_pointcoords)} triangles')
 
-    # # TODO optimize this even further
     # counts_all, indices_all = count_stuff_in_triangles_fast(triangles_pointcoords, all_transcript_coords, threads)
     # triangles_df['transcripts_counts_all'] = counts_all
 

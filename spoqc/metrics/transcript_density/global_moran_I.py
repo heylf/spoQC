@@ -35,7 +35,6 @@ def calculate_global_moran_I_values(sdata, figure_path, spoqc_tmp_folder, thread
     # Create Moran's I variances and values
     genes_list = list(rna_adata.var_names)
 
-    # TODO 
     # Be careful with the order because of threading the list is filled based on how fast the indidivudal thread is.
     with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [executor.submit(compute_for_gene, gene, rna_adata) for gene in genes_list]

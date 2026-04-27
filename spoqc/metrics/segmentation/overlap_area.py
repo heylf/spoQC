@@ -1,5 +1,4 @@
 
-# TODO speed_up
 def calculate_overlap_areas(sdata):
     cells = sdata['cell_boundaries']
     overlap_areas = []

@@ -66,7 +66,6 @@ def generate_transcript_density_image(
     timer.stop()
     # xy_kernel_transcript_density = xy_kernel_transcript_density.astype(np.uint16) # conversion needed for cv2
 
-    # TODO this plot needs to be checked again.
     if ( figure_path != None ):
 
         if ( flip ):
