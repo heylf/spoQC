@@ -1,1 +1,0 @@
-from . import qc_void

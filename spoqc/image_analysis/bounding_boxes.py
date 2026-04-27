@@ -7,6 +7,7 @@ from skimage.morphology import dilation, disk
 
 from .. import helperfuncs
 from .. import hqr
+from .. import metrics
 
 def _overlap(a, b):
     # boxes: [min_row, min_col, max_row, max_col]
@@ -116,7 +117,13 @@ def define_bounding_boxes(
 
     if ( modality == 'hqtr' ):
         # Intensities already flipped
-        intensities = hqr.hqtr.generate_transcript_density_image(sdata, figure_path, imagedim, image_type, resolution)
+        intensities = metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
+            sdata,
+            figure_path,
+            imagedim,
+            image_type,
+            resolution
+        )
         image = intensities.reshape(dim_x, dim_y)
 
     mask = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_{suffix}', 
