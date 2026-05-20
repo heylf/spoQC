@@ -411,7 +411,41 @@ def cell_category_analysis(
                 helperfuncs.apply_general_plotly_layout(fig, False)
                 fig.write_html(f"{figure_path}/{cat}/boxplot_{umap_cat}.html")
                 fig.write_image(f"{figure_path}/{cat}/boxplot_{umap_cat}.png", scale=3)
-                
+
+
+                # --- violin plots ---
+                violin_trace = go.Violin(
+                    x=df[cat],
+                    y=df[umap_cat],
+                    box_visible=True,        # embedded boxplot
+                    box=dict(fillcolor="white", line=dict(color="black")),
+                    meanline_visible=True,   # show mean line
+                    points=False             # change to 'all' to show individual points
+                )
+
+                # Create the layout
+                layout = go.Layout(
+                    xaxis=dict(
+                        tickangle=-45,
+                        tickfont=dict(size=18),
+                        title="leiden cluster"
+                    ),
+                    yaxis=dict(
+                        title=umap_cat,
+                        tickfont=dict(size=18)
+                    ),
+                    height=500,
+                    width=800
+                )
+
+                # Create the figure
+                fig = go.Figure(data=[violin_trace], layout=layout)
+
+                helperfuncs.apply_general_plotly_layout(fig, False)
+
+                fig.write_html(f"{figure_path}/{cat}/violin_{umap_cat}.html")
+                fig.write_image(f"{figure_path}/{cat}/violin_{umap_cat}.png", scale=3)
+
 
         # Generate plotly HTML
         html_content = ''.join(fig.to_html(full_html=False) for fig in figures)
@@ -872,6 +906,45 @@ def celltype_cluster_analysis(
 
                 fig.write_html(f"{figure_path}/boxplot_{umap_cat}.html")
                 fig.write_image(f"{figure_path}/boxplot_{umap_cat}.png", scale=3)
+
+
+                # --- violin plots ---
+                violin_trace = go.Violin(
+                    x=rna.obs['leiden'],
+                    y=rna.obs[umap_cat],
+                    box_visible=True,        # show embedded boxplot
+                    box=dict(fillcolor="white", line=dict(color="black")),
+                    meanline_visible=True,   # show mean line
+                    points=False             # set to 'all' if you want scatter points
+                )
+
+                # Create the layout
+                layout = go.Layout(
+                    xaxis=dict(
+                        tickangle=-45,
+                        tickfont=dict(size=18),
+                        title="leiden cluster"
+                    ),
+                    yaxis=dict(
+                        title=umap_cat,
+                        tickfont=dict(size=18)
+                    ),
+                    height=500,
+                    width=800
+                )
+
+                layout.xaxis.update(
+                    categoryorder='array',
+                    categoryarray=sorted(rna.obs['leiden'].unique(), key=int)
+                )
+
+                # Create the figure
+                fig = go.Figure(data=[violin_trace], layout=layout)
+
+                helperfuncs.apply_general_plotly_layout(fig, False)
+
+                fig.write_html(f"{figure_path}/violin_{umap_cat}.html")
+                fig.write_image(f"{figure_path}/violin_{umap_cat}.png", scale=3)
 
         else:
 
