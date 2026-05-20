@@ -567,6 +567,12 @@ def calc_void(
         ax.set_title(f"Largest Enclosed Empty Patches with gradient for {cat}")
         ax.set_aspect('equal', adjustable='box')
 
+        vmin = triangle_cluster_df[cat].min()
+        vmax = triangle_cluster_df[cat].max()
+        sm = plt.cm.ScalarMappable(cmap=plt.cm.hot_r, norm=plt.Normalize(vmin=vmin, vmax=vmax))
+        sm.set_array([])
+        plt.colorbar(sm, ax=ax, label=cat)
+
         plt.savefig(f'{figure_path}/spatial_traingle_all_clsuters_{cat}.png', bbox_inches='tight', dpi=300)
         plt.close()
 
