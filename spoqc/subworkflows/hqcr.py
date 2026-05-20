@@ -378,13 +378,13 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
     has_values_over_1 = np.any(average_cell_probability_image > 1)
     print(f'Are there any values bigger than 1: {has_values_over_1}')
 
-    # Plot input image
+    # Plot input prior image
     helperfuncs.plot_pixels(
         figure_path,
         (average_cell_probability_image > 0).astype(np.uint8),
         imagedim,
-        'input_cell_segmentation',
-        'input_cell_segmentation',
+        'input_priors',
+        'input_priors',
         'gray',
         False,
         True,
@@ -441,6 +441,22 @@ def clustering_for_hqcr(qc_domains_adata, figure_path, seed, test_res_n_clusters
 
 def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
     figure_path = f'{CONST.FIGURE_PATH}/hqcr/hqcr_ident/'
+
+    # Generate first the input cell and nucleus segmentation figures
+    for seg in ['cell_labels', 'nucleus_labels']:
+        values = sdata.labels[seg][CONST.RESOLUTION].image.values
+        values = (values > 0.0).astype(np.uint8)
+        helperfuncs.plot_pixels(
+            figure_path,
+            values,
+            imagedim,
+            f'input_segmentation_{seg}',
+            f'input_segmentation_{seg}',
+            'gray',
+            False,
+            True,
+            legend_dict={"mask": "#FFFFFF", "empty": "#000000"}
+        )
 
     counts = 'transcript_counts'
     if ( CONST.CANORM ):
