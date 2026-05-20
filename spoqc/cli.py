@@ -569,6 +569,26 @@ def main(argv: list[str] | None = None) -> None:
         print('[finish]')
 
     # In[]
+    import importlib
+    importlib.reload(hqr.combine_masks_zoom)
+    if ( CONST.STEP in ['all', 'combine_masks_zoom'] ):
+
+        hqr.combine_masks_zoom.start_combining_masks(
+            sdata,
+            CONST.FIGURE_PATH,
+            CONST.TMP_PATH,
+            CONST.IMAGE_TYPE,
+            CONST.RESOLUTION,
+            imagedim,
+            dim_x,
+            dim_y,
+            CONST.STAINING,
+            celltype_refined=False
+        )
+
+        print('[finish]')
+
+    # In[]
     ###########################
     ###### TRANSCRIPT QC ######
     ###########################
