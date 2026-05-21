@@ -45,6 +45,17 @@ def start_image_struc_analyis(
             resolution
         )
         xy_intensities = intensities.reshape(dim_x, dim_y)
+
+        # Plot transcript point plot
+        helperfuncs.plot_scatter_by_category(
+            sdata.points['transcripts'].compute(),
+            None, 
+            figure_path, 
+            'transcript_points',
+            'transcript_points',
+            None,
+            pointsize=0.5
+        )
     else:
         xy_intensities = sdata[image_type][resolution].image.values[int(staining)]
         xy_intensities = np.flipud(xy_intensities)
