@@ -532,7 +532,6 @@ def main(argv: list[str] | None = None) -> None:
     #####################
     ###### AMBIENT ######
     #####################
-
     if ( CONST.STEP in ['all', 'hqtr', 'unittest', 'ambientqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/ambientqc/'
         _ = subworkflows.qc_ambient.start_qc_ambient(sdata, figure_path, CONST.TMP_PATH, CONST.THREADS)
