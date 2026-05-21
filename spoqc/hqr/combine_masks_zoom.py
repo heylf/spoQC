@@ -36,7 +36,7 @@ def start_combining_masks(
         imagedim.bb_ymin + y_1 + y_2
     )
 
-    figure_path = f"{figure_path}/combine_masks_zoom/{staining}"
+    figure_path = f"{figure_path}/combine_masks_zoom/"
 
     suffix = 'raw'
     if ( celltype_refined ):
