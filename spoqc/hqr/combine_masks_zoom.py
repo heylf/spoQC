@@ -24,10 +24,10 @@ def start_combining_masks(
         celltype_refined=False
 ):
 
-    x_1 = 0
+    x_1 = 18000
     y_1 = 0
-    x_2 = 1000
-    y_2 = 1000
+    x_2 = 22000
+    y_2 = 2500
 
     imagedim_zoom = helperfuncs.ImageDimStruct(
         imagedim.bb_xmin + x_1,
