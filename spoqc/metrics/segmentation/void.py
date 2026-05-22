@@ -564,7 +564,7 @@ def calc_void(
         ax.scatter(points[:, 0], points[:, 1], c="blue", marker="o", label="Points", s=0.01)
         if ( flip ):
             ax.invert_yaxis()
-        ax.set_title(f"Largest Enclosed Empty Patches with gradient for {cat}")
+        ax.set_title(f"{cat}")
         ax.set_aspect('equal', adjustable='box')
 
         vmin = triangle_cluster_df[cat].min()
