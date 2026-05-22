@@ -420,7 +420,8 @@ def cell_category_analysis(
                     box_visible=True,        # embedded boxplot
                     box=dict(fillcolor="white", line=dict(color="black")),
                     meanline_visible=True,   # show mean line
-                    points=False             # change to 'all' to show individual points
+                    points=False,             # change to 'all' to show individual points
+                    spanmode='hard'
                 )
 
                 # Create the layout
@@ -915,7 +916,8 @@ def celltype_cluster_analysis(
                     box_visible=True,        # show embedded boxplot
                     box=dict(fillcolor="white", line=dict(color="black")),
                     meanline_visible=True,   # show mean line
-                    points=False             # set to 'all' if you want scatter points
+                    points=False,            # set to 'all' if you want scatter points
+                    spanmode='hard'          # truncate violin at actual data min/max
                 )
 
                 # Create the layout
