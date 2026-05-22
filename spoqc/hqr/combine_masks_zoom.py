@@ -32,8 +32,8 @@ def start_combining_masks(
     imagedim_zoom = helperfuncs.ImageDimStruct(
         imagedim.bb_xmin + x_1,
         imagedim.bb_ymin + y_1,
-        imagedim.bb_xmin + x_1 + x_2,
-        imagedim.bb_ymin + y_1 + y_2
+        imagedim.bb_xmin + x_2,
+        imagedim.bb_ymin + y_2
     )
 
     figure_path = f"{figure_path}/combine_masks_zoom/"
