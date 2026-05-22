@@ -69,7 +69,7 @@ def start_combining_masks(
 
         helperfuncs.plot_pixels(
             figure_path,
-            np.array(mask_df[f'{m}_mask']).reshape(dim_x, dim_y)[x_1:x_2, y_1:y_2],
+            np.array(mask_df[f'{m}_mask']).reshape(dim_x, dim_y)[y_1:y_2, x_1:x_2],
             imagedim_zoom,
             f'{m}_zoom',
             f'{m}_zoom',
@@ -81,7 +81,7 @@ def start_combining_masks(
 
         helperfuncs.plot_pixels(
             figure_path,
-            np.array(beliefs_df[f'{m}_beliefs']).reshape(dim_x, dim_y)[x_1:x_2, y_1:y_2],
+            np.array(beliefs_df[f'{m}_beliefs']).reshape(dim_x, dim_y)[y_1:y_2, x_1:x_2],
             imagedim_zoom,
             f'{m}_beliefs_zoom',
             f'{m}_beliefs_zoom',
@@ -116,7 +116,7 @@ def start_combining_masks(
         values = (values > 0.0).astype(np.uint8)
         helperfuncs.plot_pixels(
             figure_path,
-            values[x_1:x_2, y_1:y_2],
+            values[y_1:y_2, x_1:x_2],
             imagedim_zoom,
             f'input_segmentation_{seg}_zoom',
             f'input_segmentation_{seg}_zoom',
@@ -166,7 +166,7 @@ def start_combining_masks(
 
     helperfuncs.plot_pixels(
         figure_path,
-        np.log10(xy_intensities + 1)[x_1:x_2, y_1:y_2],
+        np.log10(xy_intensities + 1)[y_1:y_2, x_1:x_2],
         imagedim_zoom,
         name,
         name,
