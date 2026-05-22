@@ -63,6 +63,10 @@ def start_combining_masks(
         'hqtr_beliefs': hqtr_mask["hqtr_beliefs"].compute().to_numpy()
     })
 
+
+    y_1 = dim_x - 1 - y_2
+    y_2 = dim_x - 1
+
     final_mask = np.zeros(dim_x*dim_y)
     for m in ['hqcr', f'hqpr_{staining}', 'hqtr']:
         final_mask += np.array(mask_df[f'{m}_mask'])
@@ -100,7 +104,7 @@ def start_combining_masks(
 
     helperfuncs.plot_pixels(
         figure_path,
-        final_mask.reshape(dim_x, dim_y)[:1000, :1000],
+        final_mask.reshape(dim_x, dim_y)[y_1:y_2, x_1:x_2],
         imagedim_zoom,
         'final_zoom',
         'final_zoom',
@@ -109,6 +113,21 @@ def start_combining_masks(
         True,
         legend_dict={"no mask": "#000000", "1 mask": "#0000FF", "2 masks": "#008000", "all masks": "#FFFF00"}
     )
+
+    combined_beliefs = beliefs_df['hqcr_beliefs'] + beliefs_df[f'hqpr_{staining}_beliefs'] + beliefs_df['hqtr_beliefs']
+    combined_beliefs /= 3
+
+    helperfuncs.plot_pixels(
+        figure_path,
+        np.array(combined_beliefs).reshape(dim_x, dim_y)[y_1:y_2, x_1:x_2],
+        imagedim,
+        f'combined_beliefs', 
+        f'combined_beliefs', 
+        'hot',
+        False,
+        False
+    )
+
 
     # Generate the input figures again
     for seg in ['cell_labels', 'nucleus_labels']:
