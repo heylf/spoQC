@@ -24,16 +24,16 @@ def start_combining_masks(
         celltype_refined=False
 ):
 
-    x_1 = 18000
-    y_1 = 0
-    x_2 = 22000
-    y_2 = 2500
+    x_1_org = 18000
+    y_1_org = 0
+    x_2_org = 22000
+    y_2_org = 2500
 
     imagedim_zoom = helperfuncs.ImageDimStruct(
-        imagedim.bb_xmin + x_1,
-        imagedim.bb_ymin + y_1,
-        imagedim.bb_xmin + x_2,
-        imagedim.bb_ymin + y_2
+        imagedim.bb_xmin + x_1_org,
+        imagedim.bb_ymin + y_1_org,
+        imagedim.bb_xmin + x_2_org,
+        imagedim.bb_ymin + y_2_org
     )
 
     figure_path = f"{figure_path}/combine_masks_zoom/"
@@ -64,7 +64,7 @@ def start_combining_masks(
     })
 
 
-    y_1 = dim_x - 1 - y_2
+    y_1 = dim_x - 1 - y_2_org
     y_2 = dim_x - 1
 
     final_mask = np.zeros(dim_x*dim_y)
@@ -73,7 +73,7 @@ def start_combining_masks(
 
         helperfuncs.plot_pixels(
             figure_path,
-            np.array(mask_df[f'{m}_mask']).reshape(dim_x, dim_y)[y_1:y_2, x_1:x_2],
+            np.array(mask_df[f'{m}_mask']).reshape(dim_x, dim_y)[y_1:y_2, x_1_org:x_2_org],
             imagedim_zoom,
             f'{m}_zoom',
             f'{m}_zoom',
@@ -85,7 +85,7 @@ def start_combining_masks(
 
         helperfuncs.plot_pixels(
             figure_path,
-            np.array(beliefs_df[f'{m}_beliefs']).reshape(dim_x, dim_y)[y_1:y_2, x_1:x_2],
+            np.array(beliefs_df[f'{m}_beliefs']).reshape(dim_x, dim_y)[y_1:y_2, x_1_org:x_2_org],
             imagedim_zoom,
             f'{m}_beliefs_zoom',
             f'{m}_beliefs_zoom',
@@ -104,7 +104,7 @@ def start_combining_masks(
 
     helperfuncs.plot_pixels(
         figure_path,
-        final_mask.reshape(dim_x, dim_y)[y_1:y_2, x_1:x_2],
+        final_mask.reshape(dim_x, dim_y)[y_1:y_2, x_1_org:x_2_org],
         imagedim_zoom,
         'final_zoom',
         'final_zoom',
@@ -119,7 +119,7 @@ def start_combining_masks(
 
     helperfuncs.plot_pixels(
         figure_path,
-        np.array(combined_beliefs).reshape(dim_x, dim_y)[y_1:y_2, x_1:x_2],
+        np.array(combined_beliefs).reshape(dim_x, dim_y)[y_1:y_2, x_1_org:x_2_org],
         imagedim,
         f'combined_beliefs', 
         f'combined_beliefs', 
@@ -135,7 +135,7 @@ def start_combining_masks(
         values = (values > 0.0).astype(np.uint8)
         helperfuncs.plot_pixels(
             figure_path,
-            values[y_1:y_2, x_1:x_2],
+            values[y_1_org:y_2_org, x_1_org:x_2_org],
             imagedim_zoom,
             f'input_segmentation_{seg}_zoom',
             f'input_segmentation_{seg}_zoom',
@@ -157,39 +157,39 @@ def start_combining_masks(
         else:
             spoqc_tmp_folder = f'{spoqc_tmp_folder}/metrices/{modality}'
 
-    xy_intensities = None
-    intensities = None
-    if ( modality == 'hqtr' ):
-        # Intensities already flipped
-        intensities = metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
-            sdata,
-            figure_path,
-            imagedim,
-            image_type,
-            resolution
-        )
-        xy_intensities = intensities.reshape(dim_x, dim_y)
-    else:
-        xy_intensities = sdata[image_type][resolution].image.values[int(staining)]
-        xy_intensities = np.flipud(xy_intensities)
-        intensities = xy_intensities.flatten()
-    
-    # Plot intensities
-    name = 'input'
-    if ( modality == 'hqtr' ):
-        name = f'{name}_transcript_densities_zoom'
-    elif ( modality == 'hqpr' ):
-        name = f'{name}_pixel_intensities_zoom'
-    else:
-        sys.exit('[ERROR] Modality not supported')
+        xy_intensities = None
+        intensities = None
+        if ( modality == 'hqtr' ):
+            # Intensities already flipped
+            intensities = metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
+                sdata,
+                figure_path,
+                imagedim,
+                image_type,
+                resolution
+            )
+            xy_intensities = intensities.reshape(dim_x, dim_y)
+        else:
+            xy_intensities = sdata[image_type][resolution].image.values[int(staining)]
+            xy_intensities = np.flipud(xy_intensities)
+            intensities = xy_intensities.flatten()
+        
+        # Plot intensities
+        name = 'input'
+        if ( modality == 'hqtr' ):
+            name = f'{name}_transcript_densities_zoom'
+        elif ( modality == 'hqpr' ):
+            name = f'{name}_pixel_intensities_zoom'
+        else:
+            sys.exit('[ERROR] Modality not supported')
 
-    helperfuncs.plot_pixels(
-        figure_path,
-        np.log10(xy_intensities + 1)[y_1:y_2, x_1:x_2],
-        imagedim_zoom,
-        name,
-        name,
-        'gray',
-        False,
-        False
-    )
+        helperfuncs.plot_pixels(
+            figure_path,
+            np.log10(xy_intensities + 1)[y_1:y_2, x_1_org:x_2_org],
+            imagedim_zoom,
+            name,
+            name,
+            'gray',
+            False,
+            False
+        )
