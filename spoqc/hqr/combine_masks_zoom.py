@@ -145,7 +145,7 @@ def start_combining_masks(
             legend_dict={"mask": "#FFFFFF", "empty": "#000000"}
         )
 
-    for modality in [f'hqpr', 'hqtr']:
+    for modality in ['hqpr', 'hqtr']:
 
         if modality == 'hqtr':
             staining = None
