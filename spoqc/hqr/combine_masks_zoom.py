@@ -120,7 +120,7 @@ def start_combining_masks(
     helperfuncs.plot_pixels(
         figure_path,
         np.array(combined_beliefs).reshape(dim_x, dim_y)[y_1:y_2, x_1_org:x_2_org],
-        imagedim,
+        imagedim_zoom,
         f'combined_beliefs', 
         f'combined_beliefs', 
         'hot',
