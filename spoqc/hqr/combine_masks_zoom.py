@@ -135,7 +135,7 @@ def start_combining_masks(
         values = (values > 0.0).astype(np.uint8)
         helperfuncs.plot_pixels(
             figure_path,
-            values[y_1_org:y_2_org, x_1_org:x_2_org],
+            np.flipud(values[y_1_org:y_2_org, x_1_org:x_2_org]),
             imagedim_zoom,
             f'input_segmentation_{seg}_zoom',
             f'input_segmentation_{seg}_zoom',
