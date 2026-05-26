@@ -10,11 +10,13 @@ def quick_viz_images(figure_path, image_names, sdata):
     for i, image in enumerate(image_names):
         sdata.pl.render_images(image).pl.show(title=image, dpi=300)
     plt.savefig(f'{figure_path}/all_images.png')
+    plt.savefig(f'{figure_path}/all_images.pdf')
     plt.close()
 
     for i in image_names:
         sdata.pl.render_images(i).pl.show(title=i)
         plt.savefig(f'{figure_path}/{i}.png')
+        plt.savefig(f'{figure_path}/{i}.pdf')
         plt.close()
 
 def run_qc_sc(sdata, figure_path, CONST, obs_columns):

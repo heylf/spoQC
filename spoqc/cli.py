@@ -568,9 +568,7 @@ def main(argv: list[str] | None = None) -> None:
         print('[finish]')
 
     # In[]
-    import importlib
-    importlib.reload(hqr.combine_masks_zoom)
-    if ( CONST.STEP in ['all', 'combine_masks_zoom'] ):
+    if ( CONST.STEP in ['combine_masks_zoom'] ):
 
         hqr.combine_masks_zoom.start_combining_masks(
             sdata,

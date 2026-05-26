@@ -360,5 +360,6 @@ def visualize_markov_calculation(average_cell_probability_image, labels, figure_
     if ( flip ):
         plt.gca().invert_yaxis()
     plt.savefig(f'{figure_path}/markov_random_field_calculations.png', bbox_inches='tight')
+    plt.savefig(f'{figure_path}/markov_random_field_calculations.pdf', bbox_inches='tight')
     plt.close()
 

@@ -79,6 +79,7 @@ def cellcycle_qc(
         
         fig.write_html(f"{figure_path}/scatter_cellcylce_{o}.html")
         fig.write_image(f"{figure_path}/scatter_cellcylce_{o}.png", scale=3)
+        fig.write_image(f"{figure_path}/scatter_cellcylce_{o}.pdf", scale=3)
 
     for x in ['sample']:
 
@@ -91,6 +92,7 @@ def cellcycle_qc(
         
         fig.write_html(f"{figure_path}/barplot_{x}_cellcycle_fractions.html")
         fig.write_image(f"{figure_path}/barplot_{x}_cellcycle_fractions.png", scale=3)
+        fig.write_image(f"{figure_path}/barplot_{x}_cellcycle_fractions.pdf", scale=3)
 
     return rna_adata
 

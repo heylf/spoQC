@@ -119,6 +119,7 @@ def start_combining_masks(
     venn = venn3(subsets, set_labels=('HQCR', 'HQPR', 'HQTR'))
     plt.title(f"Venndiagram of masks with {uncovered}% uncovered area")
     plt.savefig(f'{figure_path}/venn_combined_masks.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/venn_combined_masks.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
     combined_beliefs = beliefs_df['hqcr_beliefs'] + beliefs_df[f'hqpr_{staining}_beliefs'] + beliefs_df['hqtr_beliefs']

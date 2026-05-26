@@ -117,6 +117,7 @@ def test_resolutions_leiden(rna, figure_path, threads, annotation_key=None, k=No
         plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)  # Adding vertical lines
     plt.xticks(ss['res'].unique())  # Ensure all 'res' values are shown on the x-axis
     plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.png')
+    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.pdf')
     plt.close()
 
     if ( annotation_key or k):
@@ -140,6 +141,7 @@ def test_resolutions_leiden(rna, figure_path, threads, annotation_key=None, k=No
         plt.xticks(ss['res'].unique())  # ensure all 'res' values appear
         plt.tight_layout()
         plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.png')
+        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.pdf')
         plt.close()
 
     return win_res
@@ -336,6 +338,10 @@ def cell_category_analysis(
                     f"{figure_path}/{cat}/split_violinplot_{umap_cat}.png",
                     scale=3,
                 )
+                fig.write_image(
+                    f"{figure_path}/{cat}/split_violinplot_{umap_cat}.pdf",
+                    scale=3,
+                )
 
                 # ---- split boxplot plot -------
                 fig = go.Figure()
@@ -383,6 +389,10 @@ def cell_category_analysis(
                     f"{figure_path}/{cat}/split_boxplot_{umap_cat}.png",
                     scale=3,
                 )
+                fig.write_image(
+                    f"{figure_path}/{cat}/split_boxplot_{umap_cat}.pdf",
+                    scale=3,
+                )
 
 
                 # --- boxplots ---
@@ -411,6 +421,7 @@ def cell_category_analysis(
                 helperfuncs.apply_general_plotly_layout(fig, False)
                 fig.write_html(f"{figure_path}/{cat}/boxplot_{umap_cat}.html")
                 fig.write_image(f"{figure_path}/{cat}/boxplot_{umap_cat}.png", scale=3)
+                fig.write_image(f"{figure_path}/{cat}/boxplot_{umap_cat}.pdf", scale=3)
 
 
                 # --- violin plots ---
@@ -446,6 +457,7 @@ def cell_category_analysis(
 
                 fig.write_html(f"{figure_path}/{cat}/violin_{umap_cat}.html")
                 fig.write_image(f"{figure_path}/{cat}/violin_{umap_cat}.png", scale=3)
+                fig.write_image(f"{figure_path}/{cat}/violin_{umap_cat}.pdf", scale=3)
 
 
         # Generate plotly HTML
@@ -837,6 +849,7 @@ def celltype_cluster_analysis(
                 
                 fig.write_html(f"{figure_path}/umap_plot_{mode}_{umap_cat + plot_suffix}.html")
                 helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{mode}_{umap_cat + plot_suffix}.png")
+                helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{mode}_{umap_cat + plot_suffix}.pdf")
         
 
             if ( umap_cat in ['nuceli_count', 'control_probe_counts']):
@@ -867,6 +880,7 @@ def celltype_cluster_analysis(
                 fig_pct.update_layout(xaxis_title="leiden cluster")
                 fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}.html")
                 fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}.png", scale=3)
+                fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}.pdf", scale=3)
 
             else:
 
@@ -907,6 +921,7 @@ def celltype_cluster_analysis(
 
                 fig.write_html(f"{figure_path}/boxplot_{umap_cat}.html")
                 fig.write_image(f"{figure_path}/boxplot_{umap_cat}.png", scale=3)
+                fig.write_image(f"{figure_path}/boxplot_{umap_cat}.pdf", scale=3)
 
 
                 # --- violin plots ---
@@ -947,6 +962,7 @@ def celltype_cluster_analysis(
 
                 fig.write_html(f"{figure_path}/violin_{umap_cat}.html")
                 fig.write_image(f"{figure_path}/violin_{umap_cat}.png", scale=3)
+                fig.write_image(f"{figure_path}/violin_{umap_cat}.pdf", scale=3)
 
         else:
 
@@ -994,6 +1010,7 @@ def celltype_cluster_analysis(
             
             fig.write_html(f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.html")
             helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.png")
+            helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.pdf")
 
         if ( umap_cat in ['doublet', 'nucleus_free', 'border_cell'] ):
 
@@ -1017,6 +1034,7 @@ def celltype_cluster_analysis(
                 fig_pct.update_layout(xaxis_title="leiden cluster")
                 fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}_{x}.html")
                 fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}_{x}.png", scale=3)
+                fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}_{x}.pdf", scale=3)
 
     # --- cell composition plot -----
     ctf_df = create_celltype_fraction_df('leiden', CONST.ANNOTATION_KEY, rna)
@@ -1036,6 +1054,7 @@ def celltype_cluster_analysis(
     fig.update_yaxes(range=[0, 1.0])
     fig.write_html(f"{figure_path}/fractions_celltype_leiden.html")
     fig.write_image(f"{figure_path}/fractions_celltype_leiden.png", scale=3)
+    fig.write_image(f"{figure_path}/fractions_celltype_leiden.pdf", scale=3)
 
     done_file = open(f"{figure_path}/done.txt", "w")
     done_file.write("its done")
@@ -1093,6 +1112,7 @@ def celltype_cluster_analysis(
         fig.update_yaxes(range=yrange, autorange=False, scaleanchor="x", scaleratio=1)
         fig.write_html(f"{figure_path}/umap_plot_{c}.html")
         helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.png")
+        helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.pdf")
 
     # Read in sdata.attrs (bounding boxes) and write it into the adata.uns as metadata
     if ( subdir == 'overview' ):

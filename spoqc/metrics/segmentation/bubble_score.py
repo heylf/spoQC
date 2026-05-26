@@ -76,6 +76,7 @@ def calc_bubble_score(sdata: Dict[str, Any], figure_path: str, bubble_key: str) 
     
     figures.append(fig)
     fig.write_image(f'{figure_path}/histogram_log10_thinness_score.png', scale=int(DPI/100))
+    fig.write_image(f'{figure_path}/histogram_log10_thinness_score.pdf', scale=int(DPI/100))
 
     fig = px.violin(df, x='log10_cell_areas', width=800, height=800)
     
@@ -87,6 +88,7 @@ def calc_bubble_score(sdata: Dict[str, Any], figure_path: str, bubble_key: str) 
 
     figures.append(fig)
     fig.write_image(f'{figure_path}/violinplot_log10_cell_areas.png', scale=int(DPI/100))
+    fig.write_image(f'{figure_path}/violinplot_log10_cell_areas.pdf', scale=int(DPI/100))
 
     with open(f'{figure_path}/bubble.html', 'w') as f:
         for fig in figures:

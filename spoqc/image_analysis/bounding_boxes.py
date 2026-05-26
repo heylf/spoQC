@@ -79,6 +79,7 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
             )
         
     plt.savefig(f'{figure_path}/imageplot_{suffix}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -153,6 +154,7 @@ def define_bounding_boxes(
         )
     plt.title(f"Dilated image")
     plt.savefig(f'{figure_path}/imageplot_dilated_image_for_bounding_box.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/imageplot_dilated_image_for_bounding_box.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 

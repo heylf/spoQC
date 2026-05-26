@@ -58,6 +58,7 @@ def calculate_global_moran_I_values(sdata, figure_path, spoqc_tmp_folder, thread
     helperfuncs.apply_general_plotly_layout(fig, True)
     fig.write_html(f"{figure_path}/contamination_global_morans_I.html")
     fig.write_image(f"{figure_path}/contamination_global_morans_I.png", scale=3)
+    fig.write_image(f"{figure_path}/contamination_global_morans_I.pdf", scale=3)
     
     helperfuncs.df_to_parquet(data_sorted, 'ambient', spoqc_tmp_folder, [], 'genes')
     return data_sorted

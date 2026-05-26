@@ -262,5 +262,6 @@ def visualize_markov_calculation(average_cell_probability_image, labels, figure_
     helperfuncs.add_manual_legend(legend_dict={"mask": "#FFFFFF", "low Q": "#000000"})
 
     plt.savefig(f'{figure_path}/markov_random_field_calculations.png', bbox_inches='tight')
+    plt.savefig(f'{figure_path}/markov_random_field_calculations.pdf', bbox_inches='tight')
     plt.close()
 

@@ -34,6 +34,7 @@ def pixel_intensity_qc(figure_path, intensities, background_intensity, hist, bin
     helperfuncs.apply_general_plotly_layout(fig, True)
     figures.append(fig)
     fig.write_image(f"{figure_path}/histogram_intensity.png", scale=3)
+    fig.write_image(f"{figure_path}/histogram_intensity.pdf", scale=3)
 
     with open(f'{figure_path}/histogram_intensity.html', 'w') as f:
         for fig in figures:

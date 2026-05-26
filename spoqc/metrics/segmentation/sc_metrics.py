@@ -143,6 +143,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
         helperfuncs.apply_general_plotly_layout(fig, True)
         figures.append(fig)
         fig.write_image(f'{figure_path}/histogram_{level}_total.png', scale=int(DPI/100))
+        fig.write_image(f'{figure_path}/histogram_{level}_total.pdf', scale=int(DPI/100))
 
         if ( level not in ["pct_counts_mt", "pct_counts_ribo"] ):
 
@@ -203,6 +204,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
             figures.append(fig)
             fig.write_image(f'{figure_path}/histogram_log10_{level}_all.png', scale=int(DPI/100))
+            fig.write_image(f'{figure_path}/histogram_log10_{level}_all.pdf', scale=int(DPI/100))
 
         # Create a histogram trace for each sample
         traces = []
@@ -259,6 +261,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
         figures.append(fig)
         fig.write_image(f'{figure_path}/histogram_{level}_all.png', scale=int(DPI/100))
+        fig.write_image(f'{figure_path}/histogram_{level}_all.pdf', scale=int(DPI/100))
 
     # ----------------------------------------------------------------------------------------------------------------------
     # Others -------------------------------------------------------------------------------------------------------
@@ -279,6 +282,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
     helperfuncs.apply_general_plotly_layout(fig, False)
     figures.append(fig)
     fig.write_image(f'{figure_path}/histogram_log_n_cells_by_counts.png', scale=int(DPI/100))
+    fig.write_image(f'{figure_path}/histogram_log_n_cells_by_counts.pdf', scale=int(DPI/100))
 
 
     n_cells = 10_000
@@ -363,6 +367,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
     figures.append(fig)
     fig.write_image(f'{figure_path}/scatterplot_total_counts_vs_n_genes_by_counts.png', scale=int(DPI/100))
+    fig.write_image(f'{figure_path}/scatterplot_total_counts_vs_n_genes_by_counts.pdf', scale=int(DPI/100))
 
     # nGENES = 30
     # idx = np.argsort(rna.var["n_cells_by_counts"])[-nGENES:]
@@ -412,6 +417,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
                     
                     figures.append(fig)
                     fig.write_image(f"{figure_path}/scatterplot_pearsoncorr_{x}_{y}_{celltype}.png", scale=int(DPI/100))
+                    fig.write_image(f"{figure_path}/scatterplot_pearsoncorr_{x}_{y}_{celltype}.pdf", scale=int(DPI/100))
                 else:
                     print(f"[NOTE] Not enough cells to analyse correlation of {x} vs {y} for celltype {celltype}")
 
@@ -428,6 +434,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
         figures.append(fig)
         fig.write_image(f"{figure_path}/scatterplot_pearsoncorr_{x}_{y}.png", scale=int(DPI/100))
+        fig.write_image(f"{figure_path}/scatterplot_pearsoncorr_{x}_{y}.pdf", scale=int(DPI/100))
 
     # ------------------------------------------------------------------------------------------------------------------
     # Generate HTML ----------------------------------------------------------------------------------------------------

@@ -118,6 +118,7 @@ def measure_stripe_thickness_and_black_area(image_path: str,
     plt.title('Canny Edges')
     
     plt.savefig(f'{output_path}/domain_thickness_score.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{output_path}/domain_thickness_score.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
     #return thicknesses, adjusted_black_area
@@ -148,4 +149,5 @@ def generate_input(sdata, figure_path, CONST):
     ax.axis('off')
     ax.invert_yaxis()
     plt.savefig(f'{figure_path}/input_domain_thickness_analysis.png', bbox_inches='tight')
+    plt.savefig(f'{figure_path}/input_domain_thickness_analysis.pdf', bbox_inches='tight')
     plt.close()

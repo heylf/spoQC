@@ -58,6 +58,8 @@ def check_for_valid_geometries(sdata, figure_path):
                     ax.axis('off')
                     plt.savefig(f"{figure_path}/invalid_{obj_type}_geomtry_{num_invalid_examples}.png",
                                 bbox_inches='tight', pad_inches=0, dpi=300)
+                    plt.savefig(f"{figure_path}/invalid_{obj_type}_geomtry_{num_invalid_examples}.pdf",
+                                bbox_inches='tight', pad_inches=0, dpi=300)
                     plt.close()
                     num_invalid_examples += 1
 
