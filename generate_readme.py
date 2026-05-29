@@ -7,6 +7,8 @@ content = "\n\n".join(
     Path(f"{docs_dir}/{p}")
     .read_text()
     .replace("_static", f"{docs_dir}/_static")
+    .replace("```{note}", ">[!NOTE]")
+    .replace("```", "")
     for p in parts
 )
 
