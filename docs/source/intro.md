@@ -14,8 +14,6 @@ Currently this code is under private usage. It is not allowed to distrbute or pu
 
 You want to contribute to spoQC or reuse some of our code then checkout [how to contribute to spoQC](#contribute).
 
-<img src="./_static/figures/extra/grapical_abstract.png" width="800">
-
 # Cite
 
 IF you use spoQC then please cite:
