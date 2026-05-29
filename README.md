@@ -2,7 +2,7 @@
 
 [![rewrites.bio - Follows best practice principles for rewriting bioinformatics tools with AI](https://rewrites.bio/badges/rewrites-bio.svg)](https://rewrites.bio)
 
-<img src="./docs/source//_static/figures/logo/complex.png" width="300">
+<img src="./docs/source//_static/figures/logo/complex.png" width="1000">
 
 >[!NOTE]
 SpoQC is under active developement and still in apha phase. You will experience lots of issues. If you are an alpha tester and run into problems please contact us or write an issue. We are happy to receive feeback and PRs to improve spoQC.
