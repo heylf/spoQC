@@ -1,4 +1,4 @@
-# Important files in spoQC_tmp/
+# Output data files
 
 * HQCR = High quality cell region
 * HQPR = High quality pixel region

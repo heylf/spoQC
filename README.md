@@ -2,23 +2,36 @@
 
 [![rewrites.bio - Follows best practice principles for rewriting bioinformatics tools with AI](https://rewrites.bio/badges/rewrites-bio.svg)](https://rewrites.bio)
 
-<img src="figures/logo/complex.png" width="300">
+<img src="./docs/source//_static/figures/logo/complex.png" width="300">
 
-> [!NOTE]
-> :bangbang: SpoQC is under active developement and still in apha phase. You will experience lots of issues. If you are an alpha tester and run into problems please contact us or write an issue. We are happy to receive feeback and PRs to improve spoQC. :bangbang:
+```{note}
+SpoQC is under active developement and still in apha phase. You will experience lots of issues. If you are an alpha tester and run into problems please contact us or write an issue. We are happy to receive feeback and PRs to improve spoQC.
+```
 
-> [!NOTE]
-> :bangbang: SpoQC needs an HPC infrastructure to perform all tasks on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data. In order to reduce runtime please check out how to run [spoQC with Nextflow](#nextflow-subworkflow). We are continously to improve the performance for spoQC to support an easier local usage. :bangbang:
+```{note}
+SpoQC needs an HPC infrastructure to perform all tasks on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data. In order to reduce runtime please check out how to run spoQC with Nextflow. We are continously to improve the performance for spoQC to support an easier local usage.
+```
 
 Currently this code is under private usage. It is not allowed to distrbute or publish it. If you are invited to work on this project then please keep a copy/fork of this repo private.
 
 You want to contribute to spoQC or reuse some of our code then checkout [how to contribute to spoQC](#contribute).
 
-<img src="figures/extra/grapical_abstract.png" width="800">
+<img src="./docs/source//_static/figures/extra/grapical_abstract.png" width="800">
 
 # Cite
 
 IF you use spoQC then please cite:
+
+# Supported spatial transcriptomics technologies
+
+* 10x Xenium
+
+> [!NOTE]
+> Atera: We currently working to support this data. 
+
+# Documentation
+
+For further details please read the [documentation]().
 
 # Installation
 
@@ -28,36 +41,14 @@ IF you use spoQC then please cite:
 docker run -ti heylf/spoqc:0.1.0
 ```
 
-## Python
+## Pip
 
 ```
 pip install spoqc
 ```
 
-# Supported spatial transcriptomics technologies
-
-* 10x Xenium
-
-> [!NOTE]
-> Atera: We currently working to support this data. 
-
-# Input
-
-* [Input formats](docs/input.md)
-
-# Output
-
-* [Plots and report explanations](docs/output_report.md)
-* [SpoQC tmp data files](docs/output_tmp.md)
-
-# Nextflow subworkflow
-
-You can use the tool sequential, but it will take 4-5 days to complete everything. In order to speed things up, we provide a nextflow subworkflow that will reduce the time to 1-2 days. You can find the subworkflow under [nf-core/spatialxe](https://github.com/nf-core/spatialxe/tree/dev) in the spoQC branch. SpoQC needs an HPC infrastructure to perform all tasks on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data.
-
-> [!NOTE]
-> We are developing a Nextflow SRT QC sub-workflow repository to support all technologies. If new data modalities are added to spoQC they will also be present in this repository: [soon to come]().
-
-# Executing spoQC pipeline via python (sequential)
+# Run
+Executing spoQC pipeline via python (sequential):
 
 SpoQC needs an HPC infrastructure to perform all task on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data.
 
@@ -126,26 +117,44 @@ python3 -m spoqc -s generalqc -i [input_spatial_data_bundle] -o [output_folder] 
 ```
 
 # Contribute
-SpoQC was written with a modular code design. We describe in the [contribution guide](docs/contribute.md), where you find important code snippets, such as metrics, priors and subworkflows. SpoQC was built under the idea that additional metrics and subworkflows can be provided in order to enhance spoQC's capability to identify high quality regions.
 
-# AI Assistance Disclosure
+SpoQC has four important pillars.
 
-This tool was written with the assistance of AI coding agents (ChatGPT).
+- metrics
+- priors
+- subworkflows
+- standard pre- and postprocessing scripts
 
-We used AI for the following scripts:
+> [!NOTE]
+> We are working to standardize these pillars to be able to provide templates to make contribution easier.
 
-* `markov_random_field_zarr.py` and `markov_random_field_zarr_parallel.py`
-    * an intial version was written `markov_random_field.py` by hand
-    * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
-* `metrics/`
-    * several metrics were written by AI
-* `pixel_scoring_dask.py`
-    * an intial version was written by hand
-    * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
-* `Dockerfile`
-    * Dockerfile was intially written by AI and optimized by hand
-* AI added to many scripts docstrings and type hints
+## spoqc/metrics/
+
+Metrics are currently split into image, segmentation and transcript density relevant. We want to stress out, that some metrics might overlap with other modalities. We are currently still optimizing the layers of spoQC.
+
+Examples:
+- segmentation metrics example: `spoqc/metrics/segmentation/overlap_area.py`. The metric has to be linked back to the cell and it needs to be saved in the SpatialData object (in the anndata).
+- image metrics example: `spoqc/metrics/image/edge_strength.py`. The metric should be saved as a 1D matrix.
+- transcript density metrics example: `spoqc/metrics/image/transcript_density_image.py`. The metric should be saved as a 1D matrix.
+
+## spoqc/priors/
+
+Prior code is used in order to estimate an initial prior for the defined metric for bad (good) spatial observations (e.g., pixel). Priors are combined in the script `spoqc/priors/combine_priors.py`.
+
+## spoqc/subworkflows/
+
+SpoQC has predefined subworkflows for various tasks. Some workflows, such as `qc_doublets.py`, are used to start the data processing and plotting for metrics.
+
+## standard pre- and postprocessing scripts
+
+SpoQC has also scripts for various data pre- and postprocessing steps, such as normalizations.
+
+## How to provide a new metric?
+
+1. First identify into which layer the metric falls.
+2. Write an individual script for the calculation of the metric and place it in the `spoqc/metrics`.
+3. Write a prior estimation for the individual metric and place it in the `spoqc/priors` folder.
+4. Add the prior to the `spoqc/priors/combine_priors.py` script. Each prior has to represent the prbability of the good quality of the spatial observation (e.g., cell or pixel).
 
 
-Correctness was validated by equal comparison of the output of the different implementations. Humans defined the validation criteria and verified the results.
 
