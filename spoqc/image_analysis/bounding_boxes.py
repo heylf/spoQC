@@ -63,7 +63,7 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
         min_row, min_col, max_row, max_col = bbox
 
         # Draw the flipped rectangle
-        if ( flip ):
+        if ( not flip ):
             plt.plot(
                 [min_col, min_col, max_col, max_col, min_col],
                 [min_row, max_row, max_row, min_row, min_row],
