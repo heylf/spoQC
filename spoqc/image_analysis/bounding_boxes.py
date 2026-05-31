@@ -63,7 +63,7 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
         min_row, min_col, max_row, max_col = bbox
 
         # Draw the flipped rectangle
-        if ( not flip ):
+        if ( flip ):
             plt.plot(
                 [min_col, min_col, max_col, max_col, min_col],
                 [min_row, max_row, max_row, min_row, min_row],
@@ -71,13 +71,18 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
                 linewidth=2,
             )
         else:
+            print("[NOTE] Not flipping red boxes")
             plt.plot(
-                [min_col, max_col, max_col, min_col, min_col],  # x (columns)
-                [min_row, min_row, max_row, max_row, min_row],  # y (rows)
+                [min_col, min_col, max_col, max_col, min_col],
+                [imagedim.bb_ymin + imagedim.bb_ymax - min_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - max_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - max_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - min_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - min_row],
                 color="red",
                 linewidth=2,
             )
-        
+
     plt.savefig(f'{figure_path}/imageplot_{suffix}.png', bbox_inches='tight', dpi=300)
     plt.savefig(f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
