@@ -72,7 +72,7 @@ def leiden_silhouette(adata, resolution, res_index, ninits=5):
 
 # This is for checking which leiden cluster resoltuion would work the best.
 # Pick the one with the highest silhouette score but not the one from the beginning.
-def test_resolutions_leiden(rna, figure_path, threads, annotation_key=None, k=None, steps=None, end=1.0, start=0.0):
+def test_resolutions_leiden(rna, figure_path, threads, annotation_key=None, k=None, steps=None, end=2.0, start=0.0):
     resolutions = np.linspace(0, 3, num = 21)[1:]
 
     if ( steps ):
@@ -549,9 +549,9 @@ def celltype_cluster_analysis(
     if ( not os.path.exists(res_file_name) ):
         if ( subdir == 'overview' ):
             win_res = test_resolutions_leiden(rna, figure_path, 
-                                              CONST.THREADS, annotation_key=CONST.ANNOTATION_KEY, steps=10)
+                                              CONST.THREADS, annotation_key=CONST.ANNOTATION_KEY, steps=20)
         else:
-            win_res = test_resolutions_leiden(rna, figure_path, CONST.THREADS, k=15, steps=10)
+            win_res = test_resolutions_leiden(rna, figure_path, CONST.THREADS, k=15, steps=20)
 
         res_file = open(f"{figure_path}/res.txt", "w")
         res_file.write(f"{win_res}\nIs the winning leiden resolution\n")
