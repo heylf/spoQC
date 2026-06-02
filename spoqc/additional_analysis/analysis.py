@@ -1038,14 +1038,25 @@ def celltype_cluster_analysis(
 
     # --- cell composition plot -----
     ctf_df = create_celltype_fraction_df('leiden', CONST.ANNOTATION_KEY, rna)
+
+    leiden_order = sorted(ctf_df["x"].unique(), key=lambda x: int(x))  # if leiden labels are numeric strings
+    label_order = sorted(ctf_df["label"].unique())
+
+    fig = px.bar(
+        ctf_df,
+        x="x",
+        y="fractions",
+        labels={"x": "leiden"},
+        color="label",
+        color_discrete_sequence=celltype_colors,
+        category_orders={
+            "x": leiden_order,      # x-axis order
+            "label": label_order,   # legend and stack order
+        },
+    )
+
     n_labels = len(set(ctf_df['label']))
     n_x = len(set(ctf_df['x']))
-    fig = px.bar(
-        ctf_df, x="x", y="fractions", 
-        labels={"x": 'leiden'},
-        color="label", 
-        color_discrete_sequence=celltype_colors
-    )
     fig.update_layout(
         width=max(1000, n_x * 20),
         height=max(600, n_labels * 30)
