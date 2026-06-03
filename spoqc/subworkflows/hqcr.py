@@ -456,7 +456,8 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
             'gray',
             False,
             True,
-            legend_dict={"mask": "#FFFFFF", "empty": "#000000"}
+            legend_dict={"mask": "#FFFFFF", "empty": "#000000"},
+            flip=True
         )
 
     counts = 'transcript_counts'
