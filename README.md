@@ -27,7 +27,10 @@ Atera: We currently working to support this data.
 
 # Documentation
 
+<img src="./docs/source//_static/figures/logo/logo.png" width="100">
+
 For further details please read the [documentation]().
+
 
 # Installation
 
