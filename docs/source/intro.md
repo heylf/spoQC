@@ -22,5 +22,6 @@ IF you use spoQC then please cite:
 
 * 10x Xenium
 
-> [!NOTE]
-> Atera: We currently working to support this data. 
+```{note}
+Atera: We currently working to support this data.
+```
