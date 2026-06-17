@@ -1,3 +1,6 @@
+
+<img src="./_static/figures/logo/plus_splialaxe.png" width="400">
+
 # Nextflow subworkflow
 
 You can use the tool sequential, but it will take 4-5 days to complete everything. In order to speed things up, we provide a nextflow subworkflow that will reduce the time to 1-2 days. You can find the subworkflow under [nf-core/spatialaxe](https://github.com/nf-core/spatialaxe/tree/dev) in the spoQC branch. SpoQC needs an HPC infrastructure to perform all tasks on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data.    
