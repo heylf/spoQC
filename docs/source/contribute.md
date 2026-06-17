@@ -1,6 +1,6 @@
 # Contribute
 
-SpoQC has four important pillars.
+There are several ways to contribute to spoQC. The project is built around four main pillars:
 
 - metrics
 - priors
@@ -8,35 +8,109 @@ SpoQC has four important pillars.
 - standard pre- and postprocessing scripts
 
 > [!NOTE]
-> We are working to standardize these pillars to be able to provide templates to make contribution easier.
+> We are currently working on standardizing these components and providing templates to make contributions easier and more consistent.
 
-## spoqc/metrics/
+## `spoqc/metrics/`
 
-Metrics are currently split into image, segmentation and transcript density relevant. We want to stress out, that some metrics might overlap with other modalities. We are currently still optimizing the layers of spoQC.
+Metrics are used to quantify different aspects of spatial transcriptomics data quality. Currently, metrics are organized into three categories:
 
-Examples:
-- segmentation metrics example: `spoqc/metrics/segmentation/overlap_area.py`. The metric has to be linked back to the cell and it needs to be saved in the SpatialData object (in the anndata).
-- image metrics example: `spoqc/metrics/image/edge_strength.py`. The metric should be saved as a 1D matrix.
-- transcript density metrics example: `spoqc/metrics/image/transcript_density_image.py`. The metric should be saved as a 1D matrix.
+- image metrics
+- segmentation metrics
+- transcript density metrics
 
-## spoqc/priors/
+Some metrics may be relevant to multiple categories. The organization of these layers is still being refined as spoQC evolves.
 
-Prior code is used in order to estimate an initial prior for the defined metric for bad (good) spatial observations (e.g., pixel). Priors are combined in the script `spoqc/priors/combine_priors.py`.
+### Examples
 
-## spoqc/subworkflows/
+**Segmentation metric**
 
-SpoQC has predefined subworkflows for various tasks. Some workflows, such as `qc_doublets.py`, are used to start the data processing and plotting for metrics.
+`spoqc/metrics/segmentation/overlap_area.py`
 
-## standard pre- and postprocessing scripts
+Segmentation metrics must be linked back to individual cells and stored in the SpatialData object (within the associated AnnData table).
 
-SpoQC has also scripts for various data pre- and postprocessing steps, such as normalizations.
+**Image metric**
 
-## How to provide a new metric?
+`spoqc/metrics/image/edge_strength.py`
 
-1. First identify into which layer the metric falls.
-2. Write an individual script for the calculation of the metric and place it in the `spoqc/metrics`.
-3. Write a prior estimation for the individual metric and place it in the `spoqc/priors` folder.
-4. Add the prior to the `spoqc/priors/combine_priors.py` script. Each prior has to represent the prbability of the good quality of the spatial observation (e.g., cell or pixel).
+Image metrics should be saved as a one-dimensional (1D) matrix.
 
+**Transcript density metric**
+
+`spoqc/metrics/image/transcript_density_image.py`
+
+Transcript density metrics should also be saved as a one-dimensional (1D) matrix.
+
+## `spoqc/priors/`
+
+Priors are used to estimate the initial probability that a spatial observation (for example, a cell or pixel) is of high or low quality based on a specific metric.
+
+All priors are combined in:
+
+```
+spoqc/priors/combine_priors.py
+```
+
+Each prior contributes evidence about the quality of a spatial observation and is integrated into the overall quality assessment.
+
+## `spoqc/subworkflows/`
+
+SpoQC contains several predefined subworkflows that automate common analysis tasks.
+
+Some workflows, such as:
+
+```
+qc_doublets.py
+```
+
+serve as entry points for metric calculation, quality assessment, visualization, and reporting.
+
+Subworkflows are a good place to contribute additional analysis pipelines or improve existing workflows.
+
+## Standard Pre- and Postprocessing Scripts
+
+SpoQC also includes scripts for common preprocessing and postprocessing operations.
+
+Examples include:
+
+- normalization methods
+- data transformations
+- filtering procedures
+- result aggregation and reporting
+
+Contributions that improve interoperability with new data formats or analysis workflows are particularly welcome.
+
+## How to Add a New Metric
+
+To contribute a new metric, follow these steps:
+
+1. Identify which metric category the new metric belongs to (image, segmentation, transcript density, or another relevant layer).
+2. Implement the metric calculation and place the script in the appropriate folder under:
+
+   ```
+   spoqc/metrics/
+   ```
+
+3. Create a corresponding prior estimation method and place it in:
+
+   ```
+   spoqc/priors/
+   ```
+
+4. Register the new prior in:
+
+   ```
+   spoqc/priors/combine_priors.py
+   ```
+
+5. Ensure that the prior returns the probability that a spatial observation (for example, a cell or pixel) is of **high quality**.
+
+### Checklist for New Metrics
+
+- [ ] Metric implementation added to `spoqc/metrics/`
+- [ ] Metric output stored in the expected format
+- [ ] Prior implementation added to `spoqc/priors/`
+- [ ] Prior registered in `spoqc/priors/combine_priors.py`
+- [ ] Prior represents the probability of high-quality observations
+- [ ] Documentation and examples added where appropriate
 
 

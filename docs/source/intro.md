@@ -3,25 +3,42 @@
 <img src="./_static/figures/logo/complex.png" width="1000">
 
 ```{note}
-SpoQC is under active developement and still in apha phase. You will experience lots of issues. If you are an alpha tester and run into problems please contact us or write an issue. We are happy to receive feeback and PRs to improve spoQC.
+SpoQC is currently under active development and is still in the alpha phase. You may encounter bugs, incomplete features, or unexpected behavior.
+
+If you are testing spoQC and run into any issues, please contact the development team or open an issue in the repository. Feedback, bug reports, and pull requests are highly appreciated and help us improve the project.
 ```
 
 ```{note}
-SpoQC needs an HPC infrastructure to perform all tasks on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data. In order to reduce runtime please check out how to run spoQC with Nextflow. We are continously to improve the performance for spoQC to support an easier local usage.
+Processing a full-resolution spatial transcriptomics (SRT) dataset with spoQC typically requires access to an HPC (High Performance Computing) environment.
+
+For smaller datasets, reduced-resolution data, or data subsets, it may be possible to run spoQC locally.
 ```
 
-Currently this code is under private usage. It is not allowed to distrbute or publish it. If you are invited to work on this project then please keep a copy/fork of this repo private.
+<img src="./_static/figures/logo/plus_splialaxe.png" width="400">
 
-You want to contribute to spoQC or reuse some of our code then checkout [how to contribute to spoQC](#contribute).
+To reduce runtime and improve scalability, we recommend running spoQC with Nextflow. We are continuously working on improving performance and making local execution easier.
+
+
+# Usage and Distribution
+
+spoQC is currently available for private use only.
+
+It is **not permitted** to distribute, share, or publish this code. If you have been invited to collaborate on the project, please ensure that any local copies, forks, or mirrors of the repository remain private.
+
+If you would like to contribute to spoQC or reuse components of the codebase, please see the [Contribute](#contribute) section.
 
 # Cite
 
-IF you use spoQC then please cite:
+If you use spoQC in your work, please cite:
 
-# Supported spatial transcriptomics technologies
+> Citation information will be provided soon.
 
-* 10x Xenium
+# Supported Spatial Transcriptomics Technologies
+
+Currently supported:
+
+- 10x Xenium
 
 ```{note}
-Atera: We currently working to support this data.
+Atera support is currently under development and is not yet available.
 ```

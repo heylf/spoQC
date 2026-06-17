@@ -1,68 +1,94 @@
 # Run
-Executing spoQC pipeline via python (sequential):
 
-SpoQC needs an HPC infrastructure to perform all task on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data.
+spoQC is designed to process large spatial transcriptomics (SRT) datasets at full resolution. Running the complete pipeline typically requires access to an HPC (High Performance Computing) environment.
 
-## Annotation
+If you do not have access to an HPC system, you may still be able to run spoQC locally by:
 
-Optional step if you do not have a cell type annotation yet, then spoQC can do an analysis using an unsupervised (Leiden) clustering.
+- Using a lower-resolution dataset.
+- Running spoQC on a subset of your data.
+- Testing individual pipeline steps before processing the full dataset.
 
-```
+## Step 1: Generate a Cell Type Annotation (Optional)
+
+If your dataset does not already contain a cell type annotation, spoQC can create one automatically using unsupervised Leiden clustering.
+
+Run:
+
+```bash
 python3 -m spoqc -s "annotation" -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores]
 ```
 
-This will generate you an annotation file in spoQC format `[spoqc_tmp_folder]/report/annotation/unsupervised_cell_annotation.tsv`
+After the analysis finishes, spoQC will create an annotation file:
 
-## Execute everything in spoQC
-
-You can execute spoQC completly with:
-
+```text
+[spoqc_tmp_folder]/report/annotation/unsupervised_cell_annotation.tsv
 ```
+
+You can use this file as the value for the `[annotation_file]` parameter in later steps.
+
+---
+
+## Step 2: Run the Complete spoQC Pipeline
+
+To execute all spoQC analyses in the correct order, run:
+
+```bash
 python3 -m spoqc -s all -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
 
+This is the recommended option for most users.
 
-## Individual step execution
+---
 
-You can execute spoQC for each step individually with:
+## Step 3: Run Individual Pipeline Steps
 
-```
+Advanced users can execute individual spoQC steps separately.
+
+Run:
+
+```bash
 python3 -m spoqc -s [step] -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
 
-with [step] in the following order (if you do not follow this order things will break):
+Replace `[step]` with one of the following pipeline stages.
 
-* generalqc
-* bubbleqc
-* doubletqc
-* voidqc
-* cellqc
-* ambientqc
-* hqcr_ident
-* hqcr_celltype
-* hqpr_metrices
-* hqpr_clustering
-* hqpr_clustering
-* hqpr_refinement
-* hqpr_bounding_box
-* hqpr_celltype
-* hqtr_metrices
-* hqtr_ac
-* hqtr_qv
-* hqtr_clustering
-* hqtr_refinement
-* hqtr_bounding_box
-* hqtr_celltype
-* combine_masks
-* transcriptqc
-* modelqc
-* cellcycleqc
-* analysis_overview
-* analysis_cluster
-* analysis_category
+> **Important:** These steps must be executed in the exact order shown below. Running steps out of order will cause downstream analyses to fail.
 
-For example for the first step you execute the command:
+1. generalqc
+2. bubbleqc
+3. doubletqc
+4. voidqc
+5. cellqc
+6. ambientqc
+7. hqcr_ident
+8. hqcr_celltype
+9. hqpr_metrices
+10. hqpr_clustering
+11. hqpr_clustering
+12. hqpr_refinement
+13. hqpr_bounding_box
+14. hqpr_celltype
+15. hqtr_metrices
+16. hqtr_ac
+17. hqtr_qv
+18. hqtr_clustering
+19. hqtr_refinement
+20. hqtr_bounding_box
+21. hqtr_celltype
+22. combine_masks
+23. transcriptqc
+24. modelqc
+25. cellcycleqc
+26. analysis_overview
+27. analysis_cluster
+28. analysis_category
 
-```
+### Example
+
+To run the first pipeline step (`generalqc`), execute:
+
+```bash
 python3 -m spoqc -s generalqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
+
+Wait until the step has completed successfully before continuing with the next step in the list.

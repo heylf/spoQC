@@ -1,6 +1,22 @@
 
 <img src="./_static/figures/logo/plus_splialaxe.png" width="400">
 
-# Nextflow subworkflow
+# Nextflow Subworkflow
 
-You can use the tool sequential, but it will take 4-5 days to complete everything. In order to speed things up, we provide a nextflow subworkflow that will reduce the time to 1-2 days. You can find the subworkflow under [nf-core/spatialaxe](https://github.com/nf-core/spatialaxe/tree/dev) in the spoQC branch. SpoQC needs an HPC infrastructure to perform all tasks on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data.    
+spoQC can be executed sequentially, but processing a full-resolution spatial transcriptomics dataset typically takes **4–5 days** to complete.
+
+To significantly reduce runtime, we provide a dedicated Nextflow subworkflow that parallelizes many of the processing steps. Using the Nextflow workflow can reduce the total runtime to approximately **1–2 days**, depending on the available computational resources.
+
+The workflow is available in the **spoQC branch** of:
+
+[nf-core/spatialaxe](https://github.com/nf-core/spatialaxe/tree/dev)
+
+```{note}
+Processing a full-resolution spatial transcriptomics (SRT) dataset with spoQC typically requires access to an HPC (High Performance Computing) environment.
+```
+
+If an HPC system is not available, you may still be able to run spoQC locally by:
+
+- Using a lower-resolution dataset.
+- Processing a subset of your data.
+- Running selected workflow components instead of the complete pipeline.

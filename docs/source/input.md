@@ -1,7 +1,10 @@
 # Input
 
 ## SpatialData format
-Please read upon the [SpatialData](https://github.com/scverse/spatialdata) format in order to use this tool. Your SpatialData bundle should look like this when it is read into python:
+
+Before using spoQC, please make sure your data is stored in the [SpatialData](https://github.com/scverse/spatialdata) format.
+
+When your SpatialData bundle is loaded in Python, it should look similar to this:
 
 ```
 SpatialData object, with associated Zarr store: spatialdata
@@ -25,23 +28,42 @@ with coordinate systems:
 
 **Please make sure that:**
 
-* Special strings in `sdata.points['transcripts']['cell_id']`:
-  * Unassigned transcript have to be get: `-1`
-* The following entries require the same cell ids:
-  * `sdata['table'].index`
-  * `sdata['cell_circles'].index`
-  * `sdata['cell_boundaries'].index`
-  * `sdata.points['transcripts']['cell_id']`
+- Unassigned transcripts in `sdata.points['transcripts']['cell_id']` are marked with:
+
+  ```
+  -1
+  ```
+
+- The following entries use the same cell IDs:
+
+  - `sdata['table'].index`
+  - `sdata['cell_circles'].index`
+  - `sdata['cell_boundaries'].index`
+  - `sdata.points['transcripts']['cell_id']`
+
+Matching cell IDs are required so that spoQC can connect transcripts, cell boundaries, cell circles, and the AnnData table correctly.
 
 ## Annotation
 
-You can provide an annotation as .csv file.
-The file should have the format:
+You can provide a cell type annotation as a `.csv` or `.tsv` file.
 
-* tab or comma seperate (.tsv/.csv)
-* 2 columns (`Barcode` and `Cluster`)
-* Header needs to be provided
+The annotation file must have the following format:
 
-## Cell cycle gene file:
+- tab-separated or comma-separated file (`.tsv` or `.csv`)
+- 2 columns: `Barcode` and `Cluster`
+- a header row must be included
 
-The tool provides a cell cycle reference file, but this will change soon and the user has to provide one.
+Example:
+
+```
+Barcode	Cluster
+cell_1	T cell
+cell_2	B cell
+cell_3	Macrophage
+```
+
+## Cell cycle gene file
+
+spoQC currently provides a default cell cycle reference file.
+
+This behavior will change in a future version. Users will then need to provide their own cell cycle gene file.
