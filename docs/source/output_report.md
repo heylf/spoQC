@@ -516,8 +516,8 @@ Spatial-density plot of nucleus-free cells.
 
 ---------------
 
-## doubletqc/
-This folder holds plots for the doublet detection with ovrlpy.
+## doubletqc/ (ovrlpy)
+This folder holds plots for the doublet detection with [ovrlpy](https://github.com/HiDiHlabs/ovrl.py).
 
 ### histogram_signal_integrity_and_signal
 
