@@ -159,9 +159,9 @@ python3 -m spoqc -s generalqc -i [input_spatial_data_bundle] -o [output_folder] 
 Wait until the step has completed successfully before continuing with the next step in the list.
 
 
-<img src="./docs/source//_static/figures/logo/plus_splialaxe.png" width="400">
-
 # Nextflow Subworkflow
+
+<img src="./docs/source//_static/figures/logo/plus_splialaxe.png" width="400">
 
 spoQC can be executed sequentially, but processing a full-resolution spatial transcriptomics dataset typically takes **4–5 days** to complete.
 
