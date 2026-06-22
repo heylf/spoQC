@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import dask.dataframe as dd
+import os
 
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib_venn import venn3
@@ -47,7 +48,6 @@ def start_combining_masks(
         file_hqtr = f'{spoqc_tmp_folder}/hqtr_output_mask{suf}_{suffix}'
         hqtr_belief_name = f'hqtr_beliefs{type_of_belief}'
         hqtr_mask_name = f'hqtr_mask{type_of_belief}'
-
 
         hqcr_mask = pd.read_parquet(file_hqcr)
         hqcr_mask[hqcr_belief_name] = np.array(hqcr_mask[hqcr_belief_name]).reshape(dim_x, dim_y).flatten()
@@ -101,6 +101,29 @@ def start_combining_masks(
                 False
             )
 
+            # --- general histograms ---
+            fig = None
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.hist(np.array(beliefs_df[f'{m}_beliefs']), bins=50)
+            ax.set_yscale('log')
+            ax.set_xlabel(f'{m}_beliefs')
+            ax.set_ylabel('Log count')
+            ax.set_title(f'Distribution of {m} beliefs')
+            fig.savefig(os.path.join(figure_path, f'hist_{m}_beliefs{type_of_belief}_log.png'), bbox_inches='tight')
+            fig.savefig(os.path.join(figure_path, f'hist_{m}_beliefs{type_of_belief}_log.pdf'), bbox_inches='tight')
+            plt.close(fig)
+
+            fig = None
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.hist(np.array(beliefs_df[f'{m}_beliefs']), bins=50)
+            ax.set_xlabel(f'{m}_beliefs')
+            ax.set_ylabel('Count')
+            ax.set_title(f'Distribution of {m} beliefs')
+            fig.savefig(os.path.join(figure_path, f'hist_{m}_beliefs{type_of_belief}.png'), bbox_inches='tight')
+            fig.savefig(os.path.join(figure_path, f'hist_{m}_beliefs{type_of_belief}.pdf'), bbox_inches='tight')
+            plt.close(fig)
+
+
         colors = [
             (0.0, 'black'),   # 0
             (1/3, 'blue'),    # 1
@@ -113,8 +136,8 @@ def start_combining_masks(
             figure_path,
             final_mask.reshape(dim_x, dim_y),
             imagedim,
-            f'final{type_of_belief}',
-            f'final{type_of_belief}',
+            f'combined_masks{type_of_belief}',
+            f'combined_masks{type_of_belief}',
             cmap,
             False,
             True,
