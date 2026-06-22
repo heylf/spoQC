@@ -132,11 +132,11 @@ def define_bounding_boxes(
         )
         image = intensities.reshape(dim_x, dim_y)
 
-    mask = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_{suffix}', 
-                           columns=[f"{prefix}_mask"], engine="pyarrow")
+    mask = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_smoothed_{suffix}',
+                           columns=[f"{prefix}_mask_smoothed"], engine="pyarrow")
 
     # Convert DataFrame to a NumPy array for processing
-    binary_image = mask[f"{prefix}_mask"].compute().to_numpy().reshape(dim_x, dim_y)
+    binary_image = mask[f"{prefix}_mask_smoothed"].compute().to_numpy().reshape(dim_x, dim_y)
 
     # Apply dilation to merge nearby regions
     structuring_element = disk(dilation_radius)

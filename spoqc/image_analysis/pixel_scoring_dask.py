@@ -161,38 +161,49 @@ def start_pixel_qc(
     timer.start()
     scaler = MinMaxScaler()
     
+    belief_name = f"{modality}_beliefs"
+    mask_name = f"{modality}_mask"
+    if modality == 'hqpr':
+        belief_name = f"{modality}_{staining}_beliefs"
+        mask_name = f"{modality}_{staining}_mask"
+
     # I only normlize cluster probs and not all pixel probs.
     scaled_ddf = scaler.fit_transform(image_ddf[['p_informative_pixel']])
-    image_ddf = image_ddf.assign(norm_p_informative_pixel=scaled_ddf.iloc[:,0])
+    image_ddf = image_ddf.assign(
+        **{
+            'norm_p_pixel_score': scaled_ddf.iloc[:, 0],
+            'pixel_score_mask': (scaled_ddf.iloc[:, 0] > 0.5).astype(int),
+        }
+    )
     timer.stop()
 
     helperfuncs.plot_pixels(
         figure_path,
-        image_ddf['norm_p_informative_pixel'].compute().to_numpy().reshape(dim_x, dim_y),
+        image_ddf['norm_p_pixel_score'].compute().to_numpy().reshape(dim_x, dim_y),
         imagedim,
-        'norm_p_informative_pixel',
-        'Normalized probability of an informative pixel', 
+        'norm_p_pixel_score',
+        'Normalized pixel score probability', 
+        'hot',
+        False,
+        False
+    )
+    
+    if modality == 'hqpr':
+        image_ddf = priors.combine_priors.combine_priors_hqpr(spoqc_tmp_folder, image_ddf, belief_name, mask_name)
+    if modality == 'hqtr':
+        image_ddf = priors.combine_priors.combine_priors_hqtr(spoqc_tmp_folder, image_ddf, belief_name, mask_name)
+
+    helperfuncs.plot_pixels(
+        figure_path,
+        image_ddf[belief_name].compute().to_numpy().reshape(dim_x, dim_y),
+        imagedim,
+        'norm_p_beliefs',
+        'Normalized combined probability (beliefs)', 
         'hot',
         False,
         False
     )
 
-    # Transcript image specific
-    if ( modality == 'hqtr' ):
-
-        image_ddf = priors.combine_priors.combine_priors_hqtr(spoqc_tmp_folder, image_ddf)
-
-        helperfuncs.plot_pixels(
-            figure_path,
-            image_ddf['norm_p_informative_pixel'].compute().to_numpy().reshape(dim_x, dim_y),
-            imagedim,
-            'norm_p_informative_pixel_hqtr', 
-            'Normalized probability of an informative pixel for HQTR', 
-            'hot',
-            False,
-            False
-        )
-
-    helperfuncs.ddf_to_parquet(image_ddf, tmp_suffix, spoqc_tmp_folder, [], 'mask_prob')
+    helperfuncs.ddf_to_parquet(image_ddf, tmp_suffix, spoqc_tmp_folder, [], 'mask_raw')
 
 # %%

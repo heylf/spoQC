@@ -35,7 +35,7 @@ def start_image_celltype_analysis(
 
     # You have to read as dask because these paquet files are dask dataframes.
     # Else you run into partition errors.
-    image_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_prob', columns=qc_metrics, engine="pyarrow")
+    image_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_raw', columns=qc_metrics, engine="pyarrow")
     image_df = image_ddf.compute()
     image_df.index = image_df.index.set_names('index')
     image_df['intensity'] = np.log10( image_df['intensity'] + 1 )

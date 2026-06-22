@@ -405,7 +405,16 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
     map_values_to_cells(sdata, polys, image_type, resolution, labels[:], res_col, figure_path, 'markov_labels')
 
     # Write out hqcr mask
-    df = pd.DataFrame({'hqcr_beliefs': beliefs[:].flatten(), 'hqcr_mask': labels[:].flatten()})
+    df_smoothed = pd.DataFrame({
+        'hqcr_beliefs_smoothed': beliefs[:].flatten(),
+        'hqcr_mask_smoothed': labels[:].flatten(),
+    })
+    df_smoothed.to_parquet(f"{spoqc_tmp_folder}/hqcr_output_mask_smoothed_{suffix}.parquet")
+
+    df = pd.DataFrame({
+        'hqcr_beliefs': average_cell_probability_image.flatten(),
+        'hqcr_mask': (average_cell_probability_image.flatten() > 0.5).astype(np.uint8)
+    })
     df.to_parquet(f"{spoqc_tmp_folder}/hqcr_output_mask_{suffix}.parquet")
 
 

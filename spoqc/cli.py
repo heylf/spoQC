@@ -12,6 +12,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import re
+import importlib
 
 # Tool imports
 import spatialdata as sd
@@ -144,6 +145,13 @@ def build_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help="Name of the cluster cell type you want to specifically analyse.",
+        required=False
+    )
+    parser.add_argument(
+        "--spatial_smoothing",
+        dest="spatial_smoothing",
+        action="store_true",
+        help="Turn on spatial smoothing for prior beliefs.",
         required=False
     )
     parser.add_argument(
@@ -322,6 +330,7 @@ def main(argv: list[str] | None = None) -> None:
         start = 10500
         end = CONST.TESTING
         cropped_sdata, _, _ = helperfuncs.image_crop(sdata, start, start, start+end, start+end+500, 'global')
+        #cropped_sdata, _, _ = helperfuncs.image_crop(sdata, 3000, 13000, 6000, 17000, 'global')
         sdata = cropped_sdata
 
     # In[]
@@ -493,6 +502,7 @@ def main(argv: list[str] | None = None) -> None:
     ###### HQCR ######
     ##################
     # Low resources and for a full dataset it takes 30 - 40 min.
+    importlib.reload(subworkflows.hqcr)
     if ( CONST.STEP in ['all', 'unittest', 'hqcr_ident'] ):
         subworkflows.hqcr.start_hqcr(sdata, CONST.TMP_PATH, imagedim, CONST, seed)
         print("[finish]")
@@ -510,6 +520,8 @@ def main(argv: list[str] | None = None) -> None:
     ##################
     ###### HQPR ######
     ##################
+    from spoqc import image_analysis
+    importlib.reload(image_analysis.pixel_scoring_refinement)
     subworkflows.hqpr.get_hqpr(
         sdata,
         CONST.TMP_PATH,
@@ -553,6 +565,7 @@ def main(argv: list[str] | None = None) -> None:
     #############################
     ###### COMBINE ALL HQR ######
     #############################
+    importlib.reload(hqr.combine_masks)
     if ( CONST.STEP in ['all', 'combine_masks'] ):
 
         hqr.combine_masks.start_combining_masks(
@@ -627,7 +640,7 @@ def main(argv: list[str] | None = None) -> None:
     ###### MARKER QC ######
     #######################
     # Low resources, fast
-    if ( CONST.STEP in ['all', 'markerqc'] ):
+    if ( CONST.STEP in ['markerqc'] ):
         if ( CONST.ANNOTATION_FILE ):
             figure_path = f'{CONST.FIGURE_PATH}/markerqc'
             subworkflows.qc_marker.run_qc_marker(sdata, figure_path, CONST)
@@ -639,6 +652,8 @@ def main(argv: list[str] | None = None) -> None:
     #################################
     ###### ADDITIONAL ANALYSIS ######
     #################################
+    from spoqc import additional_analysis
+    importlib.reload(additional_analysis.analysis)
     subworkflows.qc_additional_analysis.run_qc_additional_analysis(
         sdata,
         CONST,

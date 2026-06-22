@@ -22,7 +22,7 @@ def start_image_struc_analyis(
 
     timer = helperfuncs.Timer()
 
-    print(f'[NOTE] start HQPR analysis with {image_type} and {resolution}')
+    print(f'[NOTE] start structural analysis with {image_type} and {resolution} for {modality}')
     
     tmp_suffix = modality
     if ( staining ):

@@ -115,7 +115,7 @@ To know which integer belongs to which channel, please look in to `staining_log.
 
 ## Scores
 
-### HQPR (anti)structure scores: hqpr_*_output_mask_prob
+### HQPR (anti)structure scores: hqpr_*_output_mask_raw
 `report/` holds a file names `staining_log.txt`.
 Currently spoQC analysis all image channels and uses an integer index because channel names can be very arbitrary in their naming.
 Therefore, some of the folder and files for the analysis of pixel quality (HQPR) will have integers standing for the individual image channels.
@@ -128,7 +128,7 @@ To know which integer belongs to which channel, please look in to `staining_log.
   ```
   import dask.dataframe as dd
   channel = 0
-  hqpr_prob_ddf = dd.read_parquet(f'spoQC_tmp/hqpr_{channel}_output_mask_prob', engine="pyarrow")
+  hqpr_prob_ddf = dd.read_parquet(f'spoQC_tmp/hqpr_{channel}_output_mask_raw', engine="pyarrow")
   # If you want to convert it into a pandas data frame use line below.
   # Be aware, doing the line below takes time and consumes lots of memory because you read in all the data at once.
   # hqpr_prob_df = hqpr_prob_ddf.compute()
@@ -149,7 +149,7 @@ To know which integer belongs to which channel, please look in to `staining_log.
 </details>
 
 
-### HQTR (anti)structure scores: hqtr_output_mask_prob
+### HQTR (anti)structure scores: hqtr_output_mask_raw
 
 <details>
   <summary>Click to expand</summary><br>
@@ -157,7 +157,7 @@ To know which integer belongs to which channel, please look in to `staining_log.
 
   ```
   import dask.dataframe as dd
-  hqtr_prob_ddf = dd.read_parquet('spoQC_tmp/hqtr_output_mask_prob', engine="pyarrow")
+  hqtr_prob_ddf = dd.read_parquet('spoQC_tmp/hqtr_output_mask_raw', engine="pyarrow")
   # If you want to convert it into a pandas data frame use line below.
   # Be aware, doing the line below takes time and consumes lots of memory because you read in all the data at once.
   # hqtr_prob_df = hqtr_prob_ddf.compute()
