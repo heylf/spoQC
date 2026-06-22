@@ -67,7 +67,7 @@ def sort_files(data_path, prefix_or_suffix, remove_from_moving):
         s = 1
     files = os.listdir(data_path)
 
-    if ( '.files_sorted.txt' not in files ):
+    if ( 'hist' not in files ):
         files = [x for x in files if x not in remove_from_moving]
         files_prefixes = list(set([x.split("_")[s] for x in files]))
         for prefix in files_prefixes:
@@ -75,10 +75,6 @@ def sort_files(data_path, prefix_or_suffix, remove_from_moving):
                 os.makedirs(f'{data_path}/{prefix}')
         for f in files:
             shutil.move(f"{data_path}/{f}", f"{data_path}/{f.split('_')[s]}/{f}")
-
-        # Just a stamp to if I run the function again the code does not break.
-        sorted_stamp = open(f'{data_path}/.files_sorted.txt', 'w')
-        sorted_stamp.close()
 
 
 def create_fraction_df(adata: AnnData, group: str, category: str) -> Dict[str, Union[List[str], List, np.ndarray]]:
