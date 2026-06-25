@@ -37,3 +37,5 @@ def run_qc_cell(sdata, figure_path, CONST, obs_columns):
     print("[NOTE] Write results")
     obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
     print("[finish]")
+
+    return obs_columns

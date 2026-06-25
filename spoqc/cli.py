@@ -443,7 +443,7 @@ def main(argv: list[str] | None = None) -> None:
     if ( CONST.STEP in ['all', 'unittest', 'generalqc'] ):
         print('[NOTE] General QC')
         figure_path = f'{CONST.FIGURE_PATH}/generalqc/'
-        subworkflows.qc_sc.run_qc_sc(sdata, figure_path, CONST, obs_columns)
+        obs_columns = subworkflows.qc_sc.run_qc_sc(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     # Low resources and quick
@@ -468,7 +468,7 @@ def main(argv: list[str] | None = None) -> None:
     #######################
     if ( CONST.STEP in ['all', 'unittest', 'bubbleqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/bubbleqc/'
-        subworkflows.qc_bubble.run_qc_bubble(sdata, figure_path, CONST, obs_columns)
+        obs_columns = subworkflows.qc_bubble.run_qc_bubble(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     ########################
@@ -477,7 +477,7 @@ def main(argv: list[str] | None = None) -> None:
     # High resources and slow (takes 18-19 hours for a full dataset)
     if ( CONST.STEP in ['all', 'unittest', 'doubletqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/doubletqc/'
-        subworkflows.qc_doublets.run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns)
+        obs_columns = subworkflows.qc_doublets.run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns)
 
     # In[]
     # Low resource but long (takes 4-5 hours)
@@ -486,7 +486,7 @@ def main(argv: list[str] | None = None) -> None:
     #####################
     if ( CONST.STEP in ['all', 'unittest', 'voidqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/voidqc/'
-        subworkflows.qc_void.run_qc_void(sdata, figure_path, CONST, obs_columns)
+        obs_columns = subworkflows.qc_void.run_qc_void(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     #####################
@@ -495,14 +495,13 @@ def main(argv: list[str] | None = None) -> None:
     # Low resources and quicks for full dataset (40-50 min)
     if ( CONST.STEP in ['all', 'unittest', 'cellqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/cellqc/'
-        subworkflows.qc_cell.run_qc_cell(sdata, figure_path, CONST, obs_columns)
+        obs_columns = subworkflows.qc_cell.run_qc_cell(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     ##################
     ###### HQCR ######
     ##################
     # Low resources and for a full dataset it takes 30 - 40 min.
-    importlib.reload(subworkflows.hqcr)
     if ( CONST.STEP in ['all', 'unittest', 'hqcr_ident'] ):
         subworkflows.hqcr.start_hqcr(sdata, CONST.TMP_PATH, imagedim, CONST, seed)
         print("[finish]")
@@ -520,8 +519,6 @@ def main(argv: list[str] | None = None) -> None:
     ##################
     ###### HQPR ######
     ##################
-    from spoqc import image_analysis
-    importlib.reload(image_analysis.pixel_scoring_refinement)
     subworkflows.hqpr.get_hqpr(
         sdata,
         CONST.TMP_PATH,
@@ -565,7 +562,6 @@ def main(argv: list[str] | None = None) -> None:
     #############################
     ###### COMBINE ALL HQR ######
     #############################
-    importlib.reload(hqr.combine_masks)
     if ( CONST.STEP in ['all', 'combine_masks'] ):
 
         hqr.combine_masks.start_combining_masks(
@@ -652,8 +648,6 @@ def main(argv: list[str] | None = None) -> None:
     #################################
     ###### ADDITIONAL ANALYSIS ######
     #################################
-    from spoqc import additional_analysis
-    importlib.reload(additional_analysis.analysis)
     subworkflows.qc_additional_analysis.run_qc_additional_analysis(
         sdata,
         CONST,
@@ -662,7 +656,7 @@ def main(argv: list[str] | None = None) -> None:
         imagedim,
         dim_x,
         dim_y,
-        stainings
+        stainings,
     )
 
     print("[FINISH]")

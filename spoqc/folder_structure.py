@@ -41,6 +41,7 @@ def create_folder_structure(CONST):
             "analysis/overview",
             "analysis/cluster",
             "analysis/category",
+            "analysis/filtering",
         ]
     else:
         prefix_dir = CONST.STEP.split("_")[0]

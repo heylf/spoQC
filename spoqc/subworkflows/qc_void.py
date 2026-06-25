@@ -17,3 +17,5 @@ def run_qc_void(sdata, figure_path, CONST, obs_columns):
     #     sdata['table'], figure_path, None, 
     #     1, None, 'convexhull_all_transcripts', None, 'Density of convexhull'
     # )
+
+    return obs_columns

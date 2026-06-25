@@ -23,7 +23,7 @@ def run_qc_additional_analysis(
 
     # In[]
     if ( CONST.STEP in ['all', 'analysis_overview'] and CONST.ANNOTATION_FILE):
-        additional_analysis.analysis.celltype_cluster_analysis(
+        additional_analysis.cluster_analysis.celltype_cluster_analysis(
                 sdata,
                 'overview',
                 CONST,
@@ -33,40 +33,40 @@ def run_qc_additional_analysis(
                 dim_y,
                 imagedim,
                 staining_list,
-                annotation,
+                annotation
         )
         helperfuncs.sort_files(f'{CONST.FIGURE_PATH}/analysis/overview', 'prefix', ['res.txt', 'done.txt'])
         print(f"[finish] {CONST.STEP}")
 
 
-    # In[]
-    if ( CONST.STEP in ['all', 'analysis_cluster'] and CONST.ANNOTATION_FILE):
-        additional_analysis.analysis.celltype_cluster_analysis(
-                sdata,
-                'cluster',
-                CONST,
-                seed,
-                'raw',
-                dim_x,
-                dim_y,
-                imagedim,
-                staining_list,
-                annotation,
-        )
-        helperfuncs.sort_files(f'{CONST.FIGURE_PATH}/analysis/cluster', 'prefix', ['res.txt', 'done.txt'])
-        print(f"[finish] {CONST.STEP}")
+    # # In[]
+    # if ( CONST.STEP in ['all', 'analysis_cluster'] and CONST.ANNOTATION_FILE):
+    #     additional_analysis.cluster_analysis.celltype_cluster_analysis(
+    #             sdata,
+    #             'cluster',
+    #             CONST,
+    #             seed,
+    #             'raw',
+    #             dim_x,
+    #             dim_y,
+    #             imagedim,
+    #             staining_list,
+    #             annotation,
+    #     )
+    #     helperfuncs.sort_files(f'{CONST.FIGURE_PATH}/analysis/cluster', 'prefix', ['res.txt', 'done.txt'])
+    #     print(f"[finish] {CONST.STEP}")
 
-    # In[]
-    if ( CONST.STEP in ['all', 'analysis_category'] and CONST.ANNOTATION_FILE):
-        additional_analysis.analysis.cell_category_analysis(
-                sdata,
-                'category',
-                CONST,
-                seed,
-                'raw',
-                dim_x,
-                dim_y,
-                imagedim,
-                staining_list,
-        )
-        print(f"[finish] {CONST.STEP}")
+    # # In[]
+    # if ( CONST.STEP in ['all', 'analysis_category'] and CONST.ANNOTATION_FILE):
+    #     additional_analysis.category_analysis.cell_category_analysis(
+    #             sdata,
+    #             'category',
+    #             CONST,
+    #             seed,
+    #             'raw',
+    #             dim_x,
+    #             dim_y,
+    #             imagedim,
+    #             staining_list,
+    #     )
+    #     print(f"[finish] {CONST.STEP}")

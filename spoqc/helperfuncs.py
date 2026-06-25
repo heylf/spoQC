@@ -233,7 +233,6 @@ def get_cbar_shrink(df_shrink):
     x_range = np.max(df_shrink['x']) - np.min(df_shrink['x'])
     shrink = y_range / x_range if x_range > 0 else 1.0
     shrink = max(0.05, min(shrink, 1.0))
-    print(shrink)
     return shrink
 
 

@@ -17,7 +17,6 @@ def correct_for_valid_geometries(sdata):
 def check_for_valid_geometries(sdata, figure_path):
     for obj_type in ['cell', 'nucleus']:
         geometries = np.array(sdata[f'{obj_type}_boundaries']['geometry'])
-        print(obj_type)
 
         # This can happen if you have nucleus-free cells
         if ( len(geometries) < sdata['table'].n_obs ):
