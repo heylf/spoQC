@@ -21,7 +21,7 @@ def calc_doublet_score(
         signal_threshold,
         window_sizes,
         num_doublet,
-        distance
+        distance_thresh
 ):
 
     transcript_coordinates_df = sdata.points[key_transcripts].compute()
@@ -147,7 +147,8 @@ def calc_doublet_score(
         'x': [poly.centroid.x for poly in sdata['cell_boundaries']['geometry']],
         'y': [poly.centroid.y for poly in sdata['cell_boundaries']['geometry']],
         'doublet': [False] * sdata['table'].n_obs,
-        'wdoublet': [0] * sdata['table'].n_obs
+        'wdoublet': [0] * sdata['table'].n_obs,
+        'doublet_distance': [100_000.0] * sdata['table'].n_obs
     })
 
     corrected_doublet_df = doublet_df.copy()
@@ -156,11 +157,14 @@ def calc_doublet_score(
     corrected_doublet_df['x'] = doublet_df['x'] + min_x
     corrected_doublet_df['y'] = doublet_df['y'] + min_y
 
+    final_distances = np.array([100_000.0] * sdata['table'].n_obs)
     for i, doublet in corrected_doublet_df.iterrows():
         x1, y1 = doublet['x'], doublet['y']
         distances = np.sqrt((cell_dobulet_df['x'] - x1)**2 + (cell_dobulet_df['y'] - y1)**2)
-        cell_dobulet_df.loc[distances <= distance, 'doublet'] = True
-        cell_dobulet_df.loc[distances <= distance, 'wdoublet'] = 1
+        final_distances = np.minimum(final_distances, distances) 
+        cell_dobulet_df.loc[distances <= distance_thresh, 'doublet'] = True
+        cell_dobulet_df.loc[distances <= distance_thresh, 'wdoublet'] = 1
+    cell_dobulet_df['doublet_distance'] = final_distances
 
     # Plot doublet density
     helperfuncs.plot_scatter_density_df(
@@ -176,6 +180,7 @@ def calc_doublet_score(
     # Write into sdata
     sdata['table'].obs['doublet'] = np.array(cell_dobulet_df['doublet'])
     sdata['table'].obs['wdoublet'] = np.array(cell_dobulet_df['wdoublet'])
+    sdata['table'].obs['doublet_distance'] = np.array(cell_dobulet_df['doublet_distance'])
 
     # Have to call this again because overlpy corrects also the transcript coordinates
     transcript_coordinates_df = sdata.points[key_transcripts].compute()
@@ -186,8 +191,8 @@ def calc_doublet_score(
     for i, doublet in corrected_doublet_df.iterrows():
         x1, y1 = doublet['x'], doublet['y']
         distances = np.sqrt((transcript_coordinates_df['x'] - x1)**2 + (transcript_coordinates_df['y'] - y1)**2)
-        transcript_doublet[distances <= distance] = True
-        transcript_wdoublet[distances <= distance] = 1
+        transcript_doublet[distances <= distance_thresh] = True
+        transcript_wdoublet[distances <= distance_thresh] = 1
 
     # Write out transcript doublet information for later usage
     transcript_doublet_df = pd.DataFrame({

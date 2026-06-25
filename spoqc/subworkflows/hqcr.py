@@ -184,7 +184,7 @@ def create_polygon_dataframe(sdata, imagedim, object, prob_col=None):
     polys = sd.transform(sdata[object], to_coordinate_system='global')
 
     if ( prob_col != None ):
-        polys['good_quality_probabilities'] = list(1 - sdata['table'].obs[prob_col])
+        polys[prob_col] = list(sdata['table'].obs[prob_col])
 
     # These list I need later because the image matrix has not the same index range as the poly coords.
     x_idx = [i for i in range(int(imagedim.bb_xmin-1), int(imagedim.bb_xmax+1))]
@@ -214,7 +214,7 @@ def create_polygon_dataframe(sdata, imagedim, object, prob_col=None):
     return polys
 
 
-def create_cell_probability_image(sdata, polys, img, resolution):
+def create_cell_probability_image(sdata, polys, img, resolution, prob_col):
 
     dim_x = len(sdata[img][resolution].image.y.values)
     dim_y = len(sdata[img][resolution].image.x.values)
@@ -226,7 +226,7 @@ def create_cell_probability_image(sdata, polys, img, resolution):
     transform = from_origin(0, height, 1, 1)  # top-left at (0, height), cell size = 1
 
     # Define your list of (polygon, value) tuples
-    polygons_with_values = [ (row['geometry'], row['good_quality_probabilities']) for index, row in polys.iterrows() ]
+    polygons_with_values = [ (row['geometry'], row[prob_col]) for index, row in polys.iterrows() ]
 
     # Get for each pixel the summed cell quality probabilties from each cell polygon.
     shapes = ((mapping(poly), val) for poly, val in polygons_with_values)
@@ -343,7 +343,6 @@ def map_values_to_cells(
             colors = ['red']
         helperfuncs.plot_scatter(sdata['table'], figure_path, res_col, None, res_col, colors, None)
 
-
     if ( mode == 'mean_values' ):
 
         # Compute per-polygon mean of values
@@ -389,10 +388,10 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
                                         prob_col, res_col, spoqc_tmp_folder, suffix):
     
     polys = create_polygon_dataframe(sdata, imagedim, 'cell_boundaries', prob_col)
-    average_cell_probability_image = create_cell_probability_image(sdata, polys, image_type, resolution)
+    average_cell_probability_image = create_cell_probability_image(sdata, polys, image_type, resolution, prob_col)
 
     # This is a sanity check
-    has_values_over_1 = np.any(np.array(polys['good_quality_probabilities']) > 1)
+    has_values_over_1 = np.any(np.array(polys[prob_col]) > 1)
     print(f'Are there any values bigger than 1: {has_values_over_1}')
 
     has_values_over_1 = np.any(average_cell_probability_image > 1)
@@ -495,17 +494,8 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
     qc_domains_adata, cell_df, qc_metrices = load_data_for_hqcr(sdata, spoqc_tmp_folder, counts)
     clustering_for_hqcr(qc_domains_adata, figure_path, seed)
     
-    bad_quality_probabilities, cell_df = priors.hqcr.transcript_counts.calc_transcript_counts_probs(
-        sdata, 
-        figure_path,
-        cell_df,
-        qc_domains_adata,
-        counts
-    )
-
-    # priors.combine_priors.combine_priors_hqtr(spoqc_tmp_folder, image_ddf)
-
-    sdata['table'].obs['bad_quality_probabilities'] = bad_quality_probabilities
+    # Here we combine available priors
+    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts)
 
     # Cell quality probability refinement
     cell_quality_probability_refinement(
@@ -514,7 +504,7 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
         CONST.IMAGE_TYPE,
         CONST.RESOLUTION,
         figure_path,
-        'bad_quality_probabilities',
+        'good_quality_probabilities',
         'refined_qc_class',
         spoqc_tmp_folder,
         'raw'
@@ -767,7 +757,7 @@ def refine_hqcr_with_celltype_thresholds(
     # Refine HQCR based on cell type thresholds.
     # Now I have to find out which of those multiplets and emtplets are true and which are real cells still.
     qc_metric = counts
-    bad_quality_probs_celltype, cell_df = priors.hqcr.transcript_counts.calc_celltype_transcript_counts_probs(
+    good_quality_probs_celltype, cell_df = priors.hqcr.transcript_counts.calc_celltype_transcript_counts_probs(
         sdata, 
         cell_df, 
         threshold_left_dict, 
@@ -776,16 +766,17 @@ def refine_hqcr_with_celltype_thresholds(
         qc_metric,
         df_coords
     )
-    sdata['table'].obs['bad_quality_probs_celltype'] = bad_quality_probs_celltype
+    sdata['table'].obs['good_quality_probs_celltype'] = good_quality_probs_celltype
+    sdata['table'].obs['bad_quality_probs_celltype'] = 1 - good_quality_probs_celltype
 
-    # Refine bad_quality_probs_celltype assignment per cell based on the bad quality probability.
+    # Refine good_quality_probs_celltype assignment per cell based on the bad quality probability.
     cell_quality_probability_refinement(
         sdata,
         imagedim,
         image_type,
         resolution,
         figure_path,
-        'bad_quality_probs_celltype',
+        'good_quality_probs_celltype',
         'refine_qc_celltype_class',
         spoqc_tmp_folder,
         'celltype_refined'
