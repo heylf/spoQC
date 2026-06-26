@@ -619,10 +619,9 @@ def celltype_cluster_analysis(
     ####################################################################################################################
     # beliefs filtering plot
     ####################################################################################################################
-
-    filter_cols = ['hqcr_beliefs', 'hqtr_mask_mean']
+    filter_cols = ['hqcr_beliefs', 'hqtr_beliefs_mean_informative']
     for staining in stainings:
-        filter_cols.append(f'hqpr_{staining}_mask_mean')
+        filter_cols.append(f'hqpr_{staining}_beliefs_mean_informative')
     for org_c in filter_cols:
 
         t = 0.0
@@ -633,16 +632,19 @@ def celltype_cluster_analysis(
             t = 0.5
             c = 'hqcr'
         if ( org_c.startswith('hqpr') ):
+            t = 0.5
             c = 'hqpr'
         if ( org_c.startswith('hqtr') ):
+            t = 0.5
             c = 'hqtr'
 
         # MAD-based Gaussian threshold: sigma_est = MAD / 0.6745, t = median - 1*sigma_est
-        if c in ('hqpr', 'hqtr'):
-            data = rna.obs[org_c].dropna().values
-            mad = median_abs_deviation(data)
-            t = np.max([0.1, np.median(data) - 1 * (mad / 0.6745)])
-            print(f'[NOTE] Filter {c} by threshold {t}')
+        # if c in ('hqpr', 'hqtr'):
+        #     data = rna.obs[org_c].dropna().values
+        #     mad = median_abs_deviation(data)
+        #     t = np.max([0.1, np.median(data) - 1 * (mad / 0.6745)])
+        #     print(f'[NOTE] Filter {c} by threshold {t}')
+        
         c = f'{c}_filtered_out'
         rna.obs[c] = rna.obs[org_c] < t
 
@@ -685,7 +687,7 @@ def celltype_cluster_analysis(
         helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.pdf")
 
     c = f'hqr_filtered_out'
-    rna.obs[c] = rna.obs['hqcr_filtered_out'] & rna.obs['hqpr_filtered_out'] & rna.obs['hqtr_filtered_out']
+    rna.obs[c] = rna.obs['hqcr_filtered_out'] | rna.obs['hqpr_filtered_out'] | rna.obs['hqtr_filtered_out']
     
     helperfuncs.plot_scatter(
         rna,

@@ -383,6 +383,32 @@ def map_values_to_cells(
         else:
             sdata['table'].obs[res_col] = polygon_scores
 
+    # This mode is for hqtr and hqpr because a lot of pixels are not informative.
+    # This you can see in the distribution of the pixel beliefs for hqtr and hqpr.
+    # I think the issue is currently the PS score.
+    if ( mode == 'mean_values_informative' ):
+
+        # Use pixels with a bliefs of > 0.2 before computing mean
+        non_t_mask = flat_labels > 0.2
+        flat_labels_nz = flat_labels[non_t_mask]
+        flat_index_nz = flat_index[non_t_mask]
+
+        polygon_scores = ndimage.mean(
+            input=flat_labels_nz,
+            labels=flat_index_nz,
+            index=polygon_ids
+        )
+
+        # Polygons with no non-zero pixels produce NaN — treat as 0
+        polygon_scores = np.nan_to_num(polygon_scores, nan=0.0)
+
+        if ( len(polygon_scores) < sdata['table'].n_obs ):
+            sdata['table'].obs[res_col] = [0] * sdata['table'].n_obs
+            polygon_ids = [str(x) for x in polygon_ids]
+            sdata['table'].obs.loc[polygon_ids, res_col] = polygon_scores
+        else:
+            sdata['table'].obs[res_col] = polygon_scores
+
 
 def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution, figure_path, 
                                         prob_col, res_col, spoqc_tmp_folder, suffix):
