@@ -7,7 +7,7 @@ def create_folder_structure(CONST):
     if CONST.STEP == "all":
         dirs = [
             "annotation",
-            "generalqc",
+            "generalqc",    
             "whole_slide_qc",
             "bubbleqc",
             "doubletqc",
@@ -40,8 +40,7 @@ def create_folder_structure(CONST):
             f"combine_masks/{CONST.STAINING}",
             "analysis/overview",
             "analysis/cluster",
-            "analysis/category",
-            "analysis/filtering",
+            "analysis/category"
         ]
     else:
         prefix_dir = CONST.STEP.split("_")[0]

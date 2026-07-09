@@ -113,7 +113,7 @@ def transcriptqc(sdata, figure_path, annotation_file, key_transcripts):
 
     gene_biotype_dict = parse_gtf(f"{annotation_file}")
 
-    rna_types = [get_rna_type(var, gene_biotype_dict) for var in list(sdata.tables["table"].var_names)]
+    rna_types = [get_rna_type(var, gene_biotype_dict) for var in list(sdata['table'].var_names)]
 
     df = pd.Series(rna_types).value_counts()
     df = pd.DataFrame(df)

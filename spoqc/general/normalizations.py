@@ -27,7 +27,7 @@ def fill_nans_for_0_transcript_cells(data: Any): # anndata or spatialdata
             if ( type(data.obs[col][0]) != str ):
                 data.obs[col] = data.obs[col].fillna(0)
     else:
-        cols = data.table.obs.columns
+        cols = data['table'].obs.columns
         for col in cols:
-            if ( type(data.table.obs[col][0]) != str ):
-                data.table.obs[col] = data.table.obs[col].fillna(0)
+            if ( type(data['table'].obs[col][0]) != str ):
+                data['table'].obs[col] = data['table'].obs[col].fillna(0)

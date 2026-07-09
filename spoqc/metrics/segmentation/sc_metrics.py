@@ -58,7 +58,7 @@ def prepate_qc(sdata, figure_path=None):
     ####################################################################################################################
     print("[TASK] Prepare QC")
 
-    rna = sdata.table
+    rna = sdata['table']
 
     # Perform QC
     rna.var["mt"] = rna.var_names.str.startswith("MT-") # this will add mitochondrial QC to the general QC
@@ -311,11 +311,9 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
             cmin=0,
             cmax=100,
             colorbar=dict(
-                title="pct_counts_mt",
-                titleside="right"
+                title=dict(text="pct_counts_mt", side="right")
             ),
-            showscale=True,  # Add this line to show the size scale legend
-            colorbar_title="pct_counts_mt"
+            showscale=True,
         ),
         text=[
             f"total_counts: {count}<br>n_genes_by_counts: {genes}<br>pct_counts_ribo: {ribo}<br>pct_counts_mt: {mt}"

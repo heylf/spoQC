@@ -130,7 +130,7 @@ def spatial_cellcycle_qc(figure_path: str, sdata: Any) -> None:
 
 
 def run_qc_cellcycle(sdata, figure_path, CONST):
-    rna_adata = sdata.table
+    rna_adata = sdata['table']
 
     # Get cell cylce genes
     cell_cycle_genes = [x.strip() for x in open(f'{CONST.CELLCYCLE_GENE_FILE}')]

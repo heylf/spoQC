@@ -48,7 +48,7 @@ def celltype_cluster_analysis(
     umap_cats.extend(cell_metrices)
 
     figure_path = f'{CONST.FIGURE_PATH}/analysis/{subdir}'
-    rna = sdata.table
+    rna = sdata['table']
     rna.X = rna.layers['normlog']
 
     ####################################################################################################################
@@ -119,9 +119,9 @@ def celltype_cluster_analysis(
 
     # This had to be done if I analyse a specific clsuter because I subset the data.
     if ( subdir == 'cluster' ):
-        add_cols = [x for x in list(sdata.table.obs.columns) if x not in list(rna.obs.columns)]
+        add_cols = [x for x in list(sdata['table'].obs.columns) if x not in list(rna.obs.columns)]
         for col in add_cols:
-            rna.obs[col] = np.array(sdata.table.obs.loc[rna.obs.index, col])
+            rna.obs[col] = np.array(sdata['table'].obs.loc[rna.obs.index, col])
 
     # Add general stuff to check
     umap_cats.extend([CONST.ANNOTATION_KEY, 'leiden'])
@@ -614,7 +614,7 @@ def celltype_cluster_analysis(
                             metadata_list = ast.literal_eval(content)
                         hqr_metadata_dic[f'{modality}'] = metadata_list
                 
-                sdata.table.uns = hqr_metadata_dic
+                sdata['table'].uns = hqr_metadata_dic
 
     ####################################################################################################################
     # beliefs filtering plot
@@ -629,21 +629,14 @@ def celltype_cluster_analysis(
         # with hqcr we clearly see a bimodal distribution
         c = ''
         if ( org_c.startswith('hqcr') ):
-            t = 0.5
+            t = 0.45
             c = 'hqcr'
         if ( org_c.startswith('hqpr') ):
-            t = 0.5
+            t = 0.45
             c = 'hqpr'
         if ( org_c.startswith('hqtr') ):
-            t = 0.5
+            t = 0.45
             c = 'hqtr'
-
-        # MAD-based Gaussian threshold: sigma_est = MAD / 0.6745, t = median - 1*sigma_est
-        # if c in ('hqpr', 'hqtr'):
-        #     data = rna.obs[org_c].dropna().values
-        #     mad = median_abs_deviation(data)
-        #     t = np.max([0.1, np.median(data) - 1 * (mad / 0.6745)])
-        #     print(f'[NOTE] Filter {c} by threshold {t}')
         
         c = f'{c}_filtered_out'
         rna.obs[c] = rna.obs[org_c] < t
@@ -732,10 +725,10 @@ def celltype_cluster_analysis(
     ####################################################################################################################
     if ( subdir == 'overview' ):
         # Remove columns that are not useful for inspection.
-        if ( 'nuclei_idxs' in sdata.table.obs.columns ):
-            sdata.table.obs.drop(columns=['nuclei_idxs'], inplace=True)
+        if ( 'nuclei_idxs' in sdata['table'].obs.columns ):
+            sdata['table'].obs.drop(columns=['nuclei_idxs'], inplace=True)
 
-        sdata.table.write_h5ad(
+        sdata['table'].write_h5ad(
             f"{CONST.FIGURE_PATH}/analysis/rna_qc_annotated.h5ad", 
             compression="gzip", 
             compression_opts=9

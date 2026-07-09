@@ -14,14 +14,14 @@ def process_sdata(dataset, sdata):
         # Cellid mapping for the transripts because somestime cellids are string and have UNASSIGNED or other keywords for
         # beeing unassigned to a cell.
         # Thus I give all cell_ids just a int ID
-        # sdata.table.obs.index = [str(i) for i in range(len(sdata.table.obs.index))]
-        # mapping = sdata.table.obs.index.to_series().set_axis(sdata.table.obs["cell_id"].values)
+        # sdata['table'].obs.index = [str(i) for i in range(len(sdata['table'].obs.index))]
+        # mapping = sdata['table'].obs.index.to_series().set_axis(sdata['table'].obs["cell_id"].values)
         # sdata.shapes['cell_boundaries'].index = sdata.shapes['cell_boundaries'].index.map(mapping)
         # sdata.shapes['cell_circles'].index = sdata.shapes['cell_circles'].index.map(mapping)
         # sdata.shapes['nucleus_boundaries'].index = sdata.shapes['nucleus_boundaries'].index.map(mapping)
 
         # # Mapping of transcript table
-        # mapping = dict(zip(sdata.table.obs["cell_id"], sdata.table.obs.index))
+        # mapping = dict(zip(sdata['table'].obs["cell_id"], sdata['table'].obs.index))
         # sdata.points['transcripts']['cell_id'] = (
         #     sdata.points['transcripts']['cell_id']
         #         .map(mapping, meta=('cell_id', 'str'))
@@ -42,12 +42,12 @@ def process_sdata(dataset, sdata):
 
 def unsupervised_celltype_annotation(sdata, CONST, seed):
     figure_path = f'{CONST.FIGURE_PATH}/annotation/'
-    rna = sdata.table
+    rna = sdata['table']
     rna.X = rna.layers['normlog']
     sc.pp.neighbors(rna, n_neighbors=20, random_state=seed)
     sc.tl.umap(rna, min_dist=0.1, spread=1.2, random_state=seed)
     win_res = additional_analysis.analysis.test_resolutions_leiden(
-        sdata.table,
+        sdata['table'],
         figure_path,
         CONST.THREADS,
         k=20,
@@ -63,7 +63,7 @@ def unsupervised_celltype_annotation(sdata, CONST, seed):
     if ( len(set(rna.obs['leiden'])) > 30 ):
         rna.obs.drop(columns=['leiden'], inplace=True)
         win_res = additional_analysis.analysis.test_resolutions_leiden(
-            sdata.table,
+            sdata['table'],
             figure_path,
             CONST.THREADS,
             k=20,

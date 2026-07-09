@@ -22,6 +22,7 @@ def run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns):
         sdata,
         figure_path,
         CONST.TMP_PATH,
+        CONST.THREADS,
         'transcripts',
         ncelltypes,
         mean_diameter,

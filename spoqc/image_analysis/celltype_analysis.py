@@ -35,13 +35,20 @@ def start_image_celltype_analysis(
 
     # You have to read as dask because these paquet files are dask dataframes.
     # Else you run into partition errors.
-    image_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_raw', columns=qc_metrics, engine="pyarrow")
+    image_ddf = dd.read_parquet(
+        f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
+        columns=qc_metrics,
+        engine="pyarrow"
+    )
     image_df = image_ddf.compute()
     image_df.index = image_df.index.set_names('index')
     image_df['intensity'] = np.log10( image_df['intensity'] + 1 )
 
-    mask_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
-                               columns=[f'{prefix}_mask'], engine="pyarrow")
+    mask_ddf = dd.read_parquet(
+        f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
+        columns=[f'{prefix}_mask'],
+        engine="pyarrow"
+    )
     mask_df = mask_ddf.compute()
 
     for col in image_df.columns:
@@ -79,7 +86,7 @@ def start_image_celltype_analysis(
                                     image_df[qc_metric], qc_metric, figure_path, 'mean_values')
 
             fig = px.violin(
-                sdata.table.obs,
+                sdata['table'].obs,
                 x=qc_metric,
                 y=annotation_key,
                 color='artefact',
@@ -96,7 +103,7 @@ def start_image_celltype_analysis(
                                     mask_df[f'{prefix}_mask'], f'{prefix}_class', figure_path, 'markov_labels')
             
             bar_plot_df_1 = (
-                sdata.table.obs
+                sdata['table'].obs
                 .groupby(annotation_key)[f'{prefix}_class']
                 .apply(lambda x: (x == 1).sum())
                 .reset_index(name=f'num_class')
@@ -104,7 +111,7 @@ def start_image_celltype_analysis(
             bar_plot_df_1['class'] = [modality] * len(bar_plot_df_1)
 
             bar_plot_df_2 = (
-                sdata.table.obs
+                sdata['table'].obs
                 .groupby(annotation_key)[f'{prefix}_class']
                 .apply(lambda x: (x == 0).sum())
                 .reset_index(name=f'num_class')

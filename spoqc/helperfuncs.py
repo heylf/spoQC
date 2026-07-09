@@ -14,6 +14,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import shutil
 import scanpy as sc
+import matplotlib
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
@@ -575,8 +576,9 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
     # Move the legend outside the plot (further to the right)
     handles, labels = scatter.get_legend_handles_labels()
 
-    plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.6, 1), 
-               loc='upper left', borderaxespad=0., markerscale=1)
+    if handles and labels:
+        plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.6, 1),
+                   loc='upper left', borderaxespad=0., markerscale=1)
 
     # Add density category
     try:
@@ -614,9 +616,6 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
             plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.6, 1), 
                     loc='upper left', borderaxespad=0., markerscale=1)
 
-    if handles == None and labels == None:
-        ax.get_legend().remove()
-        
     if ( title ):
         plt.title(title)
 
@@ -1025,7 +1024,7 @@ def values_to_hex_gradient(values, cmap_name='hot', reverse=False):
         list of str: A list of hex color strings corresponding to each value.
     """
     norm = mcolors.Normalize(vmin=min(values), vmax=max(values))
-    cmap = cm.get_cmap(cmap_name)
+    cmap = matplotlib.colormaps[cmap_name]
     if reverse:
         cmap = cmap.reversed()
     hex_colors = [mcolors.to_hex(cmap(norm(v))) for v in values]

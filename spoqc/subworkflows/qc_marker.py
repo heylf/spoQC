@@ -406,7 +406,7 @@ def plot_sanpy_score_genes(sdata, figure_path, markers, name):
 def run_qc_marker(sdata, figure_path, CONST):
 
     sdata['table'].X = sdata['table'].layers['normlog']
-    rna_adata = sdata.table
+    rna_adata = sdata['table']
 
     # TODO for testing - remove later
     negative_markers = dict({'Invasive_Tumor': ['KRT14', 'MMP1', 'FOXC2'],

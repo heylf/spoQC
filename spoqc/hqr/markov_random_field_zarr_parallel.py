@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import zarr
 import os
 
-from numcodecs import Blosc
+from zarr.codecs import BloscCodec
 from numba import njit, prange
 
 from .. import helperfuncs
@@ -158,43 +158,43 @@ def first_version_loopy_belief_propagation_parallel(
     # -----------------------
     # Zarr store setup (float32)
     # -----------------------
-    compressor = Blosc(cname="zstd", clevel=5, shuffle=Blosc.SHUFFLE)
-    store = zarr.DirectoryStore(f"{spoqc_tmp_folder}/lbp_store_{modality}_zarr")
+    compressor = BloscCodec(cname="zstd", clevel=5, shuffle="shuffle")
+    store = zarr.storage.LocalStore(f"{spoqc_tmp_folder}/lbp_store_{modality}_zarr")
     root = zarr.group(store=store, overwrite=True)
 
     # Prob map (input) in Zarr
-    prob_map = root.create_dataset(
+    prob_map = root.create_array(
         "prob_map",
         shape=(n, m),
         chunks=(min(n, chunk_read), min(m, chunk_read)),
-        compressor=compressor,
+        compressors=[compressor],
         dtype="f4",
     )
     prob_map[:] = prob_map_np.astype(np.float32, copy=False)  # remove if already on disk
 
-    # Unary (n, m, 2)
-    unary = root.create_dataset(
+    # Unary (n, m, 2) — chunk size matches tile size to avoid partial chunk writes
+    unary = root.create_array(
         "unary",
         shape=shape,
-        chunks=(min(n, chunk_read), min(m, chunk_read), 2),
-        compressor=compressor,
+        chunks=(min(n, chunk_update), min(m, chunk_update), 2),
+        compressors=[compressor],
         dtype="f4",
     )
 
-    # Beliefs & labels
-    beliefs = root.create_dataset(
+    # Beliefs & labels — chunk size matches tile size to avoid partial chunk writes
+    beliefs = root.create_array(
         "beliefs",
         shape=shape,
-        chunks=(min(n, chunk_read), min(m, chunk_read), 2),
-        compressor=compressor,
+        chunks=(min(n, chunk_update), min(m, chunk_update), 2),
+        compressors=[compressor],
         dtype="f4",
     )
-    labels = root.create_dataset(
+    labels = root.create_array(
         "labels",
         shape=(n, m),
-        chunks=(min(n, chunk_read), min(m, chunk_read)),
+        chunks=(min(n, chunk_update), min(m, chunk_update)),
         dtype="int8",
-        compressor=compressor,
+        compressors=[compressor],
     )
 
     # -----------------------

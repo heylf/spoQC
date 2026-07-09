@@ -43,20 +43,20 @@ class TestParquetEquality(unittest.TestCase):
         )
 
     # ---------- HQPR tests ----------
-    def test_hqpr_0_output_mask_raw(self):
+    def test_hqpr_0_output_mask_prob(self):
         self.assert_dask_equal(
-            f'{builtins.TEST_DATA_DIR}/hqpr_0_output_mask_raw',
-            f'{builtins.REF_DATA_DIR}/hqpr_0_output_mask_raw'
+            f'{builtins.TEST_DATA_DIR}/hqpr_0_output_mask_prob',
+            f'{builtins.REF_DATA_DIR}/hqpr_0_output_mask_prob'
         )
 
     def test_hqpr_0_output_mask_raw(self):
         self.assert_dask_equal(
-            f'{builtins.TEST_DATA_DIR}/hqpr_0_output_mask_raw',
-            f'{builtins.REF_DATA_DIR}/hqpr_0_output_mask_raw'
+            f'{builtins.TEST_DATA_DIR}/hqpr_0_output_mask_prob',
+            f'{builtins.REF_DATA_DIR}/hqpr_0_output_mask_prob'
         )
 
      # ---------- HQTR tests ----------
-    def test_hqtr_output_mask_raw(self):
+    def test_hqtr_output_mask_prob(self):
         self.assert_dask_equal(
             f'{builtins.TEST_DATA_DIR}/hqtr_output_mask_raw',
             f'{builtins.REF_DATA_DIR}/hqtr_output_mask_raw'

@@ -335,14 +335,14 @@ def main(argv: list[str] | None = None) -> None:
 
     # In[]
     # Apply Integer indexing
-    sdata.table.obs.index = [int(i) for i in range(len(sdata.table.obs.index))]
-    mapping = sdata.table.obs.index.to_series().set_axis(sdata.table.obs["cell_id"].values)
+    sdata['table'].obs.index = [int(i) for i in range(len(sdata['table'].obs.index))]
+    mapping = sdata['table'].obs.index.to_series().set_axis(sdata['table'].obs["cell_id"].values)
     sdata.shapes['cell_boundaries'].index = sdata.shapes['cell_boundaries'].index.map(mapping)
     sdata.shapes['cell_circles'].index = sdata.shapes['cell_circles'].index.map(mapping)
     sdata.shapes['nucleus_boundaries'].index = sdata.shapes['nucleus_boundaries'].index.map(mapping)
 
     # Mapping of transcript table
-    mapping = dict(zip(sdata.table.obs["cell_id"], sdata.table.obs.index))
+    mapping = dict(zip(sdata['table'].obs["cell_id"], sdata['table'].obs.index))
     sdata.points['transcripts']['cell_id'] = (
         sdata.points['transcripts']['cell_id']
             .map(mapping, meta=('cell_id', int))
@@ -350,19 +350,23 @@ def main(argv: list[str] | None = None) -> None:
             .astype(int)
     )
 
+    # In[]
     # Check for nan's in transcripts feature names
-    transcripts = sdata.points['transcripts'].assign(
-        feature_name=sdata.points['transcripts']['feature_name'].astype('string').fillna('NaN').astype('category')
+    sdata.points['transcripts']['feature_name'] = (
+        sdata.points['transcripts']['feature_name']
+        .astype('string')
+        .fillna('NaN')
+        .astype('category')
     )
-    sdata.points['transcripts'] = transcripts
 
+    # In[]
     # I need string indexes for anndata else code breaks
-    sdata.table.obs.index = sdata.table.obs.index.astype(str)
+    sdata['table'].obs.index = sdata['table'].obs.index.astype(str)
     sdata['table'].obs.index.name = 'index'
 
     # In[]
     # Get RNA data and set raw data layer
-    rna_adata = sdata.tables["table"]
+    rna_adata = sdata['table']
     rna_adata.layers['raw'] = rna_adata.X
 
     # Add annotation

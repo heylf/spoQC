@@ -179,7 +179,7 @@ def plot_spatial_vs_exression_variance(sdata, figure_path, df, nPCs):
 def run_qc_model(sdata, figure_path, CONST):
     # For model QC we need to get the normalized data
     sdata['table'].X = sdata['table'].layers['normlogscale']
-    rna_adata = sdata.table
+    rna_adata = sdata['table']
 
     sc.tl.pca(rna_adata, n_comps=100)
 

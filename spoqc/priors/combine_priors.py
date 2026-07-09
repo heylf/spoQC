@@ -1,3 +1,4 @@
+import pandas as pd
 import dask.dataframe as dd
 from dask_ml.preprocessing import MinMaxScaler
 
@@ -35,17 +36,26 @@ def combine_priors_hqpr(spoqc_tmp_folder, image_ddf, belief_name, mask_name):
 def combine_priors_hqtr(spoqc_tmp_folder, image_ddf, belief_name, mask_name):
     scaler = MinMaxScaler()
 
-    qv_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_qv_prob', columns=["norm_p_qv_density"],
-                                engine="pyarrow")
-    ac_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_ac_prob', columns=["norm_p_ac_density"],
-                                engine="pyarrow")
+    qv_ddf = dd.read_parquet(
+        f'{spoqc_tmp_folder}/hqtr_output_qv_prob',
+        columns=["norm_p_qv_density"],
+        engine="pyarrow",
+    )
+    ac_ddf = dd.read_parquet(
+        f'{spoqc_tmp_folder}/hqtr_output_ac_prob',
+        columns=["norm_p_ac_density"],
+        engine="pyarrow",
+    )
 
     # Informative pixel probability for hqtr = p(structure) + p(good qv) + p(not ambient)
-    a = image_ddf['norm_p_pixel_score'].to_dask_array(lengths=True)
-    b = qv_ddf['norm_p_qv_density'].to_dask_array(lengths=True)
-    c = ac_ddf['norm_p_ac_density'].to_dask_array(lengths=True)
-    series = a + b + c 
-    image_ddf = image_ddf.assign(**{belief_name: series})
+    a = image_ddf['norm_p_pixel_score'].compute().values
+    b = qv_ddf['norm_p_qv_density'].compute().values
+    c = ac_ddf['norm_p_ac_density'].compute().values
+    series_np = a + b + c
+
+    chunk_size = image_ddf.divisions[1] - image_ddf.divisions[0]
+    series_ddf = dd.from_pandas(pd.Series(series_np), chunksize=chunk_size)
+    image_ddf = image_ddf.assign(**{belief_name: series_ddf})
     scaled_ddf = scaler.fit_transform(image_ddf[[belief_name]])
     image_ddf = image_ddf.assign(
         **{

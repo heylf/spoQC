@@ -24,10 +24,10 @@ def check_for_valid_geometries(sdata, figure_path):
             sdata['table'].obs[f'wvalid_{obj_type}_geometry'] = [0] * sdata['table'].n_obs
             boundary_indices = np.array([str(x) for x in sdata[f'{obj_type}_boundaries'].index])
 
-            sdata.table.obs.loc[boundary_indices, f'valid_{obj_type}_geometry'] = \
+            sdata['table'].obs.loc[boundary_indices, f'valid_{obj_type}_geometry'] = \
                 [True if x.is_valid else False for x in geometries]
 
-            sdata.table.obs.loc[boundary_indices, f'wvalid_{obj_type}_geometry'] = \
+            sdata['table'].obs.loc[boundary_indices, f'wvalid_{obj_type}_geometry'] = \
                 [0 if x.is_valid else 1 for x in geometries]
         else:
             sdata['table'].obs[f'valid_{obj_type}_geometry'] = [True if x.is_valid else False for x in geometries]

@@ -52,7 +52,7 @@ def build_weights(coords_subset: np.ndarray, k):
     w = KNN.from_array(coords_subset, k=k)  # tune k
     return w
 
-# Core computation per i (no sdata.table slicing, no GeoPandas)
+# Core computation per i (no sdata['table'] slicing, no GeoPandas)
 def compute_one_i(i: int, num_genes, distance_matrix, center_cell_ids, coords_all, rna_X, k=30):
     idx = distance_matrix[i]
     m = len(idx)
@@ -88,13 +88,13 @@ def calculate_local_moran_I_values(sdata, threads):
     # ----------------------------
     # Precompute once (avoid .todense())
     # ----------------------------
-    genes_list = np.array(sdata.table.var_names)
+    genes_list = np.array(sdata['table'].var_names)
     num_genes = len(genes_list)
 
     # keep sparse if possible
-    rna_X = sdata.table.X  # typically CSR/CSC
+    rna_X = sdata['table'].X  # typically CSR/CSC
     coords_all = np.asarray(sdata['table'].obsm['spatial'], dtype=np.float64)
-    center_cell_ids = sdata.table.obs.index.to_numpy()
+    center_cell_ids = sdata['table'].obs.index.to_numpy()
 
     distance_matrix = helperfuncs.points_within_radius(
         # if it accepts array, give coords_all; otherwise keep your df_coords
@@ -145,7 +145,7 @@ def calculate_local_moran_I_values(sdata, threads):
 
     # Build fast maps -> indices
     cell_to_row = {cid: i for i, cid in enumerate(all_ids)}
-    gene_to_col = {g: j for j, g in enumerate(sdata.table.var_names)}
+    gene_to_col = {g: j for j, g in enumerate(sdata['table'].var_names)}
 
     # Vectorize mapping via pandas (fast C code) rather than Python loops
     # (This avoids a Python loop over transcripts.)

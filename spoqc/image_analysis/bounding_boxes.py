@@ -208,8 +208,8 @@ def define_bounding_boxes(
 
     # Correct the coordinates of the bounding box
     for i, box in enumerate(bounding_boxes):
-        bounding_boxes[i] = [box[0]+imagedim.bb_ymin, box[1]+imagedim.bb_xmin, 
-                             box[2]+imagedim.bb_ymin, box[3]+imagedim.bb_xmin]
+        bounding_boxes[i] = [float(box[0]+imagedim.bb_ymin), float(box[1]+imagedim.bb_xmin),
+                             float(box[2]+imagedim.bb_ymin), float(box[3]+imagedim.bb_xmin)]
 
     # Merge overlapping bounding boxes
     merged_bounding_boxes = _merge_overlapping_boxes(bounding_boxes)

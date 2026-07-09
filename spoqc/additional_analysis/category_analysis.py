@@ -37,7 +37,7 @@ def cell_category_analysis(
     umap_cats.extend(cell_metrices)
 
     figure_path = f'{CONST.FIGURE_PATH}/analysis/{subdir}'
-    rna = sdata.table
+    rna = sdata['table']
     rna.X = rna.layers['normlog']
 
     ####################################################################################################################
@@ -55,7 +55,7 @@ def cell_category_analysis(
         if ( not os.path.exists(f"{figure_path}/{cat}") ):
             os.makedirs(f"{figure_path}/{cat}")
 
-        df = sdata.table.obs.copy()
+        df = sdata['table'].obs.copy()
 
         # Check if I have enough cells for the celltype for the cat=True/False, else remove cells because
         # I cannot make a good estimation for my distribution.

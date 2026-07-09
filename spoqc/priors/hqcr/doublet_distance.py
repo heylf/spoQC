@@ -7,7 +7,7 @@ from scipy.stats import norm
 from ... import helperfuncs
 
 def calc_probs_doublet_distance(sdata, nstds=None):
-    distances = sdata.table.obs['doublet_distance']
+    distances = sdata['table'].obs['doublet_distance']
     max_std = 1.0
     set_nstds = 3.0
     if ( nstds ):

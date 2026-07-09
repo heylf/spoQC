@@ -54,7 +54,6 @@ def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
 
         print('[finish]')
 
-
     if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_clustering'] ):
 
         image_analysis.pixel_scoring_dask.start_pixel_qc(
@@ -73,6 +72,8 @@ def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
 
         print("[finish]")
 
+
+# In[]
 
     if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_refinement'] ):
 
