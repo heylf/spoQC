@@ -53,6 +53,7 @@ def build_weights(coords_subset: np.ndarray, k):
     return w
 
 # Core computation per i (no sdata['table'] slicing, no GeoPandas)
+# This calculate all Moran'Is for all genes for one cell.
 def compute_one_i(i: int, num_genes, distance_matrix, center_cell_ids, coords_all, rna_X, k=30):
     idx = distance_matrix[i]
     m = len(idx)
