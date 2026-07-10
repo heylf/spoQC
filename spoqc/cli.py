@@ -91,7 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--cellcycle_gene_file",
         dest="cellcycle_gene_file",
         type=str,
-        help="Path to a file containing gene names for the cell cycles.",
+        help='Path to a JSON file with "S" and "G2M" keys listing S-phase and G2M-phase gene names.',
         required=False
     )
     parser.add_argument(    
@@ -632,6 +632,7 @@ def main(argv: list[str] | None = None) -> None:
     ###### CELLCYCLE QC ######
     ##########################
     # Low resources and quick
+    importlib.reload(subworkflows.qc_cellcycle)
     if ( CONST.STEP in ['all', 'cellcycleqc'] ):
         print("[TASK] Cell cycle check")
         figure_path = f'{CONST.FIGURE_PATH}/cellcycleqc/'

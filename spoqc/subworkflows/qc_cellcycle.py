@@ -1,4 +1,5 @@
 #In[]
+import json
 import scanpy as sc
 import plotly.express as px   # plotly
 import pandas as pd
@@ -133,10 +134,12 @@ def run_qc_cellcycle(sdata, figure_path, CONST):
     rna_adata = sdata['table']
 
     # Get cell cylce genes
-    cell_cycle_genes = [x.strip() for x in open(f'{CONST.CELLCYCLE_GENE_FILE}')]
-    cell_cycle_genes = list(set(cell_cycle_genes))
-    s_genes = cell_cycle_genes[:43]
-    g2m_genes = cell_cycle_genes[43:]
+    with open(CONST.CELLCYCLE_GENE_FILE) as f:
+        cellcycle_gene_dict = json.load(f)
+
+    s_genes = list(set(cellcycle_gene_dict["S"]))
+    g2m_genes = list(set(cellcycle_gene_dict["G2M"]))
+    cell_cycle_genes = list(set(s_genes + g2m_genes))
 
     # Filter for genes that are in the sdata
     cell_cycle_genes = list(set(cell_cycle_genes) & set(rna_adata.var_names))
