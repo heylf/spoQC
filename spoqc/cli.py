@@ -17,6 +17,7 @@ import importlib
 # Tool imports
 import spatialdata as sd
 import spatialdata_plot
+from spatialdata.models import PointsModel
 
 # Own scripts
 from spoqc import general
@@ -322,6 +323,18 @@ def main(argv: list[str] | None = None) -> None:
     if ( CONST.DATASET ):
         process_datasets.process_sdata(CONST.DATASET, sdata)
     print(sdata)
+
+    # Ensure transcripts have a globally unique, monotonic index (required by
+    # spatialdata>=0.7's get_centroids/transform). The Xenium zarr reader can
+    # produce a points dataframe whose partitions each restart their own local
+    # index, and plain ddf.reset_index(drop=True) does not fix this since dask
+    # resets per-partition; deduplicate_dask_index() offsets each partition by
+    # the cumulative length of the partitions before it instead. The existing
+    # 'global' transform lives in .attrs, which map_partitions carries over,
+    # so PointsModel.parse() picks it up without passing transformations=.
+    sdata.points['transcripts'] = PointsModel.parse(
+        helperfuncs.deduplicate_dask_index(sdata.points['transcripts'])
+    )
 
     # In[]
     # Cropping for testing

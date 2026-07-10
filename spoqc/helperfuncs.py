@@ -124,7 +124,30 @@ def create_fraction_df(adata: AnnData, group: str, category: str) -> Dict[str, U
     return(d)    
 
 
-def image_crop(sdata: Any, bb_xmin: float, bb_ymin: float, 
+def deduplicate_dask_index(ddf: Any) -> Any:
+    """
+    Return a copy of a dask DataFrame with a globally unique, monotonically
+    increasing RangeIndex.
+
+    Some readers (e.g. the Xenium zarr reader) build points partitions that
+    each carry their own locally-scoped 0..n index, so the same index value
+    repeats across partitions. `ddf.reset_index(drop=True)` does not fix this
+    because dask resets the index independently per partition. Here we
+    compute the (cheap) per-partition lengths and offset each partition's
+    index by the cumulative length of the partitions before it.
+    """
+    def _assign_partition_index(df, offsets, partition_info=None):
+        start = offsets[partition_info["number"]]
+        df = df.copy()
+        df.index = pd.RangeIndex(start, start + len(df))
+        return df
+
+    lengths = ddf.map_partitions(len).compute().to_numpy()
+    offsets = np.concatenate(([0], np.cumsum(lengths)[:-1]))
+    return ddf.map_partitions(_assign_partition_index, offsets, meta=ddf._meta)
+
+
+def image_crop(sdata: Any, bb_xmin: float, bb_ymin: float,
                bb_xmax: float, bb_ymax: float, coordsystem: str) -> Tuple[Any, float, float]:
     """
     Crop a spatial dataset to a specified bounding box within a given coordinate system.
@@ -1049,7 +1072,7 @@ def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
             sdata['table'].obs.index = [str(x) for x in sdata['table'].obs.index]
             sdata['table'].obs = sdata['table'].obs.join(tmp_data, how='left')
     except Exception as e:
-        print(f"[ERROR] Failed to read parquet files from {spoqc_tmp_folder} most likely because" + \
+        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} most likely because" + \
               f"the data was already loaded in: {e}")
         return None
 
@@ -1144,7 +1167,7 @@ def read_df_parquet_tmp_files(intensities, spoqc_tmp_folder, suffix):
             gc.collect()
         return read_image_df
     except Exception as e:
-        print(f"[ERROR] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
+        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
         return None
 
 
@@ -1173,7 +1196,7 @@ def read_df_parquet_tmp_files_daskified(num_values_image, spoqc_tmp_folder, suff
         return read_image_ddf
 
     except Exception as e:
-        print(f"[ERROR] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
+        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
         return None
 
 
@@ -1197,7 +1220,7 @@ def read_df_parquet_tmp_files_scorify(cluster_df, spoqc_tmp_folder, suffix):
             cluster_df['score'] += tmp_data.sum(axis=1).values
 
     except Exception as e:
-        print(f"[ERROR] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
+        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
         return None
 
 
