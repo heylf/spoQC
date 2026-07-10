@@ -633,7 +633,6 @@ def main(argv: list[str] | None = None) -> None:
     ###### CELLCYCLE QC ######
     ##########################
     # Low resources and quick
-    importlib.reload(subworkflows.qc_cellcycle)
     if ( CONST.STEP in ['all', 'cellcycleqc'] ):
         print("[TASK] Cell cycle check")
         figure_path = f'{CONST.FIGURE_PATH}/cellcycleqc/'
