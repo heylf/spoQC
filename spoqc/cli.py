@@ -91,6 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--cellcycle_gene_file",
         dest="cellcycle_gene_file",
         type=str,
+        default='',
         help='Path to a JSON file with "S" and "G2M" keys listing S-phase and G2M-phase gene names.',
         required=False
     )
