@@ -1,4 +1,5 @@
 import os
+import dask
 import dask.dataframe as dd
 import dask.array as da
 import numpy as np
@@ -14,17 +15,20 @@ from .. import metrics
 from .. import priors
 
 def read_data_as_ddf(tmp_files, chunk_size):
-    
-    num_files = len(tmp_files)
-    columns = [f'f{i}' for i in range(num_files)]
 
     # Preallocate a Dask Array with correct shape and chunks
+    col_series = [
+        dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
+        for file in tmp_files
+    ]
+
+    # Compute all per-file partition lengths together (in parallel) instead of
+    # letting to_dask_array(lengths=True) block on each file one at a time.
+    lengths_per_col = dask.compute(*[s.map_partitions(len) for s in col_series])
 
     array_columns = []
-
-    for i, file in enumerate(tmp_files):
-        col_ddf = dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
-        col_arr = col_ddf.to_dask_array(lengths=True).rechunk((chunk_size,))
+    for col_ddf, lengths in zip(col_series, lengths_per_col):
+        col_arr = col_ddf.to_dask_array(lengths=tuple(lengths)).rechunk((chunk_size,))
         array_columns.append(col_arr[:, None])  # make 2D for stacking
 
     # Stack columns into 2D Dask Array
@@ -33,33 +37,31 @@ def read_data_as_ddf(tmp_files, chunk_size):
     # Optional but recommended to avoid re-reading Parquet each epoch:
     # da.to_zarr(dask_array, "dask_array.zarr", overwrite=True); dask_array = da.from_zarr("dask_array.zarr")
 
-    # Convert to Dask DataFrame
-    # ddfs = dd.from_dask_array(dask_array, columns=columns)
-
     return dask_array
 
 
-def dask_clustering_mini_batches(spoqc_tmp_folder, suffix, n_clusters, seed, chunk_size):
+def dask_clustering_mini_batches(spoqc_tmp_folder, suffix, n_clusters, seed, chunk_size, threads):
     tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder)
              if file.endswith(f'{suffix}.parquet')]
 
     timer = helperfuncs.Timer()
 
-    print("[NOTE] Read data")
-    dask_array = read_data_as_ddf(tmp_files, chunk_size)
+    with dask.config.set(scheduler="threads", num_workers=threads):
+        print("[NOTE] Read data")
+        dask_array = read_data_as_ddf(tmp_files, chunk_size)
 
-    print("[NOTE] Clustering")
-    timer.start()
-    est = MiniBatchKMeans(
-        n_clusters=n_clusters,
-        random_state=seed,
-        batch_size=chunk_size,          # match your chunk size
-        reassignment_ratio=0.01
-    )
-    inc = Incremental(est)
-    inc.fit(dask_array)                 # streamed; low peak memory
-    labels = inc.predict(dask_array)    # dask.array[int32], chunked
-    timer.stop()
+        print("[NOTE] Clustering")
+        timer.start()
+        est = MiniBatchKMeans(
+            n_clusters=n_clusters,
+            random_state=seed,
+            batch_size=chunk_size,          # match your chunk size
+            reassignment_ratio=0.01
+        )
+        inc = Incremental(est)
+        inc.fit(dask_array)                 # streamed; low peak memory
+        labels = inc.predict(dask_array)    # dask.array[int32], chunked
+        timer.stop()
     return labels
 
 
@@ -111,11 +113,12 @@ def start_pixel_qc(
     timer.start()
     n_clusters = 100
     image_ddf = image_ddf.assign(cluster = dask_clustering_mini_batches(
-        spoqc_tmp_folder_metrices, 
-        tmp_suffix, 
+        spoqc_tmp_folder_metrices,
+        tmp_suffix,
         n_clusters,
         seed,
-        chunk_size
+        chunk_size,
+        threads
     ))
     timer.stop()
 
