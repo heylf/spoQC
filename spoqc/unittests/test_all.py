@@ -9,12 +9,28 @@ class TestParquetEquality(unittest.TestCase):
 
     def setUp(self):
         # HQCR data
-        self.test_data_pd = pd.read_parquet(
+        self.test_data_raw_pd = pd.read_parquet(
             f'{builtins.TEST_DATA_DIR}/hqcr_output_mask_raw.parquet',
             engine="pyarrow"
         )
-        self.ref_data_pd = pd.read_parquet(
+        self.test_data_smoothed_pd = pd.read_parquet(
+            f'{builtins.TEST_DATA_DIR}/hqcr_output_mask_smoothed_raw.parquet',
+            engine="pyarrow"
+        )
+        self.test_data_celltype_pd = pd.read_parquet(
+            f'{builtins.TEST_DATA_DIR}/hqcr_output_mask_smoothed_celltype_refined.parquet',
+            engine="pyarrow"
+        )
+        self.ref_data_raw_pd = pd.read_parquet(
             f'{builtins.REF_DATA_DIR}/hqcr_output_mask_raw.parquet',
+            engine="pyarrow"
+        )
+        self.ref_data_smoothed_pd = pd.read_parquet(
+            f'{builtins.REF_DATA_DIR}/hqcr_output_mask_smoothed_raw.parquet',
+            engine="pyarrow"
+        )
+        self.ref_data_celltype_pd = pd.read_parquet(
+            f'{builtins.REF_DATA_DIR}/hqcr_output_mask_smoothed_celltype_refined.parquet',
             engine="pyarrow"
         )
 
@@ -37,26 +53,41 @@ class TestParquetEquality(unittest.TestCase):
     # ---------- HQCR test ----------
     def test_pandas_dataframes_equal(self):
         pd.testing.assert_frame_equal(
-            self.test_data_pd,
-            self.ref_data_pd,
+            self.test_data_raw_pd,
+            self.ref_data_raw_pd,
             check_dtype=True
         )
 
-    # ---------- HQPR tests ----------
-    def test_hqpr_0_output_mask_prob(self):
-        self.assert_dask_equal(
-            f'{builtins.TEST_DATA_DIR}/hqpr_0_output_mask_prob',
-            f'{builtins.REF_DATA_DIR}/hqpr_0_output_mask_prob'
+    def test_pandas_dataframes_equal(self):
+        pd.testing.assert_frame_equal(
+            self.test_data_smoothed_pd,
+            self.ref_data_smoothed_pd,
+            check_dtype=True
         )
 
+    def test_pandas_dataframes_equal(self):
+        pd.testing.assert_frame_equal(
+            self.test_data_celltype_pd,
+            self.ref_data_celltype_pd,
+            check_dtype=True
+        )
+
+
+    # ---------- HQPR tests ----------
     def test_hqpr_0_output_mask_raw(self):
         self.assert_dask_equal(
-            f'{builtins.TEST_DATA_DIR}/hqpr_0_output_mask_prob',
-            f'{builtins.REF_DATA_DIR}/hqpr_0_output_mask_prob'
+            f'{builtins.TEST_DATA_DIR}/hqpr_0_output_mask_raw',
+            f'{builtins.REF_DATA_DIR}/hqpr_0_output_mask_raw'
+        )
+
+    def test_hqpr_0_output_mask_smoothed_raw(self):
+        self.assert_dask_equal(
+            f'{builtins.TEST_DATA_DIR}/hqpr_0_output_mask_smoothed_raw',
+            f'{builtins.REF_DATA_DIR}/hqpr_0_output_mask_smoothed_raw'
         )
 
      # ---------- HQTR tests ----------
-    def test_hqtr_output_mask_prob(self):
+    def test_hqtr_output_mask_raw(self):
         self.assert_dask_equal(
             f'{builtins.TEST_DATA_DIR}/hqtr_output_mask_raw',
             f'{builtins.REF_DATA_DIR}/hqtr_output_mask_raw'
@@ -74,10 +105,10 @@ class TestParquetEquality(unittest.TestCase):
             f'{builtins.REF_DATA_DIR}/hqtr_output_ac_prob'
         )
 
-    def test_hqtr_output_mask_raw(self):
+    def test_hqtr_output_mask_smoothed_raw(self):
         self.assert_dask_equal(
-            f'{builtins.TEST_DATA_DIR}/hqtr_output_mask_raw',
-            f'{builtins.REF_DATA_DIR}/hqtr_output_mask_raw'
+            f'{builtins.TEST_DATA_DIR}/hqtr_output_mask_smoothed_raw',
+            f'{builtins.REF_DATA_DIR}/hqtr_output_mask_smoothed_raw'
         )
 
 # %%
