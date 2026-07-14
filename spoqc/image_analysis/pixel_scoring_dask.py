@@ -39,7 +39,7 @@ def read_data_as_ddf(tmp_files, chunk_size):
     return dask_array
 
 
-def dask_clustering_mini_batches(spoqc_tmp_folder, suffix, n_clusters, seed, chunk_size, figure_path):
+def dask_clustering_mini_batches(spoqc_tmp_folder, suffix, n_clusters, seed, chunk_size):
     tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder)
              if file.endswith(f'{suffix}.parquet')]
 
@@ -110,8 +110,13 @@ def start_pixel_qc(
     image_ddf = dd.from_dask_array(empty_clusters, columns=['cluster'])
     timer.start()
     n_clusters = 100
-    image_ddf = image_ddf.assign(cluster = dask_clustering_mini_batches(spoqc_tmp_folder_metrices, tmp_suffix, 
-                                                           n_clusters, seed, chunk_size, figure_path))
+    image_ddf = image_ddf.assign(cluster = dask_clustering_mini_batches(
+        spoqc_tmp_folder_metrices, 
+        tmp_suffix, 
+        n_clusters,
+        seed,
+        chunk_size
+    ))
     timer.stop()
 
     
