@@ -60,8 +60,8 @@ def count_stuff_in_triangles_fast(triangle_array, stuff, threads):
 
 
 def build_triangle_graph_using_neighbors(delaunay, points):
-    triangles = delaunay.simplices
-    neighbors = delaunay.neighbors
+    triangles = delaunay.simplices  # Point indices [[1,2,3], [4,5,6]]. [1,2,3] cell indices forming a triangle.
+    neighbors = delaunay.neighbors  # Indices for neighbouring simplices.
     edge_length_list = []
     triangle_dict = {}
 
@@ -491,6 +491,9 @@ def calc_void(
     #################################################
     #### Triangle cluster counting (convex hull) ####
     #################################################
+
+    # TODO this needs renaming because I am not counting uRNAs of the convexhull of the cell.
+    # What I am doing here is counting the uRNAs of all triangles overlapping the cell centroid.
 
     ###### Count
     print("[NOTE] Count transcripts outside the cell in the convexhull of the cell")
