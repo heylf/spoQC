@@ -64,11 +64,22 @@ def leiden_silhouette(adata, resolution, res_index, ninits=5):
 
 # This is for checking which leiden cluster resoltuion would work the best.
 # Pick the one with the highest silhouette score but not the one from the beginning.
-def test_resolutions_leiden(rna, figure_path, threads, annotation_key=None, k=None, steps=None, end=2.0, start=0.0):
-    resolutions = np.linspace(0, 3, num = 21)[1:]
-
-    if ( steps ):
-        resolutions = np.linspace(start, end, num = steps)[1:]
+def test_resolutions_leiden(
+        rna, 
+        figure_path,
+        threads,
+        annotation_key=None,
+        k=None,
+        steps=None,
+        end=2.0,
+        start=0.0,
+        resolutions=None,
+    ):
+    
+    if ( resolutions == None ):
+        resolutions = np.linspace(0, 3, num = 21)[1:]
+        if ( steps ):
+            resolutions = np.linspace(start, end, num = steps)[1:]
 
     out = [-1] * len(resolutions)
     win_res = 0.5
