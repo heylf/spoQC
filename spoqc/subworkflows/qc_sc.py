@@ -8,17 +8,17 @@ from .. import general
 def quick_viz_images(figure_path, image_names, sdata, flip=True):
 
     for i, image in enumerate(image_names):
-        sdata.pl.render_images(image).pl.show(title=image, dpi=300)
+        ax = sdata.pl.render_images(image).pl.show(title=image, dpi=300, return_ax=True)
         if flip:
-            plt.gca().invert_yaxis()
+            ax.invert_yaxis()
     plt.savefig(f'{figure_path}/all_images.png')
     plt.savefig(f'{figure_path}/all_images.pdf')
     plt.close()
 
     for i in image_names:
-        sdata.pl.render_images(i).pl.show(title=i)
+        ax = sdata.pl.render_images(i).pl.show(title=i, return_ax=True)
         if flip:
-            plt.gca().invert_yaxis()
+            ax.invert_yaxis()
         plt.savefig(f'{figure_path}/{i}.png')
         plt.savefig(f'{figure_path}/{i}.pdf')
         plt.close()
