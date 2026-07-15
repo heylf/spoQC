@@ -83,10 +83,23 @@ def celltype_cluster_analysis(
     win_res = -1
     if ( not os.path.exists(res_file_name) ):
         if ( subdir == 'overview' ):
-            win_res = analysis_funcs.test_resolutions_leiden(rna, figure_path, 
-                                              CONST.THREADS, annotation_key=CONST.ANNOTATION_KEY, steps=20)
+            win_res = analysis_funcs.test_resolutions_leiden(
+                rna, 
+                figure_path, 
+                CONST.THREADS,
+                annotation_key=CONST.ANNOTATION_KEY,
+                resolutions=[0.2, 0.5, 1.0, 1.5]
+                # steps=20
+            )
         else:
-            win_res = analysis_funcs.test_resolutions_leiden(rna, figure_path, CONST.THREADS, k=15, steps=20)
+            win_res = analysis_funcs.test_resolutions_leiden(
+                rna, 
+                figure_path,
+                CONST.THREADS,
+                k=15,
+                resolutions=[0.2, 0.5, 1.0, 1.5]
+                # steps=20
+            )
 
         res_file = open(f"{figure_path}/res.txt", "w")
         res_file.write(f"{win_res}\nIs the winning leiden resolution\n")
@@ -104,9 +117,10 @@ def celltype_cluster_analysis(
             rna,
             figure_path,
             CONST.THREADS,
-            steps=30,
-            end=0.1,
-            start=0.000001
+            resolutions=[0.001, 0.01, 0.1]
+            # steps=30,
+            # end=0.1,
+            # start=0.000001
         )
         sc.tl.leiden(rna, resolution=win_res, key_added='leiden', random_state=seed)
 
