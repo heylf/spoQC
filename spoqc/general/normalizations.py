@@ -8,8 +8,13 @@ def transform_normalize_sc_data(sdata, n_variable_genes, span):
     sc.pp.normalize_total(rna_adata)
     sc.pp.log1p(rna_adata)
     rna_adata.layers['normlog'] = rna_adata.X.copy()
-    sc.pp.highly_variable_genes(rna_adata, flavor="seurat_v3", 
-                                batch_key="sample", span=span, n_top_genes=n_variable_genes)
+
+    try:
+        sc.pp.highly_variable_genes(rna_adata, flavor="seurat_v3", 
+                                    batch_key="sample", span=span, n_top_genes=n_variable_genes)
+    except Exception as e:
+        print(f"[WARN] Could not perform HVG analysis because of: {e}")
+
     sc.pp.scale(rna_adata, zero_center=True)  # Scale data to unit variance and zero mean
     rna_adata.layers['normlogscale'] = rna_adata.X.copy()
     rna_adata.X = rna_adata.layers['raw'] # raw = counts
