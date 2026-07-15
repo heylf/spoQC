@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # In[]
 import sys
+import numba
 
 # Utility imports
 import os
@@ -304,7 +305,16 @@ def main(argv: list[str] | None = None) -> None:
 
     # ---------------- Environment ----------------
     # Numba threads
-    os.environ["NUMBA_NUM_THREADS"] = str(CONST.THREADS)
+    print(f"[NOTE] Setting numba threads to {CONST.THREADS}")
+    requested_threads = CONST.THREADS
+    maximum_threads = numba.config.NUMBA_NUM_THREADS
+    active_threads = min(requested_threads, maximum_threads)
+    print(
+        f"[NOTE] Numba thread pool maximum: {maximum_threads}; "
+        f"using: {active_threads}"
+    )
+    numba.set_num_threads(active_threads)
+
     # Blosc threads (for the Zarr datasets we still write)
     os.environ["BLOSC_NTHREADS"] = str(CONST.THREADS)
     # Timer
