@@ -367,6 +367,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
     fig.write_image(f'{figure_path}/scatterplot_total_counts_vs_n_genes_by_counts.png', scale=int(DPI/100))
     fig.write_image(f'{figure_path}/scatterplot_total_counts_vs_n_genes_by_counts.pdf', scale=int(DPI/100))
 
+    # TODO remove at some point?
     # nGENES = 30
     # idx = np.argsort(rna.var["n_cells_by_counts"])[-nGENES:]
     # expression = rna.X.todense()[:, idx]
