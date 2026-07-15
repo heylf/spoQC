@@ -87,6 +87,8 @@ def start_pixel_qc(
     ):
 
     timer = helperfuncs.Timer()
+    timer_all = helperfuncs.Timer()
+    timer_all.start()
 
     # Just path variables
     tmp_suffix = modality
@@ -120,9 +122,10 @@ def start_pixel_qc(
         chunk_size,
         threads
     ))
+    print("[NOTE] Time for the whole clustering process:")
     timer.stop()
+    image_ddf = image_ddf.persist()
 
-    
     #####################
     ###### Metrics ######
     #####################
@@ -184,6 +187,7 @@ def start_pixel_qc(
         }
     )
     timer.stop()
+    image_ddf = image_ddf.persist()
 
     helperfuncs.plot_pixels(
         figure_path,
@@ -196,10 +200,14 @@ def start_pixel_qc(
         False
     )
     
+    print("[NOTE] Combining priors")
+    timer.start()
     if modality == 'hqpr':
         image_ddf = priors.combine_priors.combine_priors_hqpr(spoqc_tmp_folder, image_ddf, belief_name, mask_name)
     if modality == 'hqtr':
         image_ddf = priors.combine_priors.combine_priors_hqtr(spoqc_tmp_folder, image_ddf, belief_name, mask_name)
+    timer.stop()
+    image_ddf = image_ddf.persist()
 
     helperfuncs.plot_pixels(
         figure_path,
@@ -212,6 +220,12 @@ def start_pixel_qc(
         False
     )
 
+    print("[NOTE] Writing out data")
+    timer.start()
     helperfuncs.ddf_to_parquet(image_ddf, tmp_suffix, spoqc_tmp_folder, [], 'mask_raw')
+    timer.stop()
+
+    print("[NOTE] The pixel clustering and prior estimation took:")
+    timer_all.stop()
 
 # %%

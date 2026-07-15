@@ -1,3 +1,4 @@
+import dask
 import dask.dataframe as dd
 import dask.array as da
 import numpy as np
@@ -7,17 +8,20 @@ from ... import helperfuncs
 from ... import metrics
 
 def read_data_as_ddf(tmp_files, chunk_size):
-    
-    num_files = len(tmp_files)
-    columns = [f'f{i}' for i in range(num_files)]
 
     # Preallocate a Dask Array with correct shape and chunks
+    col_series = [
+        dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
+        for file in tmp_files
+    ]
+
+    # Compute all per-file partition lengths together (in parallel) instead of
+    # letting to_dask_array(lengths=True) block on each file one at a time.
+    lengths_per_col = dask.compute(*[s.map_partitions(len) for s in col_series])
 
     array_columns = []
-
-    for i, file in enumerate(tmp_files):
-        col_ddf = dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
-        col_arr = col_ddf.to_dask_array(lengths=True).rechunk((chunk_size,))
+    for col_ddf, lengths in zip(col_series, lengths_per_col):
+        col_arr = col_ddf.to_dask_array(lengths=tuple(lengths)).rechunk((chunk_size,))
         array_columns.append(col_arr[:, None])  # make 2D for stacking
 
     # Stack columns into 2D Dask Array
@@ -25,9 +29,6 @@ def read_data_as_ddf(tmp_files, chunk_size):
     dask_array = dask_array.rechunk((chunk_size, -1))
     # Optional but recommended to avoid re-reading Parquet each epoch:
     # da.to_zarr(dask_array, "dask_array.zarr", overwrite=True); dask_array = da.from_zarr("dask_array.zarr")
-
-    # Convert to Dask DataFrame
-    # ddfs = dd.from_dask_array(dask_array, columns=columns)
 
     return dask_array
 
@@ -57,6 +58,7 @@ def calc_pixel_score(
     ):
 
     timer = helperfuncs.Timer()
+    timer.start()
 
     # Calcualte structure and antistructure score.
     s_score = dask_summify(spoqc_tmp_folder_metrices, tmp_suffix, 
@@ -71,7 +73,6 @@ def calc_pixel_score(
                                   chunks=chunk_size)
         image_ddf = image_ddf.assign(intensity=intensity)
     elif ( modality == 'hqtr' ):
-        timer.start()
         # Intensities already flipped
         intensity = da.from_array(
             metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
@@ -83,10 +84,13 @@ def calc_pixel_score(
             ), 
             chunks=chunk_size
         )
-        timer.stop()
         image_ddf = image_ddf.assign(intensity=intensity)
     else:
         sys.exit(f'[ERROR] Modality {modality} does not exist')
+
+    # Materialize s_score/as_score/intensity once so the repeated .compute()
+    # calls below don't each re-walk the whole graph from scratch.
+    image_ddf = image_ddf.persist()
 
     # Background refined image
     print('[NOTE] Refine pixel intensities')
@@ -152,5 +156,8 @@ def calc_pixel_score(
             )
 
     helperfuncs.plot_histogram_for_array(np.array(pixel_scores_ds), 20, figure_path, "Pixel scores", "pixel_scores")
+
+    print("[NOTE] Pixel scoring calculation took:")
+    timer.stop()
 
     return pixel_scores_ds, clusters_ids, image_ddf
