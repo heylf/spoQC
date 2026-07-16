@@ -46,7 +46,7 @@ def unsupervised_celltype_annotation(sdata, CONST, seed):
     rna.X = rna.layers['normlog']
     sc.pp.neighbors(rna, n_neighbors=20, random_state=seed)
     sc.tl.umap(rna, min_dist=0.1, spread=1.2, random_state=seed)
-    win_res = additional_analysis.analysis.test_resolutions_leiden(
+    win_res = additional_analysis.analysis_funcs.test_resolutions_leiden(
         sdata['table'],
         figure_path,
         CONST.THREADS,
@@ -62,7 +62,7 @@ def unsupervised_celltype_annotation(sdata, CONST, seed):
     # What might help is then a thorough seach in the range of 0-0.1 resolution.
     if ( len(set(rna.obs['leiden'])) > 30 ):
         rna.obs.drop(columns=['leiden'], inplace=True)
-        win_res = additional_analysis.analysis.test_resolutions_leiden(
+        win_res = additional_analysis.analysis_funcs.test_resolutions_leiden(
             sdata['table'],
             figure_path,
             CONST.THREADS,
