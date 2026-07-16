@@ -200,17 +200,6 @@ def celltype_cluster_analysis(
         celltype_colors = []
         for umap_cat in umap_cats:
 
-            # --- general histograms ---
-            fig = None
-            fig, ax = plt.subplots(figsize=(8, 4))
-            ax.hist(rna.obs[umap_cat], bins=50)
-            ax.set_xlabel(umap_cat)
-            ax.set_ylabel('Count')
-            ax.set_title(f'Distribution of {umap_cat}')
-            fig.savefig(os.path.join(figure_path, f'hist_{umap_cat}.png'), bbox_inches='tight')
-            fig.savefig(os.path.join(figure_path, f'hist_{umap_cat}.pdf'), bbox_inches='tight')
-            plt.close(fig)
-
             # --- prepare labels/colors (your original logic) ---
             fig = None
             col_color = 'leiden'
@@ -254,6 +243,17 @@ def celltype_cluster_analysis(
                 rna.obs[umap_cat] = [1 if x == "True" else 0 for x in rna.obs[umap_cat]]
 
             if is_numeric_dtype(rna.obs[umap_cat]):
+
+                # --- general histograms ---
+                fig = None
+                fig, ax = plt.subplots(figsize=(8, 4))
+                ax.hist(rna.obs[umap_cat], bins=50)
+                ax.set_xlabel(umap_cat)
+                ax.set_ylabel('Count')
+                ax.set_title(f'Distribution of {umap_cat}')
+                fig.savefig(os.path.join(figure_path, f'hist_{umap_cat}.png'), bbox_inches='tight')
+                fig.savefig(os.path.join(figure_path, f'hist_{umap_cat}.pdf'), bbox_inches='tight')
+                plt.close(fig)
 
                 for mode in ['mean', 'median']:
 
