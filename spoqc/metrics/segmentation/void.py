@@ -541,54 +541,58 @@ def calc_void(
     ####################
     #### More plots ####
     ####################
-
     print("[NOTE] More triangular plots")
     timer.start()
     for cat in cats_to_check:
-        triangle_cluster_df[f'triangular_cluster_colors_{cat}'] = helperfuncs.values_to_hex_gradient(
-                                                                                            triangle_cluster_df[cat], 
-                                                                                            'hot', 
-                                                                                            reverse=True
+
+        if ( len(triangle_cluster_df[cat]) != 0 ):
+
+            triangle_cluster_df[f'triangular_cluster_colors_{cat}'] = helperfuncs.values_to_hex_gradient(
+                                                                                                triangle_cluster_df[cat], 
+                                                                                                'hot', 
+                                                                                                reverse=True
                                                                                             )
 
-        # Apply the map
-        triangles_df[f'triangular_cluster_colors_{cat}'] = ['#FFFFFF'] * num_triangles
-        
-        for cluster_id in triangle_cluster_df['triangular_cluster_ids']:
-            mask_triangles = triangles_df['triangular_cluster_ids'] == cluster_id
-            mask_triangle_clusters = triangle_cluster_df['triangular_cluster_ids'] == cluster_id
-            triangles_df.loc[mask_triangles, f'triangular_cluster_colors_{cat}'] = list(triangle_cluster_df.loc[mask_triangle_clusters, f'triangular_cluster_colors_{cat}'])[0]
+            # Apply the map
+            triangles_df[f'triangular_cluster_colors_{cat}'] = ['#FFFFFF'] * num_triangles
+            
+            for cluster_id in triangle_cluster_df['triangular_cluster_ids']:
+                mask_triangles = triangles_df['triangular_cluster_ids'] == cluster_id
+                mask_triangle_clusters = triangle_cluster_df['triangular_cluster_ids'] == cluster_id
+                triangles_df.loc[mask_triangles, f'triangular_cluster_colors_{cat}'] = list(triangle_cluster_df.loc[mask_triangle_clusters, f'triangular_cluster_colors_{cat}'])[0]
 
-        triangles_df.loc[triangle_filter, f'triangular_cluster_colors_{cat}'] = '#FFFFFF'
+            triangles_df.loc[triangle_filter, f'triangular_cluster_colors_{cat}'] = '#FFFFFF'
 
-        fig, ax = plt.subplots(figsize=(8, 8))
-        triangles_plotting = [points[simplex] for simplex in triangles]
+            fig, ax = plt.subplots(figsize=(8, 8))
+            triangles_plotting = [points[simplex] for simplex in triangles]
 
-        collection = PolyCollection(
-            triangles_plotting,
-            facecolors=triangles_df[f'triangular_cluster_colors_{cat}'],
-            edgecolors="gray",
-            alpha=0.8,
-            linewidths=0
-        )
+            collection = PolyCollection(
+                triangles_plotting,
+                facecolors=triangles_df[f'triangular_cluster_colors_{cat}'],
+                edgecolors="gray",
+                alpha=0.8,
+                linewidths=0
+            )
 
-        ax.add_collection(collection)
-        ax.scatter(points[:, 0], points[:, 1], c="blue", marker="o", label="Points", s=0.01)
-        if ( flip ):
-            ax.invert_yaxis()
-        ax.set_title(f"{cat}")
-        ax.set_aspect('equal', adjustable='box')
+            ax.add_collection(collection)
+            ax.scatter(points[:, 0], points[:, 1], c="blue", marker="o", label="Points", s=0.01)
+            if ( flip ):
+                ax.invert_yaxis()
+            ax.set_title(f"{cat}")
+            ax.set_aspect('equal', adjustable='box')
 
-        vmin = triangle_cluster_df[cat].min()
-        vmax = triangle_cluster_df[cat].max()
-        sm = plt.cm.ScalarMappable(cmap=plt.cm.hot_r, norm=plt.Normalize(vmin=vmin, vmax=vmax))
-        sm.set_array([])
-        plt.colorbar(sm, ax=ax, label=cat)
+            vmin = triangle_cluster_df[cat].min()
+            vmax = triangle_cluster_df[cat].max()
+            sm = plt.cm.ScalarMappable(cmap=plt.cm.hot_r, norm=plt.Normalize(vmin=vmin, vmax=vmax))
+            sm.set_array([])
+            plt.colorbar(sm, ax=ax, label=cat)
 
-        plt.savefig(f'{figure_path}/spatial_traingle_all_clsuters_{cat}.png', bbox_inches='tight', dpi=300)
-        plt.savefig(f'{figure_path}/spatial_traingle_all_clsuters_{cat}.pdf', bbox_inches='tight', dpi=300)
-        plt.close()
+            plt.savefig(f'{figure_path}/spatial_traingle_all_clsuters_{cat}.png', bbox_inches='tight', dpi=300)
+            plt.savefig(f'{figure_path}/spatial_traingle_all_clsuters_{cat}.pdf', bbox_inches='tight', dpi=300)
+            plt.close()
 
+        else:
+            print("[WARN] spoQC couldnt define any triangle and thus no plots are given for void QC.")
 
     print("[NOTE] Void QC done!")
     timer.stop()
