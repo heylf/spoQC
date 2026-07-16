@@ -67,6 +67,10 @@ def celltype_cluster_analysis(
         print(f"[NOTE] Picking cluster {largest_cluster}")
         rna = rna[rna.obs[CONST.ANNOTATION_KEY] == largest_cluster]
 
+    if ( rna.n_obs < 10 ):
+        print("[WARN] Too few cells. The cluster investigation has to be stopped.")
+        return 0
+
     ####################################################################################################################
     # Madatory steps
     ####################################################################################################################
@@ -90,11 +94,15 @@ def celltype_cluster_analysis(
                 # steps=20
             )
         else:
+            k=15
+            if ( rna.n_obs < 50 ):
+                k = 3
+
             win_res = analysis_funcs.test_resolutions_leiden(
                 rna, 
                 figure_path,
                 CONST.THREADS,
-                k=15,
+                k=k,
                 resolutions=[0.2, 0.5, 1.0, 1.5]
                 # steps=20
             )
@@ -243,9 +251,14 @@ def celltype_cluster_analysis(
             if is_numeric_dtype(rna.obs[umap_cat]):
 
                 # --- general histograms ---
+                nbins = 50
+
+                if ( rna.n_obs < 50 ):
+                    nbins = 5
+
                 fig = None
                 fig, ax = plt.subplots(figsize=(8, 4))
-                ax.hist(rna.obs[umap_cat], bins=50)
+                ax.hist(rna.obs[umap_cat], bins=nbins)
                 ax.set_xlabel(umap_cat)
                 ax.set_ylabel('Count')
                 ax.set_title(f'Distribution of {umap_cat}')

@@ -181,7 +181,13 @@ def run_qc_model(sdata, figure_path, CONST):
     sdata['table'].X = sdata['table'].layers['normlogscale']
     rna_adata = sdata['table']
 
-    sc.tl.pca(rna_adata, n_comps=100)
+    n_comps = 100
+    npcs = CONST.nPCs
+    if ( sdata['table'].n_obs < 100 ):
+        n_comps = 10
+        npcs = 10
+
+    sc.tl.pca(rna_adata, n_comps=n_comps)
 
     df = pd.DataFrame({
             'x': rna_adata.obsm['spatial'][:,0],
@@ -190,13 +196,13 @@ def run_qc_model(sdata, figure_path, CONST):
 
     X_pca = rna_adata.obsm['X_pca']
 
-    for i in range(0, CONST.nPCs):
+    for i in range(0, npcs):
         df[f'PC{i}'] = X_pca[:,i]
 
-    sc.pl.pca_variance_ratio(rna_adata, n_pcs=100, log=True, save='.png')
+    sc.pl.pca_variance_ratio(rna_adata, n_pcs=n_comps, log=True, save='.png')
     shutil.move("figures/pca_variance_ratio.png", f"{figure_path}/pca_variance_ratio.png")
-    sc.pl.pca_variance_ratio(rna_adata, n_pcs=100, log=True, save='.pdf')
+    sc.pl.pca_variance_ratio(rna_adata, n_pcs=n_comps, log=True, save='.pdf')
     shutil.move("figures/pca_variance_ratio.pdf", f"{figure_path}/pca_variance_ratio.pdf")
 
-    plot_pca_scatter(df, figure_path, CONST.nPCs)
-    plot_spatial_vs_exression_variance(sdata, figure_path, df, CONST.nPCs)
+    plot_pca_scatter(df, figure_path, npcs)
+    plot_spatial_vs_exression_variance(sdata, figure_path, df, npcs)
