@@ -67,8 +67,6 @@ def celltype_cluster_analysis(
         print(f"[NOTE] Picking cluster {largest_cluster}")
         rna = rna[rna.obs[CONST.ANNOTATION_KEY] == largest_cluster]
 
-    print(rna.obs[CONST.ANNOTATION_KEY])
-
     ####################################################################################################################
     # Madatory steps
     ####################################################################################################################
