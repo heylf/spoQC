@@ -22,7 +22,7 @@ def calc_doublet_score(
         signal_threshold,
         window_sizes,
         num_doublet,
-        distance_thresh
+        distance_thresh,
 ):
 
     transcript_coordinates_df = sdata.points[key_transcripts].compute()
@@ -34,7 +34,14 @@ def calc_doublet_score(
     min_x = min(transcript_coordinates_df['x'])
     min_y = min(transcript_coordinates_df['y'])
 
-    n_components = n_expected_celltypes if (n_expected_celltypes and n_expected_celltypes > 0) else 30
+    n_components = 30
+    if (n_expected_celltypes and n_expected_celltypes > 0):
+        n_components = n_expected_celltypes
+    if ( sdata['table'].n_obs < 500 ):
+        n_components = 10
+    if ( sdata['table'].n_obs < 100 ):
+        n_components = 2
+
     ovrlp = ovrlpy.Ovrlp(
         transcript_coordinates_df,
         min_distance=cell_diameter,

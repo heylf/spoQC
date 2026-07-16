@@ -31,7 +31,7 @@ def run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns):
         3,
         [10, 60],
         1,
-        10
+        10,
     )
     timer.stop()
 
