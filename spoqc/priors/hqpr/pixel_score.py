@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-import helperfuncs
+from ... import helperfuncs
 
 from scipy.stats import norm
 from sklearn.mixture import GaussianMixture

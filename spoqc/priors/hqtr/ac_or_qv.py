@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-import helperfuncs
+from ... import helperfuncs
 
 from dask_ml.preprocessing import MinMaxScaler
 
