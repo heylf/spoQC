@@ -1224,11 +1224,13 @@ def read_df_parquet_tmp_files_scorify(cluster_df, spoqc_tmp_folder, suffix):
         return None
 
 
-def plot_histogram_for_array(array, nbins, figure_path, title, suffix):
+def plot_histogram_for_array(array, nbins, figure_path, title, suffix, t=None):
     sns.histplot(array, bins=nbins)
     plt.title(title)
     plt.xlabel("value")
     plt.ylabel("frequency")
+    if t:
+        plt.axvline(x=t, color='red', linestyle='-', alpha=1.0)  # Adding vertical lines
     plt.savefig(f'{figure_path}/histogram_{suffix}.png', bbox_inches='tight', dpi=300)
     plt.savefig(f'{figure_path}/histogram_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()

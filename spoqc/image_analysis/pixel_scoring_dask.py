@@ -83,7 +83,7 @@ def start_pixel_qc(
         chunk_size=10_000,
         staining=None,
         thresh_p=None,
-        nstds_p=None
+        nstds_p=3
     ):
 
     timer = helperfuncs.Timer()
@@ -154,6 +154,7 @@ def start_pixel_qc(
     # Based on that you can assign to each pixel the prabolity of the pixel cluster they belong to.
     prob_densities = priors.hqpr.pixel_score.calc_probs_pixel_score(
         np.array(pixel_scores_ds),
+        figure_path,
         gmm_mod=3,
         nstds=nstds_p,
         t=thresh_p

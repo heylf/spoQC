@@ -133,7 +133,7 @@ def transcript_qv_image(
     # At 10x Genomics they use a threshold of qv < 20 (see 10xBaysor tutorial)
     print("[NOTE] Calculate qv probabilities")
     timer.start()
-    image_ddf = priors.hqtr.ac_or_qv.calc_prob_pixel_stuff_v2(image_ddf, 20.0, 3, 'left', 'qv_density')
+    image_ddf = priors.hqtr.ac_or_qv.calc_prob_pixel_stuff_v2(image_ddf, figure_path, 20.0, 3, 'left', 'qv_density')
     timer.stop()
 
     helperfuncs.plot_pixels(

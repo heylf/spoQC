@@ -168,8 +168,6 @@ def calc_pixel_score(
             )
     timer.stop()
 
-    helperfuncs.plot_histogram_for_array(np.array(pixel_scores_ds), 20, figure_path, "Pixel scores", "pixel_scores")
-
     print("[NOTE] Pixel scoring calculation took:")
     timer_all.stop()
 

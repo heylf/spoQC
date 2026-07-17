@@ -202,7 +202,7 @@ def transcript_ac_image(
     # These genes might be ambient, i.e., there is a spillover of those genese counts across the whole slide.
     print("[NOTE] Calculate ac probabilities")
     timer.start()
-    image_ddf = priors.hqtr.ac_or_qv.calc_prob_pixel_stuff_v2(image_ddf, 0.4, 1, 'left', 'ac_density')
+    image_ddf = priors.hqtr.ac_or_qv.calc_prob_pixel_stuff_v2(image_ddf, figure_path, 0.4, 1, 'left', 'ac_density')
     timer.stop()
 
     helperfuncs.plot_pixels(

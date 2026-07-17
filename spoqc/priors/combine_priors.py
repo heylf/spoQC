@@ -15,7 +15,7 @@ def combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts):
         qc_domains_adata,
         counts
     )
-    prior_doublet_distance = priors.hqcr.doublet_distance.calc_probs_doublet_distance(sdata, nstds=100)
+    prior_doublet_distance = priors.hqcr.doublet_distance.calc_probs_doublet_distance(sdata, figure_path, nstds=100)
 
     final_prior = prior_transcript_counts + prior_doublet_distance
     final_prior = helperfuncs.min_max_normalize(final_prior)

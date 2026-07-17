@@ -10,7 +10,7 @@ def get_hqpr(
         seed,
         *,
         thresh_p=None,
-        nstds_p=None
+        nstds_p=3
     ):
 
     # Memory depends on threads. The more threads you choose the more memory you need.
