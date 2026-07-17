@@ -44,7 +44,14 @@ def unsupervised_celltype_annotation(sdata, CONST, seed):
     figure_path = f'{CONST.FIGURE_PATH}/annotation/'
     rna = sdata['table']
     rna.X = rna.layers['normlog']
-    sc.pp.neighbors(rna, n_neighbors=20, random_state=seed)
+
+    nn = 20
+    if ( rna.n_obs < 30 ):
+        nn = 10
+        n_pcs=2
+    print(f"[NOTE] Using {nn} neighbours")
+
+    sc.pp.neighbors(rna, n_neighbors=nn, n_pcs=n_pcs, random_state=seed)
     sc.tl.umap(rna, min_dist=0.1, spread=1.2, random_state=seed)
     win_res = additional_analysis.analysis_funcs.test_resolutions_leiden(
         sdata['table'],
