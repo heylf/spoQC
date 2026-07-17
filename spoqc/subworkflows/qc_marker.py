@@ -422,15 +422,20 @@ def run_qc_marker(sdata, figure_path, CONST):
                             })
 
     # sanity check
-    for marker_list in negative_markers.values():
-        for m in marker_list:
-            if m not in list(rna_adata.var.index):
-                print(f'[ERROR] I could not find negative marker {m} in rna_adata.var')
-            
-    for marker_list in positive_markers.values():
-        for m in marker_list:
-            if m not in list(rna_adata.var.index):
-                print(f'[ERROR] I could not find postive marker {m} in rna_adata.var')
+    negative_maker_list = [item for sublist in negative_markers.values() for item in sublist]
+    for m in negative_maker_list:
+        if m not in list(rna_adata.var.index):
+            print(f'[ERROR] I could not find negative marker {m} in rna_adata.var')
+        
+    positive_maker_list = [item for sublist in positive_markers.values() for item in sublist]
+    for m in positive_maker_list:
+        if m not in list(rna_adata.var.index):
+            print(f'[ERROR] I could not find postive marker {m} in rna_adata.var')
+
+    all_markers = positive_maker_list + negative_maker_list
+    if ( len( list(set(all_markers) & set(list(rna_adata.var.index))) ) == 0 ):
+        print(f'[ERROR] Sorry your rna_adata.var does not contain any markers you have provided.')
+        return 0
 
     plot_marker_density_and_scatter(sdata, figure_path, negative_markers, 'negative_markers')
     plot_marker_density_and_scatter(sdata, figure_path, negative_markers, 'positive_markers')
