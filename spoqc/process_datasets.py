@@ -46,7 +46,7 @@ def unsupervised_celltype_annotation(sdata, CONST, seed):
     rna.X = rna.layers['normlog']
 
     nn = 20
-    if ( rna.n_obs < 30 ):
+    if ( rna.n_obs < 100 ):
         nn = 10
         n_pcs=2
     print(f"[NOTE] Using {nn} neighbours")
