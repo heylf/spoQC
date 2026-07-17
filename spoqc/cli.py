@@ -138,7 +138,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--nstds_prior_pixel",
         dest="nstds_prior_pixel",
         type=float,
-        default=None,
+        default=3,
         help="You can set the number of stds for the pixel prior distribution. Please read the documentation to understand what this does before you set it.",
         required=False
     )
