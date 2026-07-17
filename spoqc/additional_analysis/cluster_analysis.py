@@ -245,7 +245,9 @@ def celltype_cluster_analysis(
             # ==========================
             # Compute per-cluster means of UMAP coords and umap_cat (numeric only)
             
-            if ( rna.obs[umap_cat][0] in ['True', 'False'] ):
+            if pd.api.types.is_bool_dtype(rna.obs[umap_cat]):
+                rna.obs[umap_cat] = rna.obs[umap_cat].astype(int)
+            elif ( rna.obs[umap_cat][0] in ['True', 'False'] ):
                 rna.obs[umap_cat] = [1 if x == "True" else 0 for x in rna.obs[umap_cat]]
 
             if is_numeric_dtype(rna.obs[umap_cat]):
