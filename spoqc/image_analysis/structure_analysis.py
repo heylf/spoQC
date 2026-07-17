@@ -56,6 +56,8 @@ def start_image_struc_analyis(
             None,
             pointsize=0.5
         )
+
+        helperfuncs.nparr_to_parquet(intensities, 'transcript_density', spoqc_tmp_folder, tmp_suffix)
     else:
         xy_intensities = sdata[image_type][resolution].image.values[int(staining)]
         xy_intensities = np.flipud(xy_intensities)
