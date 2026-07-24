@@ -33,7 +33,8 @@ def celltype_cluster_analysis(
         stainings,
         annotation,
         *,
-        just_filtering=False
+        just_filtering=False,
+        html=False,
     ):
 
     np.random.seed(seed)
@@ -268,121 +269,6 @@ def celltype_cluster_analysis(
                 fig.savefig(os.path.join(figure_path, f'hist_{umap_cat}.pdf'), bbox_inches='tight')
                 plt.close(fig)
 
-                for mode in ['mean', 'median']:
-
-                    # --- base scatter ---
-                    # Build a DataFrame with everything we need
-                    df = pd.DataFrame({
-                        'leiden': rna.obs['leiden'].values,
-                        'UMAP1': X[:, 0],
-                        'UMAP2': X[:, 1],
-                        umap_cat: pd.to_numeric(rna.obs[umap_cat].values, errors='coerce')
-                    })
-                    
-                    fig = px.scatter(
-                        df, 
-                        x="UMAP1", 
-                        y="UMAP2",
-                        labels={"color": umap_cat},
-                        category_orders={"color": labels} if labels is not None else None,
-                        color_discrete_sequence=colors if colors is not None else None,
-                        color=rna.obs[col_color].tolist() if labels is not None else None,
-                        custom_data=[umap_cat]
-                    )
-
-                    # Attach umap_cat per point and format hover
-                    if ( len(labels) > 2 and umap_cat != CONST.ANNOTATION_KEY ):
-                        fig.update_traces(hovertemplate=
-                            "UMAP1=%{x:.3f}<br>"
-                            "UMAP2=%{y:.3f}<br>"
-                            f"{umap_cat}=%{{customdata[0]:.4g}}"
-                            "<extra></extra>"
-                        )
-                    if ( len(labels) <= 2 ):
-                        fig.update_traces(hovertemplate=
-                            "UMAP1=%{x:.3f}<br>"
-                            "UMAP2=%{y:.3f}<br>"
-                            "<extra></extra>"
-                        )
-
-                    fig.update_layout(legend={'itemsizing': 'constant'})
-                    fig.update_traces(marker_size=2)
-                    fig.update_xaxes(range=xrange, autorange=False)
-                    fig.update_yaxes(range=yrange, autorange=False, scaleanchor="x", scaleratio=1)
-
-                    cent = df.groupby('leiden', as_index=False).agg({
-                        'UMAP1': 'mean',
-                        'UMAP2': 'mean',
-                        umap_cat: mode
-                    }).rename(columns={'UMAP1': 'centroid_x', 'UMAP2': 'centroid_y'})
-
-                    # (Optional) keep/update a running table
-                    # if 'cluster_centroid_df' not in globals():
-                    #     cluster_centroid_df = cent.copy()
-                    # else:
-                    #     cluster_centroid_df = cluster_centroid_df.drop(columns=[umap_cat], errors='ignore') \
-                    #                                              .merge(cent[['leiden', umap_cat]], on='leiden', how='outer')
-
-                    # Size markers by the centroid value (linear mapping)
-                    vals = cent[umap_cat].to_numpy()
-                    vmin = np.nanmin(vals)
-                    vmax = np.nanmax(vals)
-                    if not np.isfinite(vmin) or not np.isfinite(vmax) or vmax == vmin:
-                        sizes = np.full_like(vals, 14, dtype=float)  # fallback
-                    else:
-                        # map to, e.g., 8..40 px
-                        sizes = 8 + (vals - vmin) * (40 - 8) / (vmax - vmin)
-
-                    # Build label -> color mapping that matches px.scatter's mapping
-                    # (labels and colors already defined above for the base plot)
-                    label_to_color = {str(lbl): colors[i] for i, lbl in enumerate(labels)}
-
-                    # Colors for each centroid in the same order as 'cent' rows
-                    centroid_colors = [ label_to_color.get(str(lv), colors[0]) for lv in cent['leiden'] ]
-
-                    # --- centroid overlay (match renderer) ---
-                    centroid_trace = go.Scattergl(                 # <— match WebGL
-                        x=cent['centroid_x'],
-                        y=cent['centroid_y'],
-                        name="__centroids__",                      # give it a name so we can reorder if needed
-                        mode='markers+text',
-                        showlegend=False,
-                        marker=dict(
-                            size=sizes,
-                            color=centroid_colors,
-                            line=dict(width=1, color='white')
-                        ),
-                        text=cent['leiden'].astype(str),
-                        textposition='middle center',
-                        textfont=dict(color='white'),
-                        textfont_size=14,
-                        customdata=np.stack([cent['leiden'].astype(str).values, vals], axis=1),
-                        hovertemplate=(
-                            "cluster=%{customdata[0]}<br>"
-                            "UMAP1=%{x:.3f}<br>"
-                            "UMAP2=%{y:.3f}<br>"
-                            f"{umap_cat}=%{{customdata[1]:.4g}}"
-                            "<extra></extra>"
-                        ),
-                    )
-                    fig.add_trace(centroid_trace)
-
-                    # (Optional but safe) ensure centroids are the LAST traces (topmost)
-                    # Rebuild fig.data with centroid traces moved to the end.
-                    centroid_idxs = [i for i, t in enumerate(fig.data) if getattr(t, "name", "") == "__centroids__"]
-                    other_idxs = [i for i in range(len(fig.data)) if i not in centroid_idxs]
-                    fig.data = tuple([fig.data[i] for i in other_idxs + centroid_idxs])
-
-                    # --- save ---
-                    plot_suffix = ''
-                    if ( umap_cat in cell_metrices ):
-                        plot_suffix = '_hqcr' # this helps me later to sort plots
-                    
-                    fig.write_html(f"{figure_path}/umap_plot_{mode}_{umap_cat + plot_suffix}.html")
-                    helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{mode}_{umap_cat + plot_suffix}.png")
-                    helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{mode}_{umap_cat + plot_suffix}.pdf")
-            
-
                 if ( umap_cat in ['nuceli_count', 'control_probe_counts']):
 
                     # --- barplot ---
@@ -409,7 +295,9 @@ def celltype_cluster_analysis(
                     )
                     fig_pct.update_yaxes(range=[0, 100])
                     fig_pct.update_layout(xaxis_title="leiden cluster")
-                    fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}.html")
+
+                    if ( html ):
+                        fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}.html")
                     fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}.png", scale=3)
                     fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}.pdf", scale=3)
 
@@ -450,7 +338,8 @@ def celltype_cluster_analysis(
 
                     helperfuncs.apply_general_plotly_layout(fig, False)
 
-                    fig.write_html(f"{figure_path}/boxplot_{umap_cat}.html")
+                    if ( html ):
+                        fig.write_html(f"{figure_path}/boxplot_{umap_cat}.html")
                     fig.write_image(f"{figure_path}/boxplot_{umap_cat}.png", scale=3)
                     fig.write_image(f"{figure_path}/boxplot_{umap_cat}.pdf", scale=3)
 
@@ -491,7 +380,8 @@ def celltype_cluster_analysis(
 
                     helperfuncs.apply_general_plotly_layout(fig, False)
 
-                    fig.write_html(f"{figure_path}/violin_{umap_cat}.html")
+                    if ( html ):
+                        fig.write_html(f"{figure_path}/violin_{umap_cat}.html")
                     fig.write_image(f"{figure_path}/violin_{umap_cat}.png", scale=3)
                     fig.write_image(f"{figure_path}/violin_{umap_cat}.pdf", scale=3)
 
@@ -539,7 +429,8 @@ def celltype_cluster_analysis(
                 if ( umap_cat in cell_metrices ):
                     plot_suffix = '_hqcr' # this helps me later to sort plots
                 
-                fig.write_html(f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.html")
+                if ( html ):
+                    fig.write_html(f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.html")
                 helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.png")
                 helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.pdf")
 
@@ -563,7 +454,9 @@ def celltype_cluster_analysis(
                     )
                     fig_pct.update_yaxes(range=[0, 100])
                     fig_pct.update_layout(xaxis_title="leiden cluster")
-                    fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}_{x}.html")
+
+                    if ( html ):
+                        fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}_{x}.html")
                     fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}_{x}.png", scale=3)
                     fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}_{x}.pdf", scale=3)
 
@@ -594,7 +487,9 @@ def celltype_cluster_analysis(
         )
         fig.update_xaxes(tickangle=-45)
         fig.update_yaxes(range=[0, 1.0])
-        fig.write_html(f"{figure_path}/fractions_celltype_leiden.html")
+
+        if ( html ):
+            fig.write_html(f"{figure_path}/fractions_celltype_leiden.html")
         fig.write_image(f"{figure_path}/fractions_celltype_leiden.png", scale=3)
         fig.write_image(f"{figure_path}/fractions_celltype_leiden.pdf", scale=3)
 
@@ -702,7 +597,9 @@ def celltype_cluster_analysis(
         fig.update_traces(marker_size=2)
         fig.update_xaxes(range=xrange, autorange=False)
         fig.update_yaxes(range=yrange, autorange=False, scaleanchor="x", scaleratio=1)
-        fig.write_html(f"{figure_path}/umap_plot_{c}.html")
+
+        if ( html ):
+            fig.write_html(f"{figure_path}/umap_plot_{c}.html")
         helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.png")
         helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.pdf")
 
@@ -743,7 +640,9 @@ def celltype_cluster_analysis(
     fig.update_traces(marker_size=2)
     fig.update_xaxes(range=xrange, autorange=False)
     fig.update_yaxes(range=yrange, autorange=False, scaleanchor="x", scaleratio=1)
-    fig.write_html(f"{figure_path}/umap_plot_{c}.html")
+
+    if ( html ):
+        fig.write_html(f"{figure_path}/umap_plot_{c}.html")
     helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.png")
     helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.pdf")
 

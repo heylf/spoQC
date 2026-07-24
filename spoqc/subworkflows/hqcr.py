@@ -186,9 +186,13 @@ def create_polygon_dataframe(sdata, imagedim, object, prob_col=None):
     if ( prob_col != None ):
         polys[prob_col] = list(sdata['table'].obs[prob_col])
 
-    # These list I need later because the image matrix has not the same index range as the poly coords.
-    x_idx = [i for i in range(int(imagedim.bb_xmin-1), int(imagedim.bb_xmax+1))]
-    y_idx = [i for i in range(int(imagedim.bb_ymin-1), int(imagedim.bb_ymax+1))]
+    # The image matrix has not the same index range as the poly coords, so we need to
+    # offset coordinates into the matrix's index space. x_idx/y_idx used to be materialized
+    # as Python lists searched with list.index() (O(image_width)/O(image_height) per vertex);
+    # since they are contiguous ranges starting at bb_xmin-1/bb_ymin-1, the index is just an
+    # O(1) arithmetic offset.
+    x_offset = int(imagedim.bb_xmin - 1)
+    y_offset = int(imagedim.bb_ymin - 1)
 
     # Translate poly coords.
     for index, row in polys.iterrows():
@@ -200,7 +204,7 @@ def create_polygon_dataframe(sdata, imagedim, object, prob_col=None):
 
             if ( x >= int(imagedim.bb_xmin) and x <= int(imagedim.bb_xmax) -1 and \
                  y >= int(imagedim.bb_ymin) and y <= int(imagedim.bb_ymax) - 1 ):
-                translated_poly.append((x_idx.index(x),y_idx.index(y)))
+                translated_poly.append((x - x_offset, y - y_offset))
                 
         translated_poly = Polygon(translated_poly)
 
@@ -288,7 +292,7 @@ def map_values_to_cells(
     # Define transform: (origin_x, origin_y, pixel_width, pixel_height)
     transform = from_origin(0, height, 1, 1)  # top-left at (0, height), cell size = 1
 
-    polygons_with_values = [ (row['geometry'], index) for index, row in polys.iterrows() ]
+    polygons_with_values = zip(polys['geometry'], polys.index)
 
     shapes = [(mapping(geom), value) for geom, value in polygons_with_values]
 

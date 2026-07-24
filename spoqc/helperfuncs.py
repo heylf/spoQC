@@ -1065,15 +1065,20 @@ def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
     try:
         tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder) \
                      if file.endswith(f'{suffix}.parquet')]
+        sdata['table'].obs.index = [str(x) for x in sdata['table'].obs.index]
         for tmp_file in tmp_files:
+            # Check the on-disk schema (cheap, no data read) so files already joined in a
+            # previous call are skipped instead of being re-read from disk every time.
+            columns = pq.ParquetFile(tmp_file).schema.names
+            if all(col in sdata['table'].obs.columns for col in columns):
+                print(f'[NOTE] skip {tmp_file}, already loaded in')
+                continue
             print(f'[NOTE] read in {tmp_file}')
             tmp_data = pd.read_parquet(tmp_file)
             tmp_data.index = [str(x) for x in tmp_data.index]
-            sdata['table'].obs.index = [str(x) for x in sdata['table'].obs.index]
             sdata['table'].obs = sdata['table'].obs.join(tmp_data, how='left')
     except Exception as e:
-        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} most likely because" + \
-              f"the data was already loaded in: {e}")
+        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder}: {e}")
         return None
 
 def nparr_to_parquet(np_arr, prefix, spoqc_tmp_folder, suffix):
