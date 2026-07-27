@@ -70,13 +70,20 @@ def celltype_cluster_analysis(
 
     if ( rna.n_obs < 10 ):
         print("[WARN] Too few cells. The cluster investigation has to be stopped.")
+        analysis_funcs.write_out_anndata(sdata, rna, CONST, subdir)
         return 0
 
     ####################################################################################################################
     # Madatory steps
     ####################################################################################################################
 
-    sc.pp.neighbors(rna, n_neighbors=20, random_state=seed)
+    nn = 20
+    if ( rna.n_obs < 100 ):
+        nn = 10
+        n_pcs=2
+    print(f"[NOTE] Using {nn} neighbours")
+
+    sc.pp.neighbors(rna, n_neighbors=nn, n_pcs=n_pcs, random_state=seed)
     sc.tl.umap(rna, min_dist=0.1, spread=1.2, random_state=seed)
 
     ####################################################################################################################    
@@ -649,25 +656,7 @@ def celltype_cluster_analysis(
     ####################################################################################################################
     # Write out annotated .h5ad
     ####################################################################################################################
-    if ( subdir == 'overview' ):
-        # Remove columns that are not useful for inspection.
-        if ( 'nuclei_idxs' in sdata['table'].obs.columns ):
-            sdata['table'].obs.drop(columns=['nuclei_idxs'], inplace=True)
-
-        sdata['table'].write_h5ad(
-            f"{CONST.FIGURE_PATH}/analysis/rna_qc_annotated.h5ad", 
-            compression="gzip", 
-            compression_opts=9
-        )
-
-    if ( subdir == 'cluster' ):
-        if ( 'nuclei_idxs' in rna.obs.columns ):
-            rna.obs.drop(columns=['nuclei_idxs'], inplace=True)
-        rna.write_h5ad(
-            f"{CONST.FIGURE_PATH}/analysis/rna_cluster.h5ad", 
-            compression="gzip", 
-            compression_opts=9
-        )
+    analysis_funcs.write_out_anndata(sdata, rna, CONST, subdir)
 
 
 # %%

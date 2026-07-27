@@ -296,3 +296,25 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
                 umap_cats.append(f'{metric}_{modality}')
 
     return umap_cats
+
+def write_out_anndata(sdata, rna, CONST, subdir):
+
+    if ( subdir == 'overview' ):
+        # Remove columns that are not useful for inspection.
+        if ( 'nuclei_idxs' in sdata['table'].obs.columns ):
+            sdata['table'].obs.drop(columns=['nuclei_idxs'], inplace=True)
+
+        sdata['table'].write_h5ad(
+            f"{CONST.FIGURE_PATH}/analysis/rna_qc_annotated.h5ad", 
+            compression="gzip", 
+            compression_opts=9
+        )
+
+    if ( subdir == 'cluster' ):
+        if ( 'nuclei_idxs' in rna.obs.columns ):
+            rna.obs.drop(columns=['nuclei_idxs'], inplace=True)
+        rna.write_h5ad(
+            f"{CONST.FIGURE_PATH}/analysis/rna_cluster.h5ad", 
+            compression="gzip", 
+            compression_opts=9
+        )
