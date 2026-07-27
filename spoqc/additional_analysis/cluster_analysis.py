@@ -20,6 +20,7 @@ from pandas.api.types import is_numeric_dtype
 
 from .. import helperfuncs
 from . import analysis_funcs
+from . import funkyheatmap
 
 def celltype_cluster_analysis(
         sdata,
@@ -78,6 +79,7 @@ def celltype_cluster_analysis(
     ####################################################################################################################
 
     nn = 20
+    n_pcs = None
     if ( rna.n_obs < 100 ):
         nn = 10
         n_pcs=2
@@ -652,6 +654,11 @@ def celltype_cluster_analysis(
         fig.write_html(f"{figure_path}/umap_plot_{c}.html")
     helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.png")
     helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.pdf")
+
+    ####################################################################################################################
+    # Funkyheatmap
+    ####################################################################################################################
+    funkyheatmap.plot_funkyheatmap(rna, figure_path)
 
     ####################################################################################################################
     # Write out annotated .h5ad
