@@ -2,6 +2,9 @@ import os
 
 def create_folder_structure(CONST):
 
+    if ( not os.path.exists(f"{CONST.FIGURE_PATH}") ):
+            os.makedirs(f"{CONST.FIGURE_PATH}")
+
     # For the final report we do not need a folder.
     if CONST.STEP == "final_report":
         return 0
