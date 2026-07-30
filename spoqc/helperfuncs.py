@@ -26,6 +26,7 @@ from matplotlib.colors import to_hex
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from scipy.ndimage import gaussian_filter
+from scipy.stats import norm
 
 class ImageDimStruct(NamedTuple):
     bb_xmin: int
@@ -600,7 +601,7 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
     handles, labels = scatter.get_legend_handles_labels()
 
     if handles and labels:
-        plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.6, 1),
+        plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.25, 1),
                    loc='upper left', borderaxespad=0., markerscale=1)
 
     # Add density category
@@ -636,7 +637,7 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
         print("Just plotting scatter plot.")
         handles, labels = scatter.get_legend_handles_labels()
         if handles and labels:
-            plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.6, 1), 
+            plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.05, 1), 
                     loc='upper left', borderaxespad=0., markerscale=1)
 
     if ( title ):
@@ -687,7 +688,7 @@ def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
         print("Just plotting scatter plot.")
         handles, labels = scatter.get_legend_handles_labels()
         if handles and labels:
-            plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.6, 1), 
+            plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.05, 1), 
                     loc='upper left', borderaxespad=0., markerscale=1)
 
     if handles == None and labels == None:
@@ -823,7 +824,7 @@ def add_manual_legend(legend_dict, points=None):
     leg = ax.legend(handles=handles, title=legend_title, loc=legend_loc,
                     ncols=legend_ncol, frameon=legend_frame)
 
-    ax.legend(handles=handles, title=legend_title, loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0)
+    ax.legend(handles=handles, title=legend_title, loc="upper left", bbox_to_anchor=(1.05, 1.0), borderaxespad=0)
 
 
 def plot_pixels(
@@ -1229,13 +1230,20 @@ def read_df_parquet_tmp_files_scorify(cluster_df, spoqc_tmp_folder, suffix):
         return None
 
 
-def plot_histogram_for_array(array, nbins, figure_path, title, suffix, t=None):
+def plot_histogram_for_array(array, nbins, figure_path, title, suffix, t=None, std=None, nstds=1):
     sns.histplot(array, bins=nbins)
     plt.title(title)
     plt.xlabel("value")
     plt.ylabel("frequency")
     if t:
         plt.axvline(x=t, color='red', linestyle='-', alpha=1.0)  # Adding vertical lines
+    if t is not None and std is not None:
+        bin_edges = np.histogram_bin_edges(array, bins=nbins)
+        bin_width = np.mean(np.diff(bin_edges))
+        scale = len(array) * bin_width  # rescale pdf to match histplot's count-based y-axis
+        x = np.linspace(np.min(array), np.max(array), 200)
+        y = norm.pdf(x, loc=t, scale=nstds * std) * scale
+        plt.plot(x, y, color='gray')
     plt.savefig(f'{figure_path}/histogram_{suffix}.png', bbox_inches='tight', dpi=300)
     plt.savefig(f'{figure_path}/histogram_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
