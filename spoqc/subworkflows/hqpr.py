@@ -10,7 +10,7 @@ def get_hqpr(
         seed,
         *,
         thresh_p=None,
-        nstds_p=3
+        nstds_p=None,
     ):
 
     # Memory depends on threads. The more threads you choose the more memory you need.
@@ -49,7 +49,7 @@ def get_hqpr(
             CONST.THREADS,
             staining=CONST.STAINING,
             thresh_p=thresh_p,
-            nstds_p=nstds_p
+            nstds_p=nstds_p,
         )
 
         print('[finish]')   
@@ -64,7 +64,7 @@ def get_hqpr(
                 dim_y,
                 1.5,
                 15,
-                staining=CONST.STAINING
+                staining=CONST.STAINING,
         )
 
         print('[finish]')
@@ -83,7 +83,7 @@ def get_hqpr(
             dim_y,
             imagedim,
             'raw',
-            staining=CONST.STAINING
+            staining=CONST.STAINING,
         )
 
         print('[finish]')
@@ -106,7 +106,7 @@ def celltype_refinement_of_hqpr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y,
             dim_y,
             CONST.ANNOTATION_KEY,
             CONST.CANORM,
-            staining=CONST.STAINING
+            staining=CONST.STAINING,
         )
 
         print("[finish]")

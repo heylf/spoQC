@@ -7,7 +7,7 @@ from scipy.stats import norm
 from sklearn.mixture import GaussianMixture
 from dask_ml.preprocessing import MinMaxScaler
 
-def calc_probs_pixel_score(pixel_scores, figure_path, gmm_mod=3, nstds=3, t=None, std=None):
+def calc_probs_pixel_score(pixel_scores, figure_path, gmm_mod=3, nstds=1, t=None, std=None):
     mix = GaussianMixture(n_components=gmm_mod, tol=1e-8, max_iter=int(1e4))
     mix.fit(pixel_scores.reshape(-1, 1))
     means = mix.means_
@@ -33,7 +33,9 @@ def calc_probs_pixel_score(pixel_scores, figure_path, gmm_mod=3, nstds=3, t=None
         figure_path,
         f"Pixel scores: t={np.round(max_mean, 3)} with {nstds} x {np.round(max_std, 3)} std",
         "pixel_scores_prior",
-        t=max_mean
+        t=max_mean,
+        std=max_std,
+        nstds=nstds,
     )
 
     # Calculate the probability density at x for each pixel clusters.

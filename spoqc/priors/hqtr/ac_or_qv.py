@@ -47,7 +47,9 @@ def calc_prob_pixel_stuff_v2(image_ddf, figure_path, thresh, std, tail, col):
         figure_path,
         f"{col}: t={np.round(thresh, 3)} with {1} x {np.round(std, 3)} std",
         f"{col}_prior",
-        t=thresh
+        t=thresh,
+        std=std,
+        nstds=1,
     )
 
     return image_ddf

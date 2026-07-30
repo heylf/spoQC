@@ -22,7 +22,9 @@ def calc_probs_doublet_distance(sdata, figure_path, nstds=3):
         figure_path,
         f"Doublet distance: t=0.0 with {nstds} x {np.round(max_std, 3)} std",
         "doublet_distance_prior",
-        t=0.0
+        t=0.0,
+        std=max_std,
+        nstds=nstds,
     )
 
     probs_good_quality = 1 - probs

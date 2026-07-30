@@ -83,7 +83,7 @@ def start_pixel_qc(
         chunk_size=10_000,
         staining=None,
         thresh_p=None,
-        nstds_p=3
+        nstds_p=None,
     ):
 
     timer = helperfuncs.Timer()
