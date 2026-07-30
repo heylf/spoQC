@@ -138,7 +138,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--nstds_prior_pixel",
         dest="nstds_prior_pixel",
         type=float,
-        default=3,
+        default=6,
         help="You can set the number of stds for the pixel prior distribution. Please read the documentation to understand what this does before you set it.",
         required=False
     )
@@ -556,7 +556,7 @@ def main(argv: list[str] | None = None) -> None:
         CONST,
         seed,
         thresh_p=CONST.THRESHOLD_PRIOR_PIXEL,
-        nstds_p=CONST.NSTDS_PRIOR_PIXEL
+        nstds_p=CONST.NSTDS_PRIOR_PIXEL,
     )
 
     # In[]
@@ -577,7 +577,17 @@ def main(argv: list[str] | None = None) -> None:
     ##################
     ###### HQTR ######
     ##################
-    subworkflows.hqtr.get_hqtr(sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST, seed)
+    subworkflows.hqtr.get_hqtr(
+        sdata, 
+        CONST.TMP_PATH, 
+        imagedim, 
+        dim_x, 
+        dim_y, 
+        CONST, 
+        seed,
+        thresh_p=CONST.THRESHOLD_PRIOR_PIXEL,
+        nstds_p=CONST.NSTDS_PRIOR_PIXEL,
+    )
 
     # In[]
     if ( CONST.ANNOTATION_FILE ):
@@ -687,5 +697,14 @@ def main(argv: list[str] | None = None) -> None:
         stainings,
     )
 
+
+    # In[]
+    ##########################
+    ###### FINAL REPORT ######
+    ##########################
+    # Low resources, fast
+    if ( CONST.STEP in ['all', 'final_report'] ):
+        subworkflows.final_report.create_final_report(CONST.FIGURE_PATH, stainings)
+
     print("[FINISH]")
-# %%
+    # %%
