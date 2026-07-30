@@ -2,6 +2,10 @@ import os
 
 def create_folder_structure(CONST):
 
+    # For the final report we do not need a folder.
+    if CONST.STEP == "final_report":
+        return 0
+
     dirs = [CONST.STEP]
 
     if CONST.STEP == "all":
@@ -40,7 +44,7 @@ def create_folder_structure(CONST):
             f"combine_masks/{CONST.STAINING}",
             "analysis/overview",
             "analysis/cluster",
-            "analysis/category"
+            "analysis/category",
         ]
     else:
         prefix_dir = CONST.STEP.split("_")[0]
