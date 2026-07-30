@@ -180,7 +180,7 @@ def calc_doublet_score(
         'doublet',
         'wdoublet',
         ['lightblue', 'black'],
-        None
+        'Cells close to doublet events'
     )
 
     # Write into sdata

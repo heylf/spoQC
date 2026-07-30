@@ -38,7 +38,7 @@ def plot_pca_scatter(df, figure_path, nPCs, flip=False):
             plt.gca().invert_yaxis()
 
         # Move the legend outside the plot
-        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., markerscale=1)
+        plt.legend(bbox_to_anchor=(1.15, 1), loc='upper left', borderaxespad=0., markerscale=1)
 
     plt.tight_layout()
     plt.savefig(f'{figure_path}/scatterplot_PCs.png', bbox_inches='tight')
@@ -63,7 +63,7 @@ def plot_pca_scatter(df, figure_path, nPCs, flip=False):
             plt.gca().invert_yaxis()
 
         # Move the legend outside the plot
-        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., markerscale=1)
+        plt.legend(bbox_to_anchor=(1.15, 1), loc='upper left', borderaxespad=0., markerscale=1)
 
         plt.tight_layout()
         plt.savefig(f'{figure_path}/scatterplot_PC{i+1}.png', bbox_inches='tight')

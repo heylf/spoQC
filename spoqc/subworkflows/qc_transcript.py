@@ -171,7 +171,8 @@ def negativeprobeqc(sdata: Any, figure_path: str, key_transcripts: str) -> None:
     df['neg_probes'] = match_neg_probes
 
     helperfuncs.plot_scatter_density_df(df[df['neg_probes'] == True], figure_path, 
-                                        'neg_probes', 'neg_probes', None, ['black'], None)
+                                        'neg_probes', 'neg_probes', None, ['black'],
+                                        'Density of negative probes')
 
 
 def transcriptz(sdata: Any, figure_path: str, key_transcripts: str) -> None:
@@ -301,6 +302,6 @@ def get_low_qc_transcript_count(transcript_df, sdata, qv_tresh, figure_path):
         None,
         'num_low_qc_transcript',
         None,
-        None
+        'Density low quality transcripts',
     )
 
