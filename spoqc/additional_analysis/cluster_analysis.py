@@ -38,6 +38,7 @@ def celltype_cluster_analysis(
         html=False,
     ):
 
+    timer = helperfuncs.Timer()
     np.random.seed(seed)
 
     spoqc_tmp_folder = CONST.TMP_PATH
@@ -46,7 +47,11 @@ def celltype_cluster_analysis(
 
     umap_cats = []
 
+    print("[NOTE] Load cell data")
+    timer.start()
     cell_metrices = analysis_funcs.load_cell_metrices(sdata, spoqc_tmp_folder, CONST, include_nucleus_free=True)
+    timer.stop()
+
     umap_cats.extend(cell_metrices)
 
     figure_path = f'{CONST.FIGURE_PATH}/analysis/{subdir}'
@@ -77,6 +82,8 @@ def celltype_cluster_analysis(
     ####################################################################################################################
     # Madatory steps
     ####################################################################################################################
+    print("[NOTE] Mandatory steps")
+    timer.start()
 
     nn = 20
     n_pcs = None
@@ -87,10 +94,14 @@ def celltype_cluster_analysis(
 
     sc.pp.neighbors(rna, n_neighbors=nn, n_pcs=n_pcs, random_state=seed)
     sc.tl.umap(rna, min_dist=0.1, spread=1.2, random_state=seed)
+    timer.stop()
 
     ####################################################################################################################    
     # Testing for resolution
     ####################################################################################################################
+    print("[NOTE] Find resolution")
+    timer.start()
+
     res_file_name = f"{figure_path}/res.txt"
     win_res = -1
     if ( not os.path.exists(res_file_name) ):
@@ -126,8 +137,11 @@ def celltype_cluster_analysis(
 
     # Pick the correct solution after you have inspected the testing plots.
     sc.tl.leiden(rna, resolution=win_res, key_added='leiden', random_state=seed)
+    timer.stop()
 
     if ( ( len(set(rna.obs['leiden'])) > 30 ) and ( not os.path.exists(res_file_name) ) ):
+        print("[NOTE] Resolution was too far off. Doing further optimization")
+        timer.start()
         rna.obs.drop(columns=['leiden'], inplace=True)
         win_res = analysis_funcs.test_resolutions_leiden(
             rna,
@@ -139,13 +153,17 @@ def celltype_cluster_analysis(
             # start=0.000001
         )
         sc.tl.leiden(rna, resolution=win_res, key_added='leiden', random_state=seed)
+        timer.stop()
 
     ####################################################################################################################
     # Do the actual analysis
     ####################################################################################################################
+    print("[NOTE] Map spoQC values")
+    timer.start()
     umap_cats.extend(analysis_funcs.map_modality_metrics_to_cells(
         sdata, imagedim, image_type, resolution, spoqc_tmp_folder, suffix, dim_x, dim_y, stainings, figure_path
     ))
+    timer.stop()
 
     # This had to be done if I analyse a specific clsuter because I subset the data.
     if ( subdir == 'cluster' ):
@@ -185,6 +203,8 @@ def celltype_cluster_analysis(
 
     if ( not just_filtering ):
 
+        print("[NOTE] Generate spatial plots")
+        timer.start()
         # Generate spatial plots for leiden clsuters
         rna.obs['spatial_leiden_cluster'] = [True] * rna.n_obs
         for c in leiden_clusters:
@@ -212,7 +232,11 @@ def celltype_cluster_analysis(
                 ['lightblue', 'black'], 
                 f'annotation_{c}'
             )
+        timer.stop()
 
+
+        print("[NOTE] Generate individual plots")
+        timer.start()
         celltype_colors = []
         for umap_cat in umap_cats:
 
@@ -440,6 +464,12 @@ def celltype_cluster_analysis(
                 
                 if ( html ):
                     fig.write_html(f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.html")
+                elif ( umap_cat in [CONST.ANNOTATION_KEY, 'leiden'] ):
+                    fig.write_html(
+                        f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.html",
+                        full_html=False,
+                        include_plotlyjs='cdn',
+                    )
                 helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.png")
                 helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.pdf")
 
@@ -468,8 +498,11 @@ def celltype_cluster_analysis(
                         fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}_{x}.html")
                     fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}_{x}.png", scale=3)
                     fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}_{x}.pdf", scale=3)
+        timer.stop()
 
         # --- cell composition plot -----
+        print("[NOTE] Generate cell type composition plot")
+        timer.start()
         ctf_df = analysis_funcs.create_celltype_fraction_df('leiden', CONST.ANNOTATION_KEY, rna)
 
         leiden_order = sorted(ctf_df["x"].unique(), key=lambda x: int(x))  # if leiden labels are numeric strings
@@ -505,10 +538,13 @@ def celltype_cluster_analysis(
         done_file = open(f"{figure_path}/done.txt", "w")
         done_file.write("its done")
         done_file.close()
-
+    timer.stop()
+    
     ####################################################################################################################
     # metadata
     ####################################################################################################################
+    print("[NOTE] Generate metadata json files")
+    timer.start()
 
     if ( not just_filtering ):
 
@@ -546,10 +582,14 @@ def celltype_cluster_analysis(
                         hqr_metadata_dic[f'{modality}'] = metadata_list
                 
                 sdata['table'].uns = hqr_metadata_dic
+    timer.stop()
 
     ####################################################################################################################
     # beliefs filtering plot
     ####################################################################################################################
+    print("[NOTE] Generate belief plots")
+    timer.start()
+
     filter_cols = ['hqcr_beliefs', 'hqtr_beliefs_mean_informative']
     for staining in stainings:
         filter_cols.append(f'hqpr_{staining}_beliefs_mean_informative')
@@ -570,6 +610,9 @@ def celltype_cluster_analysis(
             c = 'hqtr'
         
         c = f'{c}_filtered_out'
+        if c == 'hqpr_filtered_out':
+            staining = org_c.split('_')[1]
+            c = f'hqpr_{staining}_filtered_out'
         rna.obs[c] = rna.obs[org_c] < t
 
         helperfuncs.plot_scatter(
@@ -612,8 +655,9 @@ def celltype_cluster_analysis(
         helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.png")
         helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.pdf")
 
-    c = f'hqr_filtered_out'
-    rna.obs[c] = rna.obs['hqcr_filtered_out'] | rna.obs['hqpr_filtered_out'] | rna.obs['hqtr_filtered_out']
+    c = 'hqr_filtered_out'
+    hqpr_cols = [f'hqpr_{staining}_filtered_out' for staining in stainings]
+    rna.obs[c] = rna.obs[['hqcr_filtered_out', 'hqtr_filtered_out'] + hqpr_cols].any(axis=1)
     
     helperfuncs.plot_scatter(
         rna,
@@ -654,16 +698,23 @@ def celltype_cluster_analysis(
         fig.write_html(f"{figure_path}/umap_plot_{c}.html")
     helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.png")
     helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.pdf")
+    timer.stop()
 
     ####################################################################################################################
     # Funkyheatmap
     ####################################################################################################################
+    print("[NOTE] Generate funky heatmap")
+    timer.start()
     funkyheatmap.plot_funkyheatmap(rna, figure_path)
+    timer.stop()
 
     ####################################################################################################################
     # Write out annotated .h5ad
     ####################################################################################################################
+    print("[NOTE] Write out anndata")
+    timer.start()
     analysis_funcs.write_out_anndata(sdata, rna, CONST, subdir)
+    timer.stop()
 
 
 # %%
