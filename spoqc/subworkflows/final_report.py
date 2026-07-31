@@ -268,14 +268,15 @@ def create_final_report(figure_path, stainings):
         <img src="data:image/png;base64,{img_cc_spatial}" style="max-width:45%;">
         """
 
-    img_void_sp = image_to_base64(
-        f"{figure_path}/voidqc/spatial_traingle_all_clsuters_log10_transcripts_counts_outside_cell.png"
-    )
-    html_overview += f"""
-    <h2>Void analysis</h2>
-    <p>TODO: describe this section</p>
-    <img src="data:image/png;base64,{img_void_sp}" style="max-width:45%;">
-    """
+    if os.path.exists(f"{figure_path}/voidqc/spatial_traingle_all_clsuters_log10_transcripts_counts_outside_cell.png"):
+        img_void_sp = image_to_base64(
+            f"{figure_path}/voidqc/spatial_traingle_all_clsuters_log10_transcripts_counts_outside_cell.png"
+        )
+        html_overview += f"""
+        <h2>Void analysis</h2>
+        <p>TODO: describe this section</p>
+        <img src="data:image/png;base64,{img_void_sp}" style="max-width:45%;">
+        """
 
     ####################################################################################################################
     # Second page
@@ -283,57 +284,62 @@ def create_final_report(figure_path, stainings):
 
     html_subcluster = ""
 
-    img_funkyheatmap = image_to_base64(f"{figure_path}/analysis/cluster/funkyheatmap/funkyheatmap_1.png")
-    html_subcluster += f"""
-    <h1>Subcluster purity analysis</h1>
-    <p>TODO: describe this section</p>
-    <img src="data:image/png;base64,{img_funkyheatmap}" style="max-width:80%;">
-    """
+    second_page_present = False
+    if os.path.exists(f"{figure_path}/analysis/cluster/funkyheatmap/funkyheatmap_1.png"):
+        second_page_present = True
 
-    with open(f"{figure_path}/analysis/cluster/umap/umap_plot_celltype.html") as f:
-        html_annotation = f.read()
-    with open(f"{figure_path}/analysis/cluster/umap/umap_plot_leiden.html") as f:
-        html_leiden = f.read()
-    html_subcluster += f"""
-    <h2>Annotation and Leiden clustering</h2>
-    <p>TODO: describe this section</p>
-    <div style="display:inline-block; vertical-align:top; width:48%;">{html_annotation}</div>
-    <div style="display:inline-block; vertical-align:top; width:48%;">{html_leiden}</div>
-    """
+    if second_page_present:
+        img_funkyheatmap = image_to_base64(f"{figure_path}/analysis/cluster/funkyheatmap/funkyheatmap_1.png")
+        html_subcluster += f"""
+        <h1>Subcluster purity analysis</h1>
+        <p>TODO: describe this section</p>
+        <img src="data:image/png;base64,{img_funkyheatmap}" style="max-width:80%;">
+        """
 
-    img_ump_hqr = image_to_base64(f"{figure_path}/analysis/cluster/umap/umap_plot_hqr_filtered_out.png")
-    img_spa_hqr = image_to_base64(f"{figure_path}/analysis/cluster/scatterplot/scatterplot_hqr_filtered_out.png")
-    html_subcluster += f"""
-    <h2>Filter HQRs</h2>
-    <p>TODO: describe this section</p>
-    <img src="data:image/png;base64,{img_ump_hqr}" style="max-width:45%;">
-    <img src="data:image/png;base64,{img_spa_hqr}" style="max-width:45%;">
-    """
+        with open(f"{figure_path}/analysis/cluster/umap/umap_plot_celltype.html") as f:
+            html_annotation = f.read()
+        with open(f"{figure_path}/analysis/cluster/umap/umap_plot_leiden.html") as f:
+            html_leiden = f.read()
+        html_subcluster += f"""
+        <h2>Annotation and Leiden clustering</h2>
+        <p>TODO: describe this section</p>
+        <div style="display:inline-block; vertical-align:top; width:48%;">{html_annotation}</div>
+        <div style="display:inline-block; vertical-align:top; width:48%;">{html_leiden}</div>
+        """
 
-    img_bar_cpc = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_control_probe_counts.png")
-    html_subcluster += f"""
-    <h2>Control probe counts per cluster</h2>
-    <p>TODO: describe this section</p>
-    <img src="data:image/png;base64,{img_bar_cpc}" style="max-width:45%;">
-    """
+        img_ump_hqr = image_to_base64(f"{figure_path}/analysis/cluster/umap/umap_plot_hqr_filtered_out.png")
+        img_spa_hqr = image_to_base64(f"{figure_path}/analysis/cluster/scatterplot/scatterplot_hqr_filtered_out.png")
+        html_subcluster += f"""
+        <h2>Filter HQRs</h2>
+        <p>TODO: describe this section</p>
+        <img src="data:image/png;base64,{img_ump_hqr}" style="max-width:45%;">
+        <img src="data:image/png;base64,{img_spa_hqr}" style="max-width:45%;">
+        """
 
-    img_bar_dc = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_doublet_celltype.png")
-    img_bar_dl = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_doublet_leiden.png")
-    html_subcluster += f"""
-    <h2>Doublet counts per cluster</h2>
-    <p>TODO: describe this section</p>
-    <img src="data:image/png;base64,{img_bar_dc}" style="max-width:45%;">
-    <img src="data:image/png;base64,{img_bar_dl}" style="max-width:45%;">
-    """
+        img_bar_cpc = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_control_probe_counts.png")
+        html_subcluster += f"""
+        <h2>Control probe counts per cluster</h2>
+        <p>TODO: describe this section</p>
+        <img src="data:image/png;base64,{img_bar_cpc}" style="max-width:45%;">
+        """
 
-    img_bar_nfc = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_nucleus_free_celltype.png")
-    img_bar_nfl = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_nucleus_free_leiden.png")
-    html_subcluster += f"""
-    <h2>Nucelus free cell counts per cluster</h2>
-    <p>TODO: describe this section</p>
-    <img src="data:image/png;base64,{img_bar_nfc}" style="max-width:45%;">
-    <img src="data:image/png;base64,{img_bar_nfl}" style="max-width:45%;">
-    """
+        img_bar_dc = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_doublet_celltype.png")
+        img_bar_dl = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_doublet_leiden.png")
+        html_subcluster += f"""
+        <h2>Doublet counts per cluster</h2>
+        <p>TODO: describe this section</p>
+        <img src="data:image/png;base64,{img_bar_dc}" style="max-width:45%;">
+        <img src="data:image/png;base64,{img_bar_dl}" style="max-width:45%;">
+        """
+
+        img_bar_nfc = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_nucleus_free_celltype.png")
+        img_bar_nfl = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_nucleus_free_leiden.png")
+        html_subcluster += f"""
+        <h2>Nucelus free cell counts per cluster</h2>
+        <p>TODO: describe this section</p>
+        <img src="data:image/png;base64,{img_bar_nfc}" style="max-width:45%;">
+        <img src="data:image/png;base64,{img_bar_nfl}" style="max-width:45%;">
+        """
 
 
     ####################################################################################################################
@@ -500,7 +506,8 @@ def create_final_report(figure_path, stainings):
 
     ### First half ####
     pages_first_half = [{"id": "overview", "title": "Overview", "content": html_overview}]
-    pages_first_half.append({"id": "subcluster", "title": "Subcluster anlysis", "content": html_subcluster})
+    if second_page_present:
+        pages_first_half.append({"id": "subcluster", "title": "Subcluster anlysis", "content": html_subcluster})
     pages_first_half.append({"id": "spatialplot_leiden", "title": "Spatial plots Leiden clusters", "content": html_sp_leiden})
     pages_first_half.append({"id": "spatialplot_annotation", "title": "Spatial plots annotation clusters", "content": html_sp_ann})
     pages_first_half.append({"id": "hqr", "title": "High quality regions (HQRs)", "content": html_hqr})
