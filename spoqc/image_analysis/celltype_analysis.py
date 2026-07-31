@@ -24,7 +24,7 @@ def start_image_celltype_analysis(
 
     prefix = modality
     if ( staining ):
-        figure_path = f'{figure_path}/{modality}/{staining}/{modality}_celltype/'
+        figure_path = f'{figure_path}/{modality}/{modality}_celltype/{staining}/'
         prefix = f'{modality}_{staining}'
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_celltype/'

@@ -22,7 +22,7 @@ def render_image_gallery(header, image_filename, stainings, folder_path, folder_
             size = 45
         img_file = f"{folder_path}/{s}/{image_filename}"
         if folder_path_continue:
-            img_file = f"{folder_path}/{s}/{folder_path_continue}/{image_filename}"
+            img_file = f"{folder_path}/{folder_path_continue}/{s}/{image_filename}"
         img_data = image_to_base64(img_file)
         html += f"""
         <div style="display:inline-block; max-width:{size}%;">
@@ -534,8 +534,8 @@ def create_final_report(figure_path, stainings):
             pages_second_half.append({"id": "hqcr_cell_region", "title": "HQCR Cell Region", "content": f.read()})
 
     for s, staining in enumerate(stainings):
-        if os.path.exists(f"{figure_path}/hqpr/{s}/hqpr_celltype/celltype_qc_analysis.html"):
-            with open(f"{figure_path}/hqpr/{s}/hqpr_celltype/celltype_qc_analysis.html") as f:
+        if os.path.exists(f"{figure_path}/hqpr/hqpr_celltype/{s}/celltype_qc_analysis.html"):
+            with open(f"{figure_path}/hqpr/hqpr_celltype/{s}/celltype_qc_analysis.html") as f:
                 pages_second_half.append({"id": f"hqpr_{s}_celltype", "title": f"HQPR Celltype QC ({staining})", "content": f.read()})
 
     if os.path.exists(f"{figure_path}/hqtr/hqtr_celltype/celltype_qc_analysis.html"):

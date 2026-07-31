@@ -564,7 +564,7 @@ def celltype_cluster_analysis(
 
                 if ( modality == 'hqpr' ):
                     for staining in stainings:
-                        metadata_path = f"{CONST.FIGURE_PATH}/{modality}/{staining}/hqpr_bounding_box/"
+                        metadata_path = f"{CONST.FIGURE_PATH}/{modality}/hqpr_bounding_box/{staining}/"
                         metadata_file = f"{metadata_path}/{modality}s_{staining}.txt"
                         if ( os.path.exists(metadata_file)):
                             with open(metadata_file, "r") as f:

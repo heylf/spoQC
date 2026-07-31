@@ -47,7 +47,7 @@ def start_pixel_mask_refinement(
     prefix = modality
     suffix = 'raw'
     if ( staining ):
-        figure_path = f'{figure_path}/{modality}/{staining}/{modality}_refinement/'
+        figure_path = f'{figure_path}/{modality}/{modality}_refinement/{staining}/'
         prefix = f'{modality}_{staining}'
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_refinement/'

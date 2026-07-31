@@ -25,12 +25,12 @@ def create_folder_structure(CONST):
             "hqcr/hqcr_ident/lqcr",
             "hqcr/hqcr_ident/hqcr",
             "hqcr/hqcr_celltype",
-            f"hqpr/{CONST.STAINING}/hqpr_metrices",
-            f"hqpr/{CONST.STAINING}/hqpr_clustering",
-            f"hqpr/{CONST.STAINING}/hqpr_refinement",
-            f"hqpr/{CONST.STAINING}/hqpr_bounding_box",
-            f"hqpr/{CONST.STAINING}/hqpr_bounding_box/subfigures",
-            f"hqpr/{CONST.STAINING}/hqpr_celltype",
+            f"hqpr/hqpr_metrices/{CONST.STAINING}",
+            f"hqpr/hqpr_clustering/{CONST.STAINING}",
+            f"hqpr/hqpr_refinement/{CONST.STAINING}",
+            f"hqpr/hqpr_bounding_box/{CONST.STAINING}",
+            f"hqpr/hqpr_bounding_box/{CONST.STAINING}/subfigures",
+            f"hqpr/hqpr_celltype/{CONST.STAINING}",
             f"hqtr/hqtr_metrices",
             "hqtr/hqtr_qv",
             "hqtr/hqtr_ac",
@@ -55,7 +55,7 @@ def create_folder_structure(CONST):
         if ( prefix_dir in ["hqcr", "hqtr"] ):
             dirs = [f"{prefix_dir}/{CONST.STEP}"]
         if ( prefix_dir == "hqpr" ):
-            dirs = [f"{prefix_dir}/{CONST.STAINING}/{CONST.STEP}"]
+            dirs = [f"{prefix_dir}/{CONST.STEP}/{CONST.STAINING}"]
             
         if ( CONST.STEP == "hqcr_ident" ):
             dirs.extend([
@@ -66,7 +66,7 @@ def create_folder_structure(CONST):
 
         if ( CONST.STEP == f"{prefix_dir}_bounding_box" ):
             if ( prefix_dir == "hqpr" ):
-                dirs.append(f"{prefix_dir}/{CONST.STAINING}/{CONST.STEP}/subfigures")
+                dirs.append(f"{prefix_dir}/{CONST.STEP}/{CONST.STAINING}/subfigures")
             else:
                 dirs.append(f"{prefix_dir}/{CONST.STEP}/subfigures")
 

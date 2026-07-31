@@ -27,7 +27,7 @@ def start_image_struc_analyis(
     tmp_suffix = modality
     if ( staining ):
         spoqc_tmp_folder = f'{spoqc_tmp_folder}/metrices/{modality}/{staining}/'
-        figure_path = f'{figure_path_base}/{modality}/{staining}/{modality}_metrices/'
+        figure_path = f'{figure_path_base}/{modality}/{modality}_metrices/{staining}/'
         tmp_suffix = f'{modality}_{staining}'
     else:
         figure_path = f'{figure_path_base}/{modality}/{modality}_metrices/'

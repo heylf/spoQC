@@ -95,7 +95,7 @@ def start_pixel_qc(
     spoqc_tmp_folder_metrices = ''
     if ( staining ):
         spoqc_tmp_folder_metrices = f'{spoqc_tmp_folder}/metrices/{modality}/{staining}'
-        figure_path = f'{figure_path}/{modality}/{staining}/{modality}_clustering/'
+        figure_path = f'{figure_path}/{modality}/{modality}_clustering/{staining}/'
         tmp_suffix = f'{modality}_{staining}'
     else:
         spoqc_tmp_folder_metrices = f'{spoqc_tmp_folder}/metrices/{modality}'

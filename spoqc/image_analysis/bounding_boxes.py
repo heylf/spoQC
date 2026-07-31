@@ -108,7 +108,7 @@ def define_bounding_boxes(
 
     prefix = modality
     if ( staining ):
-        figure_path = f'{figure_path}/{modality}/{staining}/{modality}_bounding_box/'
+        figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/{staining}/'
         prefix = f'{modality}_{staining}'
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/'

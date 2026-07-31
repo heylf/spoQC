@@ -238,19 +238,19 @@ This folder holds plots for cropped HQPRs.
 
 #### imageplot_marked_merged_subfigures
 
-<img src="./_static/figures/tutorial/hqpr/0/hqpr_bounding_box/imageplot_marked_merged_subfigures.png" width="600">
+<img src="./_static/figures/tutorial/hqpr/hqpr_bounding_box/0/imageplot_marked_merged_subfigures.png" width="600">
 
 Bounding box (red) of merge subfigures (overlapping) bounding boxes of HQPRs.
 
 #### imageplot_marked_subfigures
 
-<img src="./_static/figures/tutorial/hqpr/0/hqpr_bounding_box/imageplot_marked_subfigures.png" width="600">
+<img src="./_static/figures/tutorial/hqpr/hqpr_bounding_box/0/imageplot_marked_subfigures.png" width="600">
 
 Bounding box (red) of identified HQPRs.
 
 #### subfigures/
 
-<img src="./_static/figures/tutorial/hqpr/0/hqpr_bounding_box/subfigures/imageplot_subfigure1.png" width="600">
+<img src="./_static/figures/tutorial/hqpr/hqpr_bounding_box/0/subfigures/imageplot_subfigure1.png" width="600">
 
 Images of the cropped HQPRs.
 
@@ -276,7 +276,7 @@ This folder holds plots for the refinement of HQPRs.
 
 #### markov_random_field_calculations
 
-<img src="./_static/figures/tutorial/hqpr/0/hqpr_refinement/markov_random_field_calculations
+<img src="./_static/figures/tutorial/hqpr/hqpr_refinement/0/markov_random_field_calculations
 .png" width="600">
 
 Markov refinement of the probability that a pixel is belonging to a HQPR.
