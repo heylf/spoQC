@@ -39,6 +39,7 @@ with coordinate systems:
   - `sdata['table'].obs.index`
   - `sdata['cell_circles'].index`
   - `sdata['cell_boundaries'].index`
+  - `sdata['nucleus_boundaries']['cell_id]`
   - `sdata.points['transcripts']['cell_id']`
 
 Matching cell IDs are required so that spoQC can connect transcripts, cell boundaries, cell circles, and the AnnData table correctly.
