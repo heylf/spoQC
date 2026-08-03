@@ -67,16 +67,28 @@ Transcript metrics
 * uniformity_hqtr
 
 ### Spatialdata metadata
-`rna_qc_annotated.h5ad` also holde the metadata for the HQCRs, HQPRs and HQTRs which is stored under `anndata.uns`. The `hqcr` is a json formatted pandas dataframe of the format:
+`rna_qc_annotated.h5ad` also holde the metadata for the HQCRs, HQPRs and HQTRs which is stored under `anndata.uns`. 
 
+The `hqcr` is a json formatted pandas dataframe of the format:
 ```
 hqcr_df = pd.DataFrame({
     'islands': sdata['table'].obs['island_index'], 
     'cell_region': sdata['table'].obs['cell_region']
 })
 ```
-
 ,where `island_index` is the cell island (cell group) and `cell_region` is the category (e.g., hqcr) that spoQC has classified.
+
+
+The `hqpr` and `hqtr` are a numpy array of the form:
+```
+[[10525.0, 10561.0, 10808.0, 11007.0], [11272.0, 10587.0, 11579.0, 10915.0], [12578.0, 10784.0, 13000.0, 11465.0]]
+```
+, where each entry `hqpr[i]` or `hqtr[i]` is a HQPR or HQTR, repsectively.
+
+Currenlty you can find the individual metadata files also under:
+* `report/hqcr_ident/hqcr.json`
+* `report/hqpr/hqtr_bounding_box/*/hqpr.txt`
+* `report/hqtr/hqtr_bounding_box/hqtr.txt`
 
 ---------------
 
