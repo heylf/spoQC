@@ -8,14 +8,35 @@ def image_to_base64(path):
         return base64.b64encode(f.read()).decode()
 
 
+def format_description(text):
+    """Render a lightweight markdown-like description block as semantic HTML.
+
+    Blank-line-separated blocks become paragraphs; a block whose every line
+    starts with '- ' becomes a bulleted list; '**bold**' becomes <strong>.
+    """
+    def inline(s):
+        return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
+
+    blocks = re.split(r"\n\s*\n", text.strip())
+    html_blocks = []
+    for block in blocks:
+        lines = [line.strip() for line in block.strip().splitlines() if line.strip()]
+        if not lines:
+            continue
+        if all(line.startswith("- ") for line in lines):
+            items = "".join(f"<li>{inline(line[2:])}</li>" for line in lines)
+            html_blocks.append(f"<ul>{items}</ul>")
+        else:
+            html_blocks.append(f"<p>{inline(' '.join(lines))}</p>")
+    return "\n".join(html_blocks)
+
+
 def render_image_gallery(header, image_filename, stainings, folder_path, folder_path_continue=None, description=None):
     html = f"""
     <h2>{header}</h2>
     """
     if description:
-        html += f"""
-    <p>{description}</p>
-    """
+        html += format_description(description)
     for s, staining in enumerate(stainings):
         size = 24
         if len(stainings) == 1:
@@ -48,9 +69,7 @@ def render_numbered_image_gallery(header, folder_path, file_prefix, description=
     <h2>{header} ({len(matches)})</h2>
     """
     if description:
-        html += f"""
-    <p>{description}</p>
-    """
+        html += format_description(description)
     size = 24
     if len(matches) == 1:
         size = 45
@@ -85,9 +104,7 @@ def render_numbered_paired_image_gallery(folder_path, folder_path_2, file_prefix
     matches_2.sort(key=lambda x: (0, int(x[0])) if x[0].isdigit() else (1, x[0]))
 
     if description:
-        html += f"""
-    <p>{description}</p>
-    """
+        html += format_description(description)
 
     for i in range(0, len(matches)):
         html += f"""
@@ -107,7 +124,7 @@ def render_numbered_paired_image_gallery(folder_path, folder_path_2, file_prefix
 
 # In[]
 def create_final_report(figure_path, stainings):
-    
+
     ####################################################################################################################
     # Start
     ####################################################################################################################
@@ -123,51 +140,39 @@ def create_final_report(figure_path, stainings):
     ##########
 
     html_overview += f"""
-    <h1>High quality regions (HQRs) for HQCR (high quality cell regions), HQPR (high quality pixel regions) and HQTR (high quality transcript regions)</h1>
+    <h1>High quality regions (HQRs) for HQCR (high quality cell regions), HQPR (high quality pixel regions), and HQTR (high quality transcript regions)</h1>
     """
 
     folder_path = f'{figure_path}/combine_masks'
-    
-    description = """
-    Short description:
-    Dark (dim) regions highlight areas impacted by low quality. 
-    If you see large patches in your slide then spoQC tells you that there is a fundamental problem.
 
-    Additional description:
-    Combined belief (probability) masks for all data modalities: HQCR, HQPR, and HQTR.
-    Each data modality operates in pixel coordinates, that means, that spoQC transformes each data modality into an image.
-    The brighter a pixel is the higher is the probability that the pixel is of good quality.
-    Thus, dark (dim) regions highlight areas impacted by low quality.
+    description = """
+    **Summary:** Dark (dim) regions indicate areas affected by low quality. Large dark patches across the slide suggest a systematic quality issue.
+
+    **Details:** Combined belief (probability) masks for all three data modalities: HQCR, HQPR, and HQTR. Each modality is projected into pixel coordinates so that it can be represented as an image. Brighter pixels indicate a higher probability that the underlying observation is of good quality. Dark (dim) regions therefore highlight areas affected by low quality.
     """
     html_overview += render_image_gallery("Combined beliefs", "imageplot_combined_beliefs.png", stainings, folder_path,
                                 description=description)
-    
+
     description = """
-    Short description:
-    Dark (dim) regions highlight areas impacted by low quality.
-    If you see large patches in your slide then spoQC tells you that there is a fundamental problem.
+    **Summary:** Dark (dim) regions indicate areas affected by low quality. Large dark patches across the slide suggest a systematic quality issue.
 
-    Additional description:
-    The beliefs (probabiltiies) for all data modalities (HQCR, HQPR, and HQTR) where filtered by a cutoff of > 0.5 (=1 else 0).
-    For each pixel spoQC calculates the sum of 1's.
+    **Details:** Beliefs for all three data modalities (HQCR, HQPR, and HQTR) are thresholded at 0.5 (1 if > 0.5, 0 otherwise). For each pixel, spoQC sums the resulting binary masks across modalities.
 
-    Categories:
-    * no mask: Pixel is covered by 0 masks.
-    * 1 mask: Pixel is covered by only 1 mask.
-    * 2 mask: Pixel is covered by 2 masks.
-    * all mask: Pixel is covered by all 3 masks.
+    **Categories:**
+
+    - No mask: the pixel is covered by 0 masks.
+    - 1 mask: the pixel is covered by exactly 1 mask.
+    - 2 masks: the pixel is covered by 2 masks.
+    - All masks: the pixel is covered by all 3 masks.
     """
     html_overview += render_image_gallery("Combined masks", "imageplot_combined_masks.png", stainings, folder_path,
                                 description=description)
-    
+
 
     description = """
-    Short description:
-    Percentage of overlap for each data modality. 
-    If one modality has very low overlap with the other data modalities then this is an indication of a data modality specific issue.
+    **Summary:** Percentage overlap between data modalities. A modality with markedly lower overlap than the others suggests a modality-specific quality issue.
 
-    Additional description:
-    Using the integer masks from before, spoQC's displays the percentages of ovlerap for each data modality.
+    **Details:** Using the integer masks described above, spoQC reports the percentage overlap for each data modality.
     """
     html_overview += render_image_gallery("Venndiagram of overlapping HQRs", "venn_combined_masks.png", stainings, folder_path,
                                 description=description)
@@ -178,52 +183,39 @@ def create_final_report(figure_path, stainings):
     """
 
     description = """
-    Short description:
-    Dark (dim) regions highlight areas impacted by low quality. 
-    If you see large patches in your slide then spoQC tells you that there is a fundamental problem.
+    **Summary:** Dark (dim) regions indicate areas affected by low quality. Large dark patches across the slide suggest a systematic quality issue.
 
-    Additional description:
-    The difference from before is that we now take spatial inforamtion info account.
-    That means, pixel quality is impacted by the general pixel quality in the neighbourhood.
-    For more information read our detailed documentation.
+    **Details:** Unlike the belief masks above, this analysis incorporates spatial information: the quality of a pixel is influenced by the quality of its neighbourhood. Check the spoQC documentation for further details.
     """
     html_overview += render_image_gallery("Combined beliefs with spatial dependencies",
                                 "imageplot_combined_beliefs_smoothed.png", stainings, folder_path,
                                 description=description)
-    
+
     description = """
-    Short description:
-    Dark (dim) regions highlight areas impacted by low quality.
-    If you see large patches in your slide then spoQC tells you that there is a fundamental problem.
+    **Summary:** Dark (dim) regions indicate areas affected by low quality. Large dark patches across the slide suggest a systematic quality issue.
 
-    Additional description:
-    We take directly the predicted labels from a spoQC's markov random field model, which predicts the best set of laten factors for each pixel.
-    That is why, we do not have to apply a threshold.
-    As before, this incoorperates spatial information into the integrated quality mask.
-    For each pixel spoQC calculates the sum of 1's.
+    **Details:** Labels are taken directly from spoQC's Markov random field model, which predicts the most likely latent state for each pixel, so no additional threshold is required. As above, this incorporates spatial information into the integrated quality mask, and spoQC sums the resulting binary masks across modalities for each pixel.
 
-    Categories:
-    * no mask: Pixel is covered by 0 masks.
-    * 1 mask: Pixel is covered by only 1 mask.
-    * 2 mask: Pixel is covered by 2 masks.
-    * all mask: Pixel is covered by all 3 masks.
+    **Categories:**
+
+    - No mask: the pixel is covered by 0 masks.
+    - 1 mask: the pixel is covered by exactly 1 mask.
+    - 2 masks: the pixel is covered by 2 masks.
+    - All masks: the pixel is covered by all 3 masks.
     """
     html_overview += render_image_gallery("Combined masks with spatial dependencies",
                                 "imageplot_combined_masks_smoothed.png", stainings, folder_path,
                                 description=description)
-    
+
 
     description = """
-    Short description:
-    Percentage of overlap for each data modality. 
-    If one modality has very low overlap with the other data modalities then this is an indication of a data modality specific issue.
+    **Summary:** Percentage overlap between data modalities after incorporating spatial dependencies. A modality with markedly lower overlap than the others suggests a modality-specific quality issue.
 
-    Additional description:
-    Using the integer masks from before, spoQC's displays the percentages of ovlerap for each data modality.
+    **Details:** Using the spatially smoothed integer masks described above, spoQC reports the percentage overlap for each data modality.
     """
     html_overview += render_image_gallery("Venndiagram of overlapping HQRs with spatial dependencies",
                                 "venn_combined_masks_smoothed.png", stainings, folder_path,
-                                description="TODO: describe this section")
+                                description=description)
 
     ##########
     # In-depth
@@ -232,125 +224,98 @@ def create_final_report(figure_path, stainings):
     img_funkyheatmap = image_to_base64(f"{figure_path}/analysis/overview/funkyheatmap/funkyheatmap_1.png")
 
     description_summary = """
-    Short description:
-    This is a total summary of spoQC's beliefs and metrics set for each data modality.
-    On the y-axis spoQC depicts the Leiden clusters which are generated from the provided annotation.
-    First check the HQCR, HQPR, and HQTR beliefs.
-    If any cluster has significant lower beleifs than all other clusters then this is an indication that the Leiden cluster encompasses quality impacted cells.
-    If you see such a cluster, then go furhter and check the individual metrics of spoQC.
-    For example, low HQCR (cell/segemtnation) beliefs might be the resolut of a low number of transciprt counts or many cells close to vertical doublet events.
+    **Summary:** A summary of spoQC's beliefs and metrics for each data modality. The y-axis shows the Leiden clusters generated from the provided cell type annotation.
+
+    Inspect the HQCR, HQPR, and HQTR beliefs first. A cluster with markedly lower beliefs than the others indicates that it may contain quality-impacted cells; if such a cluster is present, inspect its individual metrics below for a possible explanation. For example, low HQCR (cell segmentation) beliefs may result from a low transcript count or from a high proportion of cells close to vertical doublet events.
     """
 
     additional_description_summary = """
-    Additional description:
-    SpoQC performs additional Leiden clustering based on a resultion that achieves a number of clusters that has 3 more clusters than the provided cell type annotation.
-    The cell type annotation is either provided by the user, or an intital Leiden clustering with optimized resolution done by spoQC.
-    SpoQC picks 3 additional clusters since it hypothesises that the data includes cell type clusters impacted by quality.
-    More details be observed in the panel's underscore(All HQCR metrics), underscore(All HQPR metrics), and underscore(All HQTR metrics).
+    **Details:** spoQC performs an additional Leiden clustering at a resolution chosen to yield three more clusters than the provided cell type annotation. The cell type annotation is either supplied by the user or generated by an initial Leiden clustering with an spoQC-optimized resolution. spoQC adds three clusters on the hypothesis that the data contain cell type clusters affected by quality. Further detail can be found in the <u>All HQCR metrics</u>, <u>All HQPR metrics</u>, and <u>All HQTR metrics</u> panels.
     """
     html_overview += f"""
     <h1>Summary of spoQC</h1>
-    <p>{description_summary}</p>
-    <p>{additional_description_summary}</p>
+    {format_description(description_summary)}
+    {format_description(additional_description_summary)}
     <img src="data:image/png;base64,{img_funkyheatmap}" style="max-width:80%;">
     """
 
     description_umap = """
-    Short description:
-    UMAPs of the cells, left with the applied cell type annotation and right with the Leiden clustering considering the cell type annotation.
-    These plots help you to investigate the Leiden clusters that you might pin-point from above.
-    For example, low HQCR (cell/segemtnation) beliefs might be the resolut of a low number of transciprt counts or many cells close to vertical doublet events.
-    This might manifest in a Leiden cluster that significantly clusters away from the rest of the cell population, which is another indication that the Leiden cluster is quality impacted.
+    **Summary:** UMAP embeddings of the cells, colored by the applied cell type annotation (left) and by the Leiden clustering derived from that annotation (right). These plots support further investigation of the Leiden clusters flagged above.
+
+    For example, low HQCR (cell segmentation) beliefs may result from a low transcript count or from a high proportion of cells close to vertical doublet events, and may manifest as a Leiden cluster that separates markedly from the rest of the cell population; a further indication that the cluster is quality-impacted.
     """
 
     reference_description_umap = """
-    Reference:
-    The underscore(Spatial plots Leiden clusters) panel will show the spatial orchestration of the individual Leiden clusters.
-    The underscore(Spatial plots annotation clusters) panel will show the spatial orchestration of the individual cell type clusters.
+    **See also:** the <u>Spatial plots Leiden clusters</u> panel shows the spatial distribution of each Leiden cluster, and the <u>Spatial plots annotation clusters</u> panel shows the spatial distribution of each cell type cluster.
     """
-    
+
     with open(f"{figure_path}/analysis/overview/umap/umap_plot_celltype.html") as f:
         html_annotation = f.read()
     with open(f"{figure_path}/analysis/overview/umap/umap_plot_leiden.html") as f:
         html_leiden = f.read()
     html_overview += f"""
     <h2>Annotation and Leiden clustering</h2>
-    <p>{description_umap}</p>
-    <p>{reference_description_umap}</p>
+    {format_description(description_umap)}
+    {format_description(reference_description_umap)}
     <div style="display:inline-block; vertical-align:top; width:48%;">{html_annotation}</div>
     <div style="display:inline-block; vertical-align:top; width:48%;">{html_leiden}</div>
     """
 
     description_filter = """
-    Short description:
-    Left the UMAP for the Leiden clustering from before and right the spatial plot of each cell.
-    Black marked cells are filtered out by spoQC's HQR filtering.
-    Previously identified quality impacted cell clusters should be pciked up by spoQC's filter.
+    **Summary:** UMAP embedding of the Leiden clustering (left) and the corresponding spatial plot of each cell (right). Cells marked in black are excluded by spoQC's HQR filter. Previously identified quality-impacted clusters should be picked up by this filter.
 
-    Additional description:
-    SpoQC filters by HQR considering all data modality.
-    Cells are filter out (marked as low quality) if:
-    * HQCR beliefs > 0.45
-    * mean informative HQPR beliefs > 0.45
-    * mean informative HQTR beliefs > 0.45
-    Since a segmented cell can have more than one pixel and transcript we calculate the mean inforamtive beliefs for those data modalities.
-    The mean informative beliefs is the mean value of all bliefs with a value > 0.
-    The mean informative belief thus prevents the issue of a zero inflated distribution that correlates with the size of the segmented cell.
+    **Details:** spoQC filters by HQR across all three data modalities. A cell is excluded (marked as low quality) if any of the following hold:
+
+    - HQCR beliefs < 0.45
+    - mean informative HQPR beliefs < 0.45
+    - mean informative HQTR beliefs < 0.45
+
+    Because a segmented cell typically spans more than one pixel and transcript, spoQC calculates the mean informative belief for the HQPR and HQTR modalities: the mean of all beliefs with a value greater than 0. This avoids the zero-inflation bias that would otherwise correlate with cell size.
     """
 
     reference_description_filter = """
-    Reference:
-    The underscore(Individual HQR filters) panel will show the individual HQCR, HQPR and HQTR filers that are combined for the HQR filtering.
+    **See also:** the <u>Individual HQR filters</u> panel shows the individual HQCR, HQPR, and HQTR filters that are combined to produce the HQR filter.
     """
     img_ump_hqr = image_to_base64(f"{figure_path}/analysis/overview/umap/umap_plot_hqr_filtered_out.png")
     img_spa_hqr = image_to_base64(f"{figure_path}/analysis/overview/scatterplot/scatterplot_hqr_filtered_out.png")
     html_overview += f"""
     <h2>Filter HQRs</h2>
-    <p>{description_filter}</p>
-    <p>{reference_description_filter}</p>
+    {format_description(description_filter)}
+    {format_description(reference_description_filter)}
     <img src="data:image/png;base64,{img_ump_hqr}" style="max-width:45%;">
     <img src="data:image/png;base64,{img_spa_hqr}" style="max-width:45%;">
     """
 
     description_bar_control_probes = """
-    Short description:
-    Percentage of cells having a control probe count > 0 for each cell cluster.
-    This can help you to identify more clearly quality impacted cell clusters.
-    Higher percentages for a cluster indicate a poor quality.
+    **Summary:** Percentage of cells with a control probe count greater than 0, per cell cluster. This helps to more clearly identify quality-impacted cell clusters. A higher percentage for a given cluster indicates poorer quality.
     """
     img_bar_cpc = image_to_base64(f"{figure_path}/analysis/overview/barplot/barplot_pct_control_probe_counts.png")
     html_overview += f"""
     <h2>Control probe counts per cluster</h2>
-    <p>{description_bar_control_probes}</p>
+    {format_description(description_bar_control_probes)}
     <img src="data:image/png;base64,{img_bar_cpc}" style="max-width:45%;">
     """
 
     description_doublet = """
-    Short description:
-    Percentage of cells classified to be close to doublet events for each cell cluster.
-    This can help you to identify more clearly quality impacted cell clusters.
-    Higher percentages for a cluster indicate a poor quality.
+    **Summary:** Percentage of cells classified as being close to a doublet event, per cell cluster. This helps to more clearly identify quality-impacted cell clusters. A higher percentage for a given cluster indicates poorer quality.
     """
     img_bar_dc = image_to_base64(f"{figure_path}/analysis/overview/barplot/barplot_pct_doublet_celltype.png")
     img_bar_dl = image_to_base64(f"{figure_path}/analysis/overview/barplot/barplot_pct_doublet_leiden.png")
     html_overview += f"""
     <h2>Doublet counts per cluster</h2>
-    <p>{description_doublet}</p>
+    {format_description(description_doublet)}
     <img src="data:image/png;base64,{img_bar_dc}" style="max-width:45%;">
     <img src="data:image/png;base64,{img_bar_dl}" style="max-width:45%;">
     """
 
     description_nucelus_free = """
-    Short description:
-    Percentage of cells classified to be nucelus free for each cell cluster.
-    This can help you to identify more clearly quality impacted cell clusters.
-    Higher percentages for a cluster indicate a poor quality.
+    **Summary:** Percentage of cells classified as nucleus-free, per cell cluster. This helps to more clearly identify quality-impacted cell clusters. A higher percentage for a given cluster indicates poorer quality.
     """
     img_bar_nfc = image_to_base64(f"{figure_path}/analysis/overview/barplot/barplot_pct_nucleus_free_celltype.png")
     img_bar_nfl = image_to_base64(f"{figure_path}/analysis/overview/barplot/barplot_pct_nucleus_free_leiden.png")
     html_overview += f"""
-    <h2>Nucelus free cell counts per cluster</h2>
-    <p>{description_nucelus_free}</p>
+    <h2>Nucleus-free cell counts per cluster</h2>
+    {format_description(description_nucelus_free)}
     <img src="data:image/png;base64,{img_bar_nfc}" style="max-width:45%;">
     <img src="data:image/png;base64,{img_bar_nfl}" style="max-width:45%;">
     """
@@ -363,79 +328,59 @@ def create_final_report(figure_path, stainings):
     """
 
     description = """
-    Short description:
-    Spatial-density plot of the cells, where the density is weighted by the convexity of the cell (left) or the mean convexity of the nuclei of the cell (right).
-    Since a cell might have more than one nulceus we calcuate the mean convexity.
-    Low dense regions signal potential segmentations issues.
+    **Summary:** Spatial density plots of the cells, weighted by cell convexity (left) or by the mean nucleus convexity per cell (right); the mean is used because a cell may contain more than one nucleus. Low-density regions suggest potential segmentation issues.
 
-    Additional description:
-    False (black): cell or nucleus is not convex (convexity <=0.5) and might have a weird shape.
-    True (blue): cell or nucleus is convex (convexity > 0.5).
-    We observed that many high convex cells and nuceli also can signal segmentations issues.
-    This has something to do with our approach to correct invalid geometries.
-    Thus check if highly dense regions overlap with highly dense invalid gemotry regions.
+    **Details:** False (black): the cell or nucleus is non-convex (convexity ≤ 0.5) and may have an irregular shape. True (blue): the cell or nucleus is convex (convexity > 0.5). We also observed that a high proportion of highly convex cells and nuclei can signal segmentation issues, related to spoQC's approach for correcting invalid geometries. Check whether high-density regions overlap with high-density invalid-geometry regions (below).
     """
     img_cell = image_to_base64(f"{figure_path}/cellqc/scatterplot_densityplot_convexity_cell_convexity_metric_cell.png")
     img_nucl = image_to_base64(f"{figure_path}/cellqc/scatterplot_densityplot_convexity_nuclei_convexity_mean_nuceli.png")
     html_overview += f"""
-    <h2>Convexity of cell and nuceli shapes</h2>
-    <p>f{description}</p>
+    <h2>Convexity of cell and nucleus shapes</h2>
+    {format_description(description)}
     <img src="data:image/png;base64,{img_cell}" style="max-width:45%;">
     <img src="data:image/png;base64,{img_nucl}" style="max-width:45%;">
     """
 
     description = """
-    Short description:
-    Density map of invalid cell or nucelus geometries.
-    High density regions singla potential segmentation issues.    
+    **Summary:** Density map of invalid cell or nucleus geometries. High-density regions indicate potential segmentation issues.
     """
     img_cell = image_to_base64(f"{figure_path}/generalqc/scatterplot_densityplot_invalid_cell_geometry.png")
     img_nucl = image_to_base64(f"{figure_path}/generalqc/scatterplot_densityplot_invalid_nucleus_geometry.png")
     html_overview += f"""
-    <h2>Invalid cell and nuceli geometries</h2>
-    <p>{description}</p>
+    <h2>Invalid cell and nucleus geometries</h2>
+    {format_description(description)}
     <img src="data:image/png;base64,{img_cell}" style="max-width:45%;">
     <img src="data:image/png;base64,{img_nucl}" style="max-width:45%;">
     """
 
     description = """
-    Short description:
-    Spatial-density plot of the cells, where the density is weighted by the number of low quality (qv < 20) transcripts.
-    Highly dense region signal quality issues.
+    **Summary:** Spatial density plot of the cells, weighted by the number of low-quality (QV < 20) transcripts. High-density regions indicate quality issues.
 
-    Additional description:
-    QV: Phred-scaled quality value (Q-Score) estimating the probability of incorrect call defined by 10x Genomics.
-    A qv threshold of 20 was chosen as done by 10x Genomics.
+    **Details:** QV is the Phred-scaled quality value (Q-score) defined by 10x Genomics, estimating the probability of an incorrect base call. A QV threshold of 20 is used, following the 10x Genomics convention.
     """
     img_low_qv_trans = image_to_base64(f"{figure_path}/cellqc/scatterplot_densityplot_num_low_qc_transcript.png")
     html_overview += f"""
-    <h2>Low quality transcripts (qv < 20)</h2>
-    <p>{description}</p>
+    <h2>Low quality transcripts (QV &lt; 20)</h2>
+    {format_description(description)}
     <img src="data:image/png;base64,{img_low_qv_trans}" style="max-width:45%;">
     """
 
     description = """
-    Short description:
-    Spatial-density plot of the cells weighted by the number of negative probes.
-    Highly dense region signal quality issues.
+    **Summary:** Spatial density plot of the cells, weighted by the number of negative probes. High-density regions indicate quality issues.
     """
     img_neg_probes = image_to_base64(f"{figure_path}/transcriptqc/scatterplot_densityplot_neg_probes.png")
     html_overview += f"""
     <h2>Negative probes</h2>
-    <p>f{description}</p>
+    {format_description(description)}
     <img src="data:image/png;base64,{img_neg_probes}" style="max-width:45%;">
     """
 
     description = """
-    Short description:
-    If spoQC finds occasions of nulceus free cells, doublet events and border cells then you will see three plots.
-    
-    * A spatial-density plot of the nucleus free cells.
-    A high density might signal segmentation issues.
-    * A spatial-density plot of the cells associated with doublet event.
-    A high density might signal quality issues.
-    * Identification of border cells (red) done by spoQC.
-    Border cells might behave differently the rest of your cells, so pleaes investigate them.
+    **Summary:** If spoQC detects nucleus-free cells, doublet events, and border cells, three plots are shown:
+
+    - Spatial density plot of nucleus-free cells: high density may indicate segmentation issues.
+    - Spatial density plot of cells associated with a doublet event: high density may indicate quality issues.
+    - Border cells identified by spoQC (red): border cells can behave differently from the rest of the cell population and warrant further investigation.
     """
     img_nucelus_free = image_to_base64(f"{figure_path}/cellqc/scatterplot_nucleus_free.png")
     if os.path.exists(f"{figure_path}/hqcr/hqcr_celltype/scatterplot_densityplot_nucleus_free.png"):
@@ -443,8 +388,8 @@ def create_final_report(figure_path, stainings):
     img_doublets = image_to_base64(f"{figure_path}/doubletqc/scatterplot_densityplot_doublet.png")
     img_border_cells = image_to_base64(f"{figure_path}/cellqc/scatterplot_border_cell.png")
     html_overview += f"""
-    <h2>Nucleus free cells, vertical doublets and border cells</h2>
-    <p>{description}</p>
+    <h2>Nucleus-free cells, vertical doublets, and border cells</h2>
+    {format_description(description)}
     <img src="data:image/png;base64,{img_nucelus_free}" style="max-width:30%;">
     <img src="data:image/png;base64,{img_doublets}" style="max-width:30%;">
     <img src="data:image/png;base64,{img_border_cells}" style="max-width:30%;">
@@ -452,31 +397,24 @@ def create_final_report(figure_path, stainings):
 
     # Cellcycle QC if exists
     description = """
-    Short description:
-    SpoQC investigates cell cycle phases if cell cycling genes are present in your data.
+    **Summary:** spoQC infers cell cycle phase when cell-cycling genes are present in the data.
 
-    Additional description:
-    The spatial density plot highlight cells associated with a specific phase.
+    **Details:** The spatial density plot highlights cells associated with a specific phase.
     """
     if os.path.exists(f"{figure_path}/cellcycleqc/barplot_sample_cellcycle_fractions.png"):
         img_cc_bar = image_to_base64(f"{figure_path}/cellcycleqc/barplot_sample_cellcycle_fractions.png")
         img_cc_spatial = image_to_base64(f"{figure_path}/cellcycleqc/scatterplot_densityplot_phase_1.png")
         html_overview += f"""
-        <h2>Cellcycle QC</h2>
-        <p>{description}</p>
+        <h2>Cell cycle QC</h2>
+        {format_description(description)}
         <img src="data:image/png;base64,{img_cc_bar}" style="max-width:45%;">
         <img src="data:image/png;base64,{img_cc_spatial}" style="max-width:45%;">
         """
 
     description = """
-    Short description:
-    SpoQC's investigates cell free areas, which we call voids.
-    The plot displayed the number of unassigned transcripts (uRNAs) in those areas.
-    Dark areas signal potential segmentation issues or areas where cells might benefit from transcript reassignement. 
+    **Summary:** spoQC investigates cell-free areas, referred to as voids, by plotting the number of unassigned transcripts (uRNAs) within them. Dark areas indicate potential segmentation issues or regions where cells might benefit from transcript reassignment.
 
-    Additional description:
-    Unassigned transcripts are transcripts that could not be assigned to a cell in your data.
-    This can always happen, but the rate of uRNAs is dictaed by the segmentation or segemtnation-free algorithm.
+    **Details:** Unassigned transcripts are transcripts that could not be assigned to a cell. Some rate of unassigned transcripts is expected, but this rate is influenced by the segmentation or segmentation-free algorithm used.
     """
     if os.path.exists(f"{figure_path}/voidqc/spatial_traingle_all_clsuters_log10_transcripts_counts_outside_cell.png"):
         img_void_sp = image_to_base64(
@@ -484,7 +422,7 @@ def create_final_report(figure_path, stainings):
         )
         html_overview += f"""
         <h2>Void analysis</h2>
-        <p>{description}</p>
+        {format_description(description)}
         <img src="data:image/png;base64,{img_void_sp}" style="max-width:45%;">
         """
 
@@ -492,14 +430,14 @@ def create_final_report(figure_path, stainings):
     # Second page
     ####################################################################################################################
 
-    html_subcluster = """
+    description_subcluster = """
+    **Summary:** spoQC selects the cell type cluster with the largest number of cells for further analysis. Subclustering helps to reveal quality-impacted cell clusters that were not apparent in the <u>Overview</u> panel.
+
+    **Details:** spoQC performs Leiden clustering at a resolution that yields up to 15 subclusters.
+    """
+    html_subcluster = f"""
     <h1>Subcluster analysis</h1>
-    <p>Currenlty spoQC pick the cell type cluster with the hightest number of cells.
-    The subcluster can help to figure out if cell type cluster still contain potential quality impacted cell clusters that were not observable in the underscore(Overview) panel.
-    
-    Additional description:
-    SpoQC perform Leiden clustering with a resoltion that generates up to 15 subclsuters.
-    </p>
+    {format_description(description_subcluster)}
     """
 
     second_page_present = False
@@ -510,7 +448,7 @@ def create_final_report(figure_path, stainings):
         img_funkyheatmap = image_to_base64(f"{figure_path}/analysis/cluster/funkyheatmap/funkyheatmap_1.png")
         html_subcluster += f"""
         <h2>Subcluster purity analysis</h2>
-        <p>{description_summary}</p>
+        {format_description(description_summary)}
         <img src="data:image/png;base64,{img_funkyheatmap}" style="max-width:80%;">
         """
 
@@ -520,7 +458,7 @@ def create_final_report(figure_path, stainings):
             html_leiden = f.read()
         html_subcluster += f"""
         <h2>Annotation and Leiden clustering</h2>
-        <p>{description_umap}</p>
+        {format_description(description_umap)}
         <div style="display:inline-block; vertical-align:top; width:48%;">{html_annotation}</div>
         <div style="display:inline-block; vertical-align:top; width:48%;">{html_leiden}</div>
         """
@@ -529,7 +467,7 @@ def create_final_report(figure_path, stainings):
         img_spa_hqr = image_to_base64(f"{figure_path}/analysis/cluster/scatterplot/scatterplot_hqr_filtered_out.png")
         html_subcluster += f"""
         <h2>Filter HQRs</h2>
-        <p>{description_filter}</p>
+        {format_description(description_filter)}
         <img src="data:image/png;base64,{img_ump_hqr}" style="max-width:45%;">
         <img src="data:image/png;base64,{img_spa_hqr}" style="max-width:45%;">
         """
@@ -537,7 +475,7 @@ def create_final_report(figure_path, stainings):
         img_bar_cpc = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_control_probe_counts.png")
         html_subcluster += f"""
         <h2>Control probe counts per cluster</h2>
-        <p>{description_bar_control_probes}</p>
+        {format_description(description_bar_control_probes)}
         <img src="data:image/png;base64,{img_bar_cpc}" style="max-width:45%;">
         """
 
@@ -545,7 +483,7 @@ def create_final_report(figure_path, stainings):
         img_bar_dl = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_doublet_leiden.png")
         html_subcluster += f"""
         <h2>Doublet counts per cluster</h2>
-        <p>{description_doublet}</p>
+        {format_description(description_doublet)}
         <img src="data:image/png;base64,{img_bar_dc}" style="max-width:45%;">
         <img src="data:image/png;base64,{img_bar_dl}" style="max-width:45%;">
         """
@@ -553,8 +491,8 @@ def create_final_report(figure_path, stainings):
         img_bar_nfc = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_nucleus_free_celltype.png")
         img_bar_nfl = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_nucleus_free_leiden.png")
         html_subcluster += f"""
-        <h2>Nucelus free cell counts per cluster</h2>
-        <p>{description_nucelus_free}</p>
+        <h2>Nucleus-free cell counts per cluster</h2>
+        {format_description(description_nucelus_free)}
         <img src="data:image/png;base64,{img_bar_nfc}" style="max-width:45%;">
         <img src="data:image/png;base64,{img_bar_nfl}" style="max-width:45%;">
         """
@@ -571,7 +509,7 @@ def create_final_report(figure_path, stainings):
     """
 
     description = """
-    Spatialplots for the individual Leiden clsuters identfied in the overview panel.
+    Spatial plots for the individual Leiden clusters identified in the <u>Overview</u> panel.
     """
 
     folder_path = f"{figure_path}/analysis/overview/scatterplot"
@@ -591,7 +529,7 @@ def create_final_report(figure_path, stainings):
     """
 
     description = """
-    Spatialplots for the individual cell type clsuters either provided as an input or identified by spoQC (optimized Leiden clustering).
+    Spatial plots for the individual cell type clusters, either provided as input or identified by spoQC via optimized Leiden clustering.
     """
 
     folder_path = f"{figure_path}/analysis/overview/scatterplot"
@@ -607,25 +545,21 @@ def create_final_report(figure_path, stainings):
     html_hqr = ""
 
     html_hqr += f"""
-    <h2>HQRs selected by spoQC and saved in the metadata</h1>
+    <h2>HQRs selected by spoQC and saved in the metadata</h2>
     """
 
     description = """
-    Marked (red) cells belonging to HQCR's.
-    Individual HQCR's are saved in the anndata and as a seperate metadata json file.
-    Please read spoQC'documentation to find out more about the metadata.
+    Cells marked in red belong to an HQCR. Individual HQCRs are stored in the AnnData object and in a separate metadata JSON file; refer to the spoQC documentation for details on the metadata format.
     """
-    img_bb_hqtr = image_to_base64(f"{figure_path}/hqcr/hqcr_ident/scatterplot_refined_qc_class.png")
+    img_hqcr_selected = image_to_base64(f"{figure_path}/hqcr/hqcr_ident/scatterplot_refined_qc_class.png")
     html_hqr += f"""
     <h2>HQCR selected by spoQC</h2>
-    <p>{description}</p>
-    <img src="data:image/png;base64,{img_cell}" style="max-width:45%;">
+    {format_description(description)}
+    <img src="data:image/png;base64,{img_hqcr_selected}" style="max-width:45%;">
     """
 
     description = """
-    Marked (red boxes) areas belonging to HQPR's.
-    Individual HQPR's are saved in the anndata and as a seperate metadata file.
-    Please read spoQC'documentation to find out more about the metadata.
+    Red boxes mark areas belonging to an HQPR. Individual HQPRs are stored in the AnnData object and in a separate metadata file; refer to the spoQC documentation for details on the metadata format.
     """
     folder_path = f'{figure_path}/hqpr'
     folder_path_continue = 'hqpr_bounding_box/'
@@ -634,14 +568,12 @@ def create_final_report(figure_path, stainings):
 
 
     description = """
-    Marked (red boxes) areas belonging to HQTR's.
-    Individual HQTR's are saved in the anndata and as a seperate metadata file.
-    Please read spoQC'documentation to find out more about the metadata.
+    Red boxes mark areas belonging to an HQTR. Individual HQTRs are stored in the AnnData object and in a separate metadata file; refer to the spoQC documentation for details on the metadata format.
     """
     img_bb_hqtr = image_to_base64(f"{figure_path}/hqtr/hqtr_bounding_box/imageplot_marked_subfigures.png")
     html_hqr += f"""
     <h2>HQTR selected by spoQC</h2>
-    <p>{description}</p>
+    {format_description(description)}
     <img src="data:image/png;base64,{img_bb_hqtr}" style="max-width:45%;">
     """
 
@@ -652,30 +584,23 @@ def create_final_report(figure_path, stainings):
     html_filters = ""
 
     description = """
-    Individual HQCR filter.
-    Black mared cells would be filtered out.
+    **Summary:** Individual HQCR filter. Cells marked in black would be excluded.
 
-    Additional description:
-    Cells are filter out (marked as low quality) if HQCR beliefs > 0.45.
+    **Details:** A cell is excluded (marked as low quality) if its HQCR belief < 0.45.
     """
     img_ump_hqcr = image_to_base64(f"{figure_path}/analysis/overview/umap/umap_plot_hqcr_filtered_out.png")
     img_spa_hqcr = image_to_base64(f"{figure_path}/analysis/overview/scatterplot/scatterplot_hqcr_filtered_out.png")
     html_filters += f"""
-    <h2>Filter HQTRs</h2>
-    <p>{description}</p>
+    <h2>Filter HQCRs</h2>
+    {format_description(description)}
     <img src="data:image/png;base64,{img_ump_hqcr}" style="max-width:45%;">
     <img src="data:image/png;base64,{img_spa_hqcr}" style="max-width:45%;">
     """
 
     description = """
-    Individual HQPR filter.
-    Black mared cells would be filtered out.
+    **Summary:** Individual HQPR filter. Cells marked in black would be excluded.
 
-    Additional description:
-    Cells are filter out (marked as low quality) if mean informative HQPR beliefs > 0.45.
-    Since a segmented cell can have more than one pixel and transcript we calculate the mean inforamtive beliefs for those data modalities.
-    The mean informative beliefs is the mean value of all bliefs with a value > 0.
-    The mean informative belief thus prevents the issue of a zero inflated distribution that correlates with the size of the segmented cell.
+    **Details:** A cell is excluded (marked as low quality) if its mean informative HQPR belief < 0.45. Because a segmented cell typically spans more than one pixel, spoQC calculates the mean informative belief for this modality: the mean of all beliefs with a value greater than 0, which avoids the zero-inflation bias that would otherwise correlate with cell size.
     """
     html_filters += render_numbered_paired_image_gallery(
         f'{figure_path}/analysis/overview/umap/',
@@ -687,20 +612,15 @@ def create_final_report(figure_path, stainings):
 
 
     description = """
-    Individual HQTR filter.
-    Black mared cells would be filtered out.
+    **Summary:** Individual HQTR filter. Cells marked in black would be excluded.
 
-    Additional description:
-    Cells are filter out (marked as low quality) if mean informative HQTR beliefs > 0.45.
-    Since a segmented cell can have more than one pixel and transcript we calculate the mean inforamtive beliefs for those data modalities.
-    The mean informative beliefs is the mean value of all bliefs with a value > 0.
-    The mean informative belief thus prevents the issue of a zero inflated distribution that correlates with the size of the segmented cell.
+    **Details:** A cell is excluded (marked as low quality) if its mean informative HQTR belief < 0.45. Because a segmented cell typically spans more than one transcript, spoQC calculates the mean informative belief for this modality: the mean of all beliefs with a value greater than 0, which avoids the zero-inflation bias that would otherwise correlate with cell size.
     """
     img_ump_hqtr = image_to_base64(f"{figure_path}/analysis/overview/umap/umap_plot_hqtr_filtered_out.png")
     img_spa_hqtr = image_to_base64(f"{figure_path}/analysis/overview/scatterplot/scatterplot_hqtr_filtered_out.png")
     html_filters += f"""
-    <h2>{description}>
-    <p>TODO: describe this section</p>
+    <h2>Filter HQTRs</h2>
+    {format_description(description)}
     <img src="data:image/png;base64,{img_ump_hqtr}" style="max-width:45%;">
     <img src="data:image/png;base64,{img_spa_hqtr}" style="max-width:45%;">
     """
@@ -713,7 +633,7 @@ def create_final_report(figure_path, stainings):
 
     html_hqcr += f"""
     <h1>All HQCR metrics used by spoQC</h1>
-    <p>Boxplots showcase Leiden clusters identified in the underscore(Overview) panel.</p>
+    <p>Boxplots show the Leiden clusters identified in the <u>Overview</u> panel.</p>
     """
 
     folder_path = f"{figure_path}/analysis/overview/boxplot/"
@@ -735,7 +655,7 @@ def create_final_report(figure_path, stainings):
 
     html_hqpr += f"""
     <h1>All HQPR metrics</h1>
-    <p>Boxplots showcase Leiden clusters identified in the underscore(Overview) panel.</p>
+    <p>Boxplots show the Leiden clusters identified in the <u>Overview</u> panel.</p>
     """
 
     folder_path = f"{figure_path}/analysis/overview/boxplot/"
@@ -755,8 +675,8 @@ def create_final_report(figure_path, stainings):
     html_hqtr = ""
 
     html_hqtr += f"""
-    <h1>All HQPR metrics</h1>
-    <p>Boxplots showcase Leiden clusters identified in the underscore(Overview) panel.</p>
+    <h1>All HQTR metrics</h1>
+    <p>Boxplots show the Leiden clusters identified in the <u>Overview</u> panel.</p>
     """
 
     folder_path = f"{figure_path}/analysis/overview/boxplot/"
@@ -776,7 +696,7 @@ def create_final_report(figure_path, stainings):
     ### First half ####
     pages_first_half = [{"id": "overview", "title": "Overview", "content": html_overview}]
     if second_page_present:
-        pages_first_half.append({"id": "subcluster", "title": "Subcluster anlysis", "content": html_subcluster})
+        pages_first_half.append({"id": "subcluster", "title": "Subcluster analysis", "content": html_subcluster})
     pages_first_half.append({"id": "spatialplot_leiden", "title": "Spatial plots Leiden clusters", "content": html_sp_leiden})
     pages_first_half.append({"id": "spatialplot_annotation", "title": "Spatial plots annotation clusters", "content": html_sp_ann})
     pages_first_half.append({"id": "hqr", "title": "High quality regions (HQRs)", "content": html_hqr})
@@ -835,6 +755,8 @@ def create_final_report(figure_path, stainings):
                             border-radius: 4px; font-size: 14px; }}
         #sidebar button:hover, #sidebar button.active {{ background: #dbe4ff; }}
         #content {{ flex: 1; padding: 20px; overflow-y: auto; height: 100vh; box-sizing: border-box; }}
+        #content p {{ line-height: 1.5; max-width: 900px; }}
+        #content ul {{ line-height: 1.5; max-width: 900px; }}
         .page {{ display: none; }}
         .page.active {{ display: block; }}
     </style>
