@@ -549,7 +549,7 @@ def create_final_report(figure_path, stainings):
     """
 
     description = """
-    Cells marked in red belong to an HQCR. Individual HQCRs are stored in the AnnData object and in a separate metadata JSON file; refer to the spoQC documentation for details on the metadata format.
+    Cells marked in red belong to an HQCR. Individual HQCRs are stored in the AnnData object and in a separate metadata JSON file (see the spoQC documentation for details on the metadata format).
     """
     img_hqcr_selected = image_to_base64(f"{figure_path}/hqcr/hqcr_ident/scatterplot_refined_qc_class.png")
     html_hqr += f"""
@@ -559,7 +559,7 @@ def create_final_report(figure_path, stainings):
     """
 
     description = """
-    Red boxes mark areas belonging to an HQPR. Individual HQPRs are stored in the AnnData object and in a separate metadata file; refer to the spoQC documentation for details on the metadata format.
+    Red boxes mark areas belonging to an HQPR. Individual HQPRs are stored in the AnnData object and in a separate metadata file (see the spoQC documentation for details on the metadata format).
     """
     folder_path = f'{figure_path}/hqpr'
     folder_path_continue = 'hqpr_bounding_box/'
@@ -568,7 +568,7 @@ def create_final_report(figure_path, stainings):
 
 
     description = """
-    Red boxes mark areas belonging to an HQTR. Individual HQTRs are stored in the AnnData object and in a separate metadata file; refer to the spoQC documentation for details on the metadata format.
+    Red boxes mark areas belonging to an HQTR. Individual HQTRs are stored in the AnnData object and in a separate metadata file (see to the spoQC documentation for details on the metadata format).
     """
     img_bb_hqtr = image_to_base64(f"{figure_path}/hqtr/hqtr_bounding_box/imageplot_marked_subfigures.png")
     html_hqr += f"""
