@@ -270,7 +270,7 @@ def create_final_report(figure_path, stainings):
     - mean informative HQPR beliefs < 0.45
     - mean informative HQTR beliefs < 0.45
 
-    Because a segmented cell typically spans more than one pixel and transcript, spoQC calculates the mean informative belief for the HQPR and HQTR modalities: the mean of all beliefs with a value greater than 0. This avoids the zero-inflation bias that would otherwise correlate with cell size.
+    Because a segmented cell typically spans more than one transcript, spoQC calculates the mean informative belief (mean of values > 0.2) for this modality, which avoids the low-value-inflation bias that would otherwise correlate with cell size.
     """
 
     reference_description_filter = """
@@ -600,7 +600,7 @@ def create_final_report(figure_path, stainings):
     description = """
     **Summary:** Individual HQPR filter. Cells marked in black would be excluded.
 
-    **Details:** A cell is excluded (marked as low quality) if its mean informative HQPR belief < 0.45. Because a segmented cell typically spans more than one pixel, spoQC calculates the mean informative belief for this modality: the mean of all beliefs with a value greater than 0, which avoids the zero-inflation bias that would otherwise correlate with cell size.
+    **Details:** A cell is excluded (marked as low quality) if its mean informative HQPR belief < 0.45. Because a segmented cell typically spans more than one pixel, spoQC calculates the mean informative belief (mean of values > 0.2) for this modality, which avoids the low-value-inflation bias that would otherwise correlate with cell size.
     """
     html_filters += render_numbered_paired_image_gallery(
         f'{figure_path}/analysis/overview/umap/',
@@ -614,7 +614,7 @@ def create_final_report(figure_path, stainings):
     description = """
     **Summary:** Individual HQTR filter. Cells marked in black would be excluded.
 
-    **Details:** A cell is excluded (marked as low quality) if its mean informative HQTR belief < 0.45. Because a segmented cell typically spans more than one transcript, spoQC calculates the mean informative belief for this modality: the mean of all beliefs with a value greater than 0, which avoids the zero-inflation bias that would otherwise correlate with cell size.
+    **Details:** A cell is excluded (marked as low quality) if its mean informative HQTR belief < 0.45. Because a segmented cell typically spans more than one transcript, spoQC calculates the mean informative belief (mean of values > 0.2) for this modality, which avoids the low-value-inflation bias that would otherwise correlate with cell size.
     """
     img_ump_hqtr = image_to_base64(f"{figure_path}/analysis/overview/umap/umap_plot_hqtr_filtered_out.png")
     img_spa_hqtr = image_to_base64(f"{figure_path}/analysis/overview/scatterplot/scatterplot_hqtr_filtered_out.png")

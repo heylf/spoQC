@@ -11,6 +11,7 @@
 installation.md
 run.md
 input.md
+output_data.md
 output_report.md
 output_tmp.md
 nextflow.md
