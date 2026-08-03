@@ -161,7 +161,16 @@ def celltype_cluster_analysis(
     print("[NOTE] Map spoQC values")
     timer.start()
     umap_cats.extend(analysis_funcs.map_modality_metrics_to_cells(
-        sdata, imagedim, image_type, resolution, spoqc_tmp_folder, suffix, dim_x, dim_y, stainings, figure_path
+        sdata,
+        imagedim,
+        image_type,
+        resolution,
+        spoqc_tmp_folder,
+        suffix,
+        dim_x,
+        dim_y,
+        stainings, 
+        figure_path,
     ))
     timer.stop()
 

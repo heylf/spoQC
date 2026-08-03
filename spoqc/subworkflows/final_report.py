@@ -31,15 +31,24 @@ def format_description(text):
     return "\n".join(html_blocks)
 
 
-def render_image_gallery(header, image_filename, stainings, folder_path, folder_path_continue=None, description=None):
+def render_image_gallery(
+        header, 
+        image_filename, 
+        stainings,
+        performed_stainings,
+        folder_path,
+        *,
+        folder_path_continue=None, 
+        description=None
+    ):
     html = f"""
     <h2>{header}</h2>
     """
     if description:
         html += format_description(description)
-    for s, staining in enumerate(stainings):
+    for s in performed_stainings:
         size = 24
-        if len(stainings) == 1:
+        if len(performed_stainings) == 1:
             size = 45
         img_file = f"{folder_path}/{s}/{image_filename}"
         if folder_path_continue:
@@ -48,7 +57,7 @@ def render_image_gallery(header, image_filename, stainings, folder_path, folder_
         html += f"""
         <div style="display:inline-block; max-width:{size}%;">
             <span style="display:block; background:rgba(0,0,0,0.6); color:#fff; font-size:12px;
-            padding:2px 6px; border-radius:3px; width:fit-content;">{staining}</span>
+            padding:2px 6px; border-radius:3px; width:fit-content;">{stainings[s]}</span>
             <img src="data:image/png;base64,{img_data}" style="width:100%; display:block;">
         </div>
         """
@@ -125,6 +134,8 @@ def render_numbered_paired_image_gallery(folder_path, folder_path_2, file_prefix
 # In[]
 def create_final_report(figure_path, stainings):
 
+    performed_stainings = [int(x) for x in os.listdir(f'{figure_path}/combine_masks')]
+
     ####################################################################################################################
     # Start
     ####################################################################################################################
@@ -150,8 +161,8 @@ def create_final_report(figure_path, stainings):
 
     **Details:** Combined belief (probability) masks for all three data modalities: HQCR, HQPR, and HQTR. Each modality is projected into pixel coordinates so that it can be represented as an image. Brighter pixels indicate a higher probability that the underlying observation is of good quality. Dark (dim) regions therefore highlight areas affected by low quality.
     """
-    html_overview += render_image_gallery("Combined beliefs", "imageplot_combined_beliefs.png", stainings, folder_path,
-                                description=description)
+    html_overview += render_image_gallery("Combined beliefs", "imageplot_combined_beliefs.png", stainings, 
+                                          performed_stainings, folder_path, description=description)
 
     description = """
     **Summary:** Dark (dim) regions indicate areas affected by low quality. Large dark patches across the slide suggest a systematic quality issue.
@@ -165,8 +176,8 @@ def create_final_report(figure_path, stainings):
     - 2 masks: the pixel is covered by 2 masks.
     - All masks: the pixel is covered by all 3 masks.
     """
-    html_overview += render_image_gallery("Combined masks", "imageplot_combined_masks.png", stainings, folder_path,
-                                description=description)
+    html_overview += render_image_gallery("Combined masks", "imageplot_combined_masks.png", stainings,
+                                          performed_stainings, folder_path, description=description)
 
 
     description = """
@@ -174,8 +185,8 @@ def create_final_report(figure_path, stainings):
 
     **Details:** Using the integer masks described above, spoQC reports the percentage overlap for each data modality.
     """
-    html_overview += render_image_gallery("Venndiagram of overlapping HQRs", "venn_combined_masks.png", stainings, folder_path,
-                                description=description)
+    html_overview += render_image_gallery("Venndiagram of overlapping HQRs", "venn_combined_masks.png", stainings,
+                                          performed_stainings, folder_path, description=description)
 
 
     html_overview += f"""
@@ -188,7 +199,7 @@ def create_final_report(figure_path, stainings):
     **Details:** Unlike the belief masks above, this analysis incorporates spatial information: the quality of a pixel is influenced by the quality of its neighbourhood. Check the spoQC documentation for further details.
     """
     html_overview += render_image_gallery("Combined beliefs with spatial dependencies",
-                                "imageplot_combined_beliefs_smoothed.png", stainings, folder_path,
+                                "imageplot_combined_beliefs_smoothed.png", stainings, performed_stainings, folder_path,
                                 description=description)
 
     description = """
@@ -204,7 +215,7 @@ def create_final_report(figure_path, stainings):
     - All masks: the pixel is covered by all 3 masks.
     """
     html_overview += render_image_gallery("Combined masks with spatial dependencies",
-                                "imageplot_combined_masks_smoothed.png", stainings, folder_path,
+                                "imageplot_combined_masks_smoothed.png", stainings, performed_stainings, folder_path,
                                 description=description)
 
 
@@ -214,7 +225,7 @@ def create_final_report(figure_path, stainings):
     **Details:** Using the spatially smoothed integer masks described above, spoQC reports the percentage overlap for each data modality.
     """
     html_overview += render_image_gallery("Venndiagram of overlapping HQRs with spatial dependencies",
-                                "venn_combined_masks_smoothed.png", stainings, folder_path,
+                                "venn_combined_masks_smoothed.png", stainings, performed_stainings, folder_path,
                                 description=description)
 
     ##########
@@ -563,8 +574,11 @@ def create_final_report(figure_path, stainings):
     """
     folder_path = f'{figure_path}/hqpr'
     folder_path_continue = 'hqpr_bounding_box/'
-    html_hqr += render_image_gallery("HQPRs selected by spoQC", "imageplot_marked_subfigures.png", stainings,
-                                folder_path, folder_path_continue, description=description)
+    html_hqr += render_image_gallery(
+        "HQPRs selected by spoQC", "imageplot_marked_subfigures.png", stainings,
+        performed_stainings, folder_path, 
+        folder_path_continue=folder_path_continue, description=description
+    )
 
 
     description = """
@@ -722,10 +736,12 @@ def create_final_report(figure_path, stainings):
         with open(f"{figure_path}/hqcr/hqcr_ident/hqcr_cell_region.html") as f:
             pages_second_half.append({"id": "hqcr_cell_region", "title": "HQCR Cell Region", "content": f.read()})
 
-    for s, staining in enumerate(stainings):
+    for s in performed_stainings:
         if os.path.exists(f"{figure_path}/hqpr/hqpr_celltype/{s}/celltype_qc_analysis.html"):
             with open(f"{figure_path}/hqpr/hqpr_celltype/{s}/celltype_qc_analysis.html") as f:
-                pages_second_half.append({"id": f"hqpr_{s}_celltype", "title": f"HQPR Celltype QC ({staining})", "content": f.read()})
+                pages_second_half.append({
+                    "id": f"hqpr_{s}_celltype", "title": f"HQPR Celltype QC ({stainings[s]})", "content": f.read()
+                })
 
     if os.path.exists(f"{figure_path}/hqtr/hqtr_celltype/celltype_qc_analysis.html"):
         with open(f"{figure_path}/hqtr/hqtr_celltype/celltype_qc_analysis.html") as f:

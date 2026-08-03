@@ -78,7 +78,7 @@ def start_image_celltype_analysis(
     subworkflows.hqcr.cell_artefact_assignment(cell_df, sdata)
 
     figures = []
-    for object in ['cell', 'nucleus']:
+    for object in ['cell']:
         polys = subworkflows.hqcr.create_polygon_dataframe(sdata, imagedim, f'{object}_boundaries')
 
         for qc_metric in qc_metrics:

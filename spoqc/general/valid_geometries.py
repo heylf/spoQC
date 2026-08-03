@@ -16,6 +16,9 @@ def correct_for_valid_geometries(sdata):
 
 def check_for_valid_geometries(sdata, figure_path):
     for obj_type in ['cell', 'nucleus']:
+
+
+    # In[]
         geometries = np.array(sdata[f'{obj_type}_boundaries']['geometry'])
 
         # This can happen if you have nucleus-free cells
@@ -29,10 +32,29 @@ def check_for_valid_geometries(sdata, figure_path):
 
             sdata['table'].obs.loc[boundary_indices, f'wvalid_{obj_type}_geometry'] = \
                 [0 if x.is_valid else 1 for x in geometries]
+        elif ( len(geometries) > sdata['table'].n_obs ):
+            # This can happen if a cell has more than one nucleus.
+            sdata['table'].obs[f'valid_{obj_type}_geometry'] = [True] * sdata['table'].n_obs
+            sdata['table'].obs[f'wvalid_{obj_type}_geometry'] = [0] * sdata['table'].n_obs
+
+            boundary_indices = np.array([str(x) for x in sdata[f'nucleus_boundaries']['cell_id']])
+            is_valid = np.array([x.is_valid for x in geometries])
+
+            # A cell is invalid if at least one of its nuclei is invalid.
+            validity_per_cell = {}
+            for idx, valid in zip(boundary_indices, is_valid):
+                validity_per_cell[idx] = validity_per_cell.get(idx, True) and valid
+
+            unique_indices = np.array(list(validity_per_cell.keys()))
+            unique_valid = np.array(list(validity_per_cell.values()))
+
+            sdata['table'].obs.loc[unique_indices, f'valid_{obj_type}_geometry'] = unique_valid
+            sdata['table'].obs.loc[unique_indices, f'wvalid_{obj_type}_geometry'] = (~unique_valid).astype(int)
         else:
             sdata['table'].obs[f'valid_{obj_type}_geometry'] = [True if x.is_valid else False for x in geometries]
             sdata['table'].obs[f'wvalid_{obj_type}_geometry'] = [0 if x.is_valid else 1 for x in geometries]
 
+    # In[]
         helperfuncs.plot_scatter_density(
                 sdata['table'],
                 figure_path,
