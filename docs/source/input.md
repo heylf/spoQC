@@ -36,7 +36,7 @@ with coordinate systems:
 
 - The following entries use the same cell IDs:
 
-  - `sdata['table'].index`
+  - `sdata['table'].obs.index`
   - `sdata['cell_circles'].index`
   - `sdata['cell_boundaries'].index`
   - `sdata.points['transcripts']['cell_id']`
