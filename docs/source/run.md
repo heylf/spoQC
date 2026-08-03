@@ -62,12 +62,12 @@ Replace `[step]` with one of the following pipeline stages.
 6. ambientqc
 7. hqcr_ident
 8. hqcr_celltype
-9. hqpr_metrices
-10. hqpr_clustering
-11. hqpr_clustering
-12. hqpr_refinement
-13. hqpr_bounding_box
-14. hqpr_celltype
+9. hqpr_metrices (has to be run for each staining)
+10. hqpr_clustering (has to be run for each staining)
+11. hqpr_clustering (has to be run for each staining)
+12. hqpr_refinement (has to be run for each staining)
+13. hqpr_bounding_box (has to be run for each staining)
+14. hqpr_celltype (has to be run for each staining)
 15. hqtr_metrices
 16. hqtr_ac
 17. hqtr_qv
@@ -75,7 +75,7 @@ Replace `[step]` with one of the following pipeline stages.
 19. hqtr_refinement
 20. hqtr_bounding_box
 21. hqtr_celltype
-22. combine_masks
+22. combine_masks (has to be run for each staining)
 23. transcriptqc
 24. modelqc
 25. cellcycleqc
