@@ -703,16 +703,16 @@ def main(argv: list[str] | None = None) -> None:
     #################################
     ###### ADDITIONAL ANALYSIS ######
     #################################
-    subworkflows.qc_additional_analysis.run_qc_additional_analysis(
-        sdata,
-        CONST,
-        annotation,
-        seed,
-        imagedim,
-        dim_x,
-        dim_y,
-    )
-
+    if ( 'analysis' in CONST.STEP or CONST.STEP == 'all' ):
+        subworkflows.qc_additional_analysis.run_qc_additional_analysis(
+            sdata,
+            CONST,
+            annotation,
+            seed,
+            imagedim,
+            dim_x,
+            dim_y,
+        )
 
     # In[]
     ##########################
