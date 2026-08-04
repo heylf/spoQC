@@ -385,19 +385,20 @@ def main(argv: list[str] | None = None) -> None:
 
     # In[]
     # Mapping of nucleus gemoetires
-    sdata.shapes['nucleus_boundaries']['cell_id'] = (
-        sdata.shapes['nucleus_boundaries']['cell_id']
-            .map(mapping)
-            .fillna(-1)
-            .astype(int)
-    )
+    if 'cell_id' in list(sdata.shapes['nucleus_boundaries'].columns):
+        sdata.shapes['nucleus_boundaries']['cell_id'] = (
+            sdata.shapes['nucleus_boundaries']['cell_id']
+                .map(mapping)
+                .fillna(-1)
+                .astype(int)
+        )
 
-    # Check for nan's in sdata.shapes['nucleus_boundaries'].index
-    if sdata.shapes['nucleus_boundaries'].index.hasnans:
-        sdata.shapes['nucleus_boundaries'].index = sdata.shapes['nucleus_boundaries']['cell_id']
+        # Check for nan's in sdata.shapes['nucleus_boundaries'].index
+        if sdata.shapes['nucleus_boundaries'].index.hasnans:
+            sdata.shapes['nucleus_boundaries'].index = sdata.shapes['nucleus_boundaries']['cell_id']
         
-        # make index unqiue for multinulcei cells
-        sdata.shapes["nucleus_boundaries"].index = pd.RangeIndex(len(sdata.shapes["nucleus_boundaries"]))
+    # make index unqiue for multinulcei cells
+    sdata.shapes["nucleus_boundaries"].index = pd.RangeIndex(len(sdata.shapes["nucleus_boundaries"]))
 
     # In[]
     # I need string indexes for anndata else code breaks
