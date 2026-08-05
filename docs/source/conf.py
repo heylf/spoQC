@@ -69,6 +69,7 @@ autodoc_default_options = {
 
 html_theme = "sphinx_book_theme"
 html_static_path = ["_static"]
+html_css_files = ["custom.css"]
 # html_extra_path = ["extra_files"]
 # html_favicon = "_static/favicon.ico"
 html_title = project
