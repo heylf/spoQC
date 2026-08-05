@@ -169,7 +169,7 @@ def start_combining_masks(
 
         subsets_pct = {key: value * 100 for key, value in subsets.items()}
         venn = venn3(subsets_pct, set_labels=('HQCR', 'HQPR', 'HQTR'))
-        plt.title(f"Venndiagram of masks with {uncovered * 100}% uncovered area")
+        plt.title(f"Venndiagram of masks with {np.round(uncovered * 100,2)}% uncovered area")
         plt.savefig(f'{figure_path}/venn_combined_masks{type_of_belief}.png', bbox_inches='tight', dpi=300)
         plt.savefig(f'{figure_path}/venn_combined_masks{type_of_belief}.pdf', bbox_inches='tight', dpi=300)
         plt.close()
