@@ -164,6 +164,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="This is just for developing and testing the tool.",
         required=False
     )
+    parser.add_argument(
+        "--dev_report",
+        dest="dev_report",
+        action="store_true",
+        help="This is just for developing and testing the tool (report).",
+        required=False
+    )
 
     return parser
 
@@ -288,6 +295,12 @@ def main(argv: list[str] | None = None) -> None:
         @constant
         def CLUSTER_CELLTYPE():
             return args['cluster_celltype']
+        @constant
+        def GENERATE_REPORT_DOC():
+            if args['dev_report']:
+                return True
+            else:
+                return False
 
     # Initialize constant variables
     CONST = _Const()
@@ -719,8 +732,8 @@ def main(argv: list[str] | None = None) -> None:
     ###### FINAL REPORT ######
     ##########################
     # Low resources, fast
+    importlib.reload(subworkflows.final_report)
     if ( CONST.STEP in ['all', 'final_report'] ):
-        subworkflows.final_report.create_final_report(CONST.FIGURE_PATH, stainings)
-
+        subworkflows.final_report.create_final_report(CONST.FIGURE_PATH, stainings, CONST.GENERATE_REPORT_DOC)
     print("[FINISH]")
     # %%
