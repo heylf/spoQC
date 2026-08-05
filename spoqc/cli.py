@@ -732,7 +732,6 @@ def main(argv: list[str] | None = None) -> None:
     ###### FINAL REPORT ######
     ##########################
     # Low resources, fast
-    importlib.reload(subworkflows.final_report)
     if ( CONST.STEP in ['all', 'final_report'] ):
         subworkflows.final_report.create_final_report(CONST.FIGURE_PATH, stainings, CONST.GENERATE_REPORT_DOC)
     print("[FINISH]")
