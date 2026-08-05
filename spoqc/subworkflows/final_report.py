@@ -131,8 +131,57 @@ def render_numbered_paired_image_gallery(folder_path, folder_path_2, file_prefix
     return html
 
 
+### Rendering ###
+def build_report_html(pages):
+    sidebar_buttons = "\n".join(
+        f'<button id="nav-{p["id"]}" class="{"active" if i == 0 else ""}" '
+        f'onclick="showPage(\'{p["id"]}\')">{p["title"]}</button>'
+        for i, p in enumerate(pages)
+    )
+    content_divs = "\n".join(
+        f'<div id="page-{p["id"]}" class="page{" active" if i == 0 else ""}">{p["content"]}</div>'
+        for i, p in enumerate(pages)
+    )
+
+    return f"""
+<html>
+<head>
+<style>
+    body {{ margin: 0; display: flex; font-family: sans-serif; }}
+    #sidebar {{ width: 240px; flex-shrink: 0; background: #f4f4f4; padding: 10px;
+                box-sizing: border-box; height: 100vh; overflow-y: auto; }}
+    #sidebar button {{ display: block; width: 100%; text-align: left; padding: 8px 10px;
+                        margin-bottom: 4px; border: none; background: none; cursor: pointer;
+                        border-radius: 4px; font-size: 14px; }}
+    #sidebar button:hover, #sidebar button.active {{ background: #dbe4ff; }}
+    #content {{ flex: 1; padding: 20px; overflow-y: auto; height: 100vh; box-sizing: border-box; }}
+    #content p {{ line-height: 1.5; max-width: 900px; }}
+    #content ul {{ line-height: 1.5; max-width: 900px; }}
+    .page {{ display: none; }}
+    .page.active {{ display: block; }}
+</style>
+<script>
+function showPage(id) {{
+    document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('#sidebar button').forEach(el => el.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+    document.getElementById('nav-' + id).classList.add('active');
+}}
+</script>
+</head>
+<body>
+<div id="sidebar">
+{sidebar_buttons}
+</div>
+<div id="content">
+{content_divs}
+</div>
+</body>
+</html>
+"""
+
 # In[]
-def create_final_report(figure_path, stainings):
+def create_final_report(figure_path, stainings, generate_report_doc_files):
 
     performed_stainings = [int(x) for x in os.listdir(f'{figure_path}/combine_masks')]
 
@@ -151,7 +200,8 @@ def create_final_report(figure_path, stainings):
     ##########
 
     html_overview += f"""
-    <h1>High quality regions (HQRs) for HQCR (high quality cell regions), HQPR (high quality pixel regions), and HQTR (high quality transcript regions)</h1>
+    <h1>Overview</h1>
+    <p>High quality regions (HQRs) for HQCR (high quality cell regions), HQPR (high quality pixel regions), and HQTR (high quality transcript regions)</p>
     """
 
     folder_path = f'{figure_path}/combine_masks'
@@ -721,6 +771,18 @@ def create_final_report(figure_path, stainings):
     pages_first_half.append({"id": "hqpr_boxplots", "title": "All HQPR metrics", "content": html_hqpr})
     pages_first_half.append({"id": "hqtr_boxplots", "title": "All HQTR metrics", "content": html_hqtr})
 
+    all_pages = [
+        html_overview,
+        html_subcluster,
+        html_sp_leiden,
+        html_sp_ann,
+        html_hqr,
+        html_filters,
+        html_hqcr,
+        html_hqpr,
+        html_hqtr,
+    ]
+
     ### Second half ###
     # Fold the other Plotly-generated HTML fragments into the same document as
     # additional pages instead of moving them out as standalone sibling files.
@@ -749,64 +811,14 @@ def create_final_report(figure_path, stainings):
         with open(f"{figure_path}/hqtr/hqtr_celltype/celltype_qc_analysis.html") as f:
             pages_second_half.append({"id": "hqtr_celltype", "title": "HQTR Celltype QC", "content": f.read()})
 
-    ### Rendering ###
-    def build_report_html(pages):
-        sidebar_buttons = "\n".join(
-            f'<button id="nav-{p["id"]}" class="{"active" if i == 0 else ""}" '
-            f'onclick="showPage(\'{p["id"]}\')">{p["title"]}</button>'
-            for i, p in enumerate(pages)
-        )
-        content_divs = "\n".join(
-            f'<div id="page-{p["id"]}" class="page{" active" if i == 0 else ""}">{p["content"]}</div>'
-            for i, p in enumerate(pages)
-        )
-
-        return f"""
-    <html>
-    <head>
-    <style>
-        body {{ margin: 0; display: flex; font-family: sans-serif; }}
-        #sidebar {{ width: 240px; flex-shrink: 0; background: #f4f4f4; padding: 10px;
-                    box-sizing: border-box; height: 100vh; overflow-y: auto; }}
-        #sidebar button {{ display: block; width: 100%; text-align: left; padding: 8px 10px;
-                            margin-bottom: 4px; border: none; background: none; cursor: pointer;
-                            border-radius: 4px; font-size: 14px; }}
-        #sidebar button:hover, #sidebar button.active {{ background: #dbe4ff; }}
-        #content {{ flex: 1; padding: 20px; overflow-y: auto; height: 100vh; box-sizing: border-box; }}
-        #content p {{ line-height: 1.5; max-width: 900px; }}
-        #content ul {{ line-height: 1.5; max-width: 900px; }}
-        .page {{ display: none; }}
-        .page.active {{ display: block; }}
-    </style>
-    <script>
-    function showPage(id) {{
-        document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('#sidebar button').forEach(el => el.classList.remove('active'));
-        document.getElementById('page-' + id).classList.add('active');
-        document.getElementById('nav-' + id).classList.add('active');
-    }}
-    </script>
-    </head>
-    <body>
-    <div id="sidebar">
-    {sidebar_buttons}
-    </div>
-    <div id="content">
-    {content_divs}
-    </div>
-    </body>
-    </html>
-    """
-
     pages = pages_first_half + pages_second_half
 
     with open(f"{figure_path}/report.html", "w") as f:
         f.write(build_report_html(pages))
 
-    with open(f"{figure_path}/report_part1.html", "w") as f:
-        f.write(build_report_html(pages_first_half))
-
-    with open(f"{figure_path}/report_part2.html", "w") as f:
-        f.write(build_report_html(pages_second_half))
+    if generate_report_doc_files:
+        for i, html in enumerate(all_pages):
+            with open(f"{figure_path}/report_p{i}.html", "w") as f:
+                f.write(html)
 
 # %%
