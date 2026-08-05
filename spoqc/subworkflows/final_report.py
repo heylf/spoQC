@@ -354,6 +354,8 @@ def create_final_report(figure_path, stainings):
 
     description = """
     **Summary:** Density map of invalid cell or nucleus geometries. High-density regions indicate potential segmentation issues.
+
+    **Details:** SpoQC generates example for invalid cell and nulceus geometries that an be found under report/generalqc.
     """
     img_cell = image_to_base64(f"{figure_path}/generalqc/scatterplot_densityplot_invalid_cell_geometry.png")
     img_nucl = image_to_base64(f"{figure_path}/generalqc/scatterplot_densityplot_invalid_nucleus_geometry.png")
