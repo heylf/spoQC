@@ -67,7 +67,7 @@ Columns added during additional analysis
 * hqr_filtered_out = Binary label if the cell was filtered out by any of hqcr, hqtr or hqpr (OR of the columns above).
 
 ## Anndata: rna_cluster
-`report/analsis` holds a file named `rna_cluster.h5ad`. This anndata is from the subcluster analysis and holds the same columns as `rna_qc_annotated.h5ad`, but only for the cells of the analysed cluster. In addition, `anndata.uns` holds `spoqc_celltype_colors` and `spoqc_leiden_colors`, the label-to-color mappings used for the analysis plots. These color mappings are not retained in `rna_qc_annotated.h5ad`, see [Spatialdata metadata](#spatialdata-metadata).
+`report/analsis` holds a file named `rna_cluster.h5ad`. This anndata is from the subcluster analysis and holds the same columns as `rna_qc_annotated.h5ad`, but only for the cells of the analysed cluster. In addition, `anndata.uns` holds `spoqc_celltype_colors` and `spoqc_leiden_colors`, the label-to-color mappings used for the analysis plots.
 
 ## Spatialdata metadata
 `rna_qc_annotated.h5ad` also holde the metadata for the HQCRs, HQPRs and HQTRs which is stored under `anndata.uns`. 
