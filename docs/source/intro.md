@@ -31,6 +31,31 @@ If you use spoQC in your work, please cite:
 
 > Citation information will be provided soon.
 
+# Collaborators
+
+This tool was developed in collaboration with the following institutions:
+
+- German Cancer Research Center (DKFZ, Heidelberg, Germany)
+- Centro Nacional de Análisis Genómico (CNAG, Barcelona, Spain)
+- Center for Quantitative Analysis of Molecular and Cellular Biosystems (BioQuant, Heidelberg, Germany)
+- Berlin Institute of Health at Charité (Berlin, Germany)
+- Altos Labs San Diego Institute of Technology (San Diego, USA)
+- Allen Institute for Brain Science (Seattle, USA)
+- European Molecular Biology Laboratory (EMBL, Heidelberg, Germany)
+
+# Contributors
+
+The following people contributed directly or indirectly through supervision, code review, and the development of concepts and ideas:
+
+- Florian Heyl
+- Ezgi Sen
+- Niklas Müller-Bötticher
+- Sameesh Kher
+- Dongze He
+- Brian Long
+- Naveed Ishaque
+- Oliver Stegle
+
 # Supported Spatial Transcriptomics Technologies
 
 Currently supported:
