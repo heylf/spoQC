@@ -1,6 +1,6 @@
 # AI Assistance Disclosure
 
-This tool was written with the assistance of AI coding agents (ChatGPT).
+This tool was written with the assistance of AI coding agents (ChatGPT and Claude).
 
 We used AI for the following scripts:
 
