@@ -167,7 +167,7 @@ def start_combining_masks(
         # sanity check for venndiagram
         assert ( np.abs((covered + uncovered) - 1.0) < 1e-2 ), "Venn diagram error. Please check."
 
-        subsets_pct = {key: value * 100 for key, value in subsets.items()}
+        subsets_pct = {key: np.round(value * 100, 2) for key, value in subsets.items()}
         venn = venn3(subsets_pct, set_labels=('HQCR', 'HQPR', 'HQTR'))
         plt.title(f"Venndiagram of masks with {np.round(uncovered * 100,2)}% uncovered area")
         plt.savefig(f'{figure_path}/venn_combined_masks{type_of_belief}.png', bbox_inches='tight', dpi=300)
