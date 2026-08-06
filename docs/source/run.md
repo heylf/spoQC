@@ -64,24 +64,23 @@ Replace `[step]` with one of the following pipeline stages.
 8. hqcr_celltype
 9. hqpr_metrices (has to be run for each staining)
 10. hqpr_clustering (has to be run for each staining)
-11. hqpr_clustering (has to be run for each staining)
-12. hqpr_refinement (has to be run for each staining)
-13. hqpr_bounding_box (has to be run for each staining)
-14. hqpr_celltype (has to be run for each staining)
-15. hqtr_metrices
-16. hqtr_ac
-17. hqtr_qv
-18. hqtr_clustering
-19. hqtr_refinement
-20. hqtr_bounding_box
-21. hqtr_celltype
-22. combine_masks (has to be run for each staining)
-23. transcriptqc
-24. modelqc
-25. cellcycleqc
-26. analysis_overview
-27. analysis_cluster
-28. analysis_category
+11. hqpr_refinement (has to be run for each staining)
+12. hqpr_bounding_box (has to be run for each staining)
+13. hqpr_celltype (has to be run for each staining)
+14. hqtr_metrices
+15. hqtr_ac
+16. hqtr_qv
+17. hqtr_clustering
+18. hqtr_refinement
+19. hqtr_bounding_box
+20. hqtr_celltype
+21. combine_masks (has to be run for each staining)
+22. transcriptqc
+23. modelqc
+24. cellcycleqc
+25. analysis_overview
+26. analysis_cluster
+27. analysis_category
 
 ### Example
 

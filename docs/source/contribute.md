@@ -32,13 +32,13 @@ Segmentation metrics must be linked back to individual cells and stored in the S
 
 `spoqc/metrics/image/edge_strength.py`
 
-Image metrics should be saved as a one-dimensional (1D) matrix.
+Image metrics should be saved as a one-dimensional (1D) array.
 
 **Transcript density metric**
 
 `spoqc/metrics/image/transcript_density_image.py`
 
-Transcript density metrics should also be saved as a one-dimensional (1D) matrix.
+Transcript density metrics should also be saved as a one-dimensional (1D) array.
 
 ## `spoqc/priors/`
 
@@ -56,13 +56,7 @@ Each prior contributes evidence about the quality of a spatial observation and i
 
 SpoQC contains several predefined subworkflows that automate common analysis tasks.
 
-Some workflows, such as:
-
-```
-qc_doublets.py
-```
-
-serve as entry points for metric calculation, quality assessment, visualization, and reporting.
+Some subworkflows, such as `qc_doublets.py`, serve as entry points for metric calculation, quality assessment, visualization, and reporting.
 
 Subworkflows are a good place to contribute additional analysis pipelines or improve existing workflows.
 
