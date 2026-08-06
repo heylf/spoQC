@@ -1,7 +1,5 @@
 # spoQC
 
-[![rewrites.bio - Follows best practice principles for rewriting bioinformatics tools with AI](https://rewrites.bio/badges/rewrites-bio.svg)](https://rewrites.bio)
-
 <img src="./docs/source//_static/figures/logo/complex.png" width="1000">
 
 > [!NOTE]
@@ -27,12 +25,6 @@ It is **not permitted** to distribute, share, or publish this code. If you have 
 
 If you would like to contribute to spoQC or reuse components of the codebase, please see the [Contribute](#contribute) section.
 
-# Cite
-
-If you use spoQC in your work, please cite:
-
-> Citation information will be provided soon.
-
 # Supported Spatial Transcriptomics Technologies
 
 Currently supported:
@@ -41,6 +33,37 @@ Currently supported:
 
 > [!NOTE]
 Atera support is currently under development and is not yet available.
+
+# Cite
+
+If you use spoQC in your work, please cite:
+
+> Citation information will be provided soon.
+
+# Collaborators
+
+This tool was developed in collaboration with the following institutions:
+
+- German Cancer Research Center (DKFZ, Heidelberg, Germany)
+- Centro Nacional de Análisis Genómico (CNAG, Barcelona, Spain)
+- Center for Quantitative Analysis of Molecular and Cellular Biosystems (BioQuant, Heidelberg, Germany)
+- Berlin Institute of Health at Charité (Berlin, Germany)
+- Altos Labs San Diego Institute of Technology (San Diego, USA)
+- Allen Institute for Brain Science (Seattle, USA)
+- European Molecular Biology Laboratory (EMBL, Heidelberg, Germany)
+
+# Contributors
+
+The following people contributed directly or indirectly through supervision, code review, and the development of concepts and ideas:
+
+- Florian Heyl
+- Ezgi Sen
+- Niklas Müller-Bötticher
+- Sameesh Kher
+- Dongze He
+- Brian Long
+- Naveed Ishaque
+- Oliver Stegle
 
 # Documentation
 
@@ -54,7 +77,7 @@ For further details please read the [documentation]().
 ## Docker
 
 ```
-docker run -ti heylf/spoqc:0.1.0
+docker run -ti quay.io/heylf/spoqc:0.1.0
 ```
 
 ## Pip
@@ -127,26 +150,25 @@ Replace `[step]` with one of the following pipeline stages.
 6. ambientqc
 7. hqcr_ident
 8. hqcr_celltype
-9. hqpr_metrices
-10. hqpr_clustering
-11. hqpr_clustering
-12. hqpr_refinement
-13. hqpr_bounding_box
-14. hqpr_celltype
-15. hqtr_metrices
-16. hqtr_ac
-17. hqtr_qv
-18. hqtr_clustering
-19. hqtr_refinement
-20. hqtr_bounding_box
-21. hqtr_celltype
-22. combine_masks
-23. transcriptqc
-24. modelqc
-25. cellcycleqc
-26. analysis_overview
-27. analysis_cluster
-28. analysis_category
+9. hqpr_metrices (has to be run for each staining)
+10. hqpr_clustering (has to be run for each staining)
+11. hqpr_refinement (has to be run for each staining)
+12. hqpr_bounding_box (has to be run for each staining)
+13. hqpr_celltype (has to be run for each staining)
+14. hqtr_metrices
+15. hqtr_ac
+16. hqtr_qv
+17. hqtr_clustering
+18. hqtr_refinement
+19. hqtr_bounding_box
+20. hqtr_celltype
+21. combine_masks (has to be run for each staining)
+22. transcriptqc
+23. modelqc
+24. cellcycleqc
+25. analysis_overview
+26. analysis_cluster
+27. analysis_category
 
 ### Example
 
@@ -167,9 +189,7 @@ spoQC can be executed sequentially, but processing a full-resolution spatial tra
 
 To significantly reduce runtime, we provide a dedicated Nextflow subworkflow that parallelizes many of the processing steps. Using the Nextflow workflow can reduce the total runtime to approximately **1–2 days**, depending on the available computational resources.
 
-The workflow is available in the **spoQC branch** of:
-
-[nf-core/spatialaxe](https://github.com/nf-core/spatialaxe/tree/dev)
+The workflow is available on the **spoQC branch** of [nf-core/spatialaxe](https://github.com/nf-core/spatialaxe/tree/dev).
 
 > [!NOTE]
 Processing a full-resolution spatial transcriptomics (SRT) dataset with spoQC typically requires access to an HPC (High Performance Computing) environment.
@@ -214,13 +234,13 @@ Segmentation metrics must be linked back to individual cells and stored in the S
 
 `spoqc/metrics/image/edge_strength.py`
 
-Image metrics should be saved as a one-dimensional (1D) matrix.
+Image metrics should be saved as a one-dimensional (1D) array.
 
 **Transcript density metric**
 
 `spoqc/metrics/image/transcript_density_image.py`
 
-Transcript density metrics should also be saved as a one-dimensional (1D) matrix.
+Transcript density metrics should also be saved as a one-dimensional (1D) array.
 
 ## `spoqc/priors/`
 
@@ -238,13 +258,7 @@ Each prior contributes evidence about the quality of a spatial observation and i
 
 SpoQC contains several predefined subworkflows that automate common analysis tasks.
 
-Some workflows, such as:
-
-```
-qc_doublets.py
-```
-
-serve as entry points for metric calculation, quality assessment, visualization, and reporting.
+Some subworkflows, such as `qc_doublets.py`, serve as entry points for metric calculation, quality assessment, visualization, and reporting.
 
 Subworkflows are a good place to contribute additional analysis pipelines or improve existing workflows.
 
