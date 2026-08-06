@@ -1,5 +1,3 @@
-[![rewrites.bio - Follows best practice principles for rewriting bioinformatics tools with AI](https://rewrites.bio/badges/rewrites-bio.svg)](https://rewrites.bio)
-
 <img src="./_static/figures/logo/complex.png" width="1000">
 
 ```{note}
