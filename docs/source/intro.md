@@ -25,6 +25,16 @@ It is **not permitted** to distribute, share, or publish this code. If you have 
 
 If you would like to contribute to spoQC or reuse components of the codebase, please see the [Contribute](#contribute) section.
 
+# Supported Spatial Transcriptomics Technologies
+
+Currently supported:
+
+- 10x Xenium
+
+```{note}
+Atera support is currently under development and is not yet available.
+```
+
 # Cite
 
 If you use spoQC in your work, please cite:
@@ -55,13 +65,3 @@ The following people contributed directly or indirectly through supervision, cod
 - Brian Long
 - Naveed Ishaque
 - Oliver Stegle
-
-# Supported Spatial Transcriptomics Technologies
-
-Currently supported:
-
-- 10x Xenium
-
-```{note}
-Atera support is currently under development and is not yet available.
-```
