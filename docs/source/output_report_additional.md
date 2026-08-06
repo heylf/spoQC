@@ -14,27 +14,54 @@ per-modality metrics.
 
 The following report pages are part of the final report and can be used to further inspect the quality and celltype dependent quality.
 
+Below is an example report, generated on a subsample of the [10x Xenium breast cancer data Rep1](https://www.10xgenomics.com/products/xenium-in-situ/preview-dataset-human-breast).
+
 ## General single cell metrics
 ```{raw} html
-:file: ./_static/figures/tutorial/rna_qc_sample_mqc.html
+<iframe
+    class="scrollable-report-frame"
+    src="./_static/figures/tutorial/rna_qc_sample_mqc.html"
+    loading="lazy"
+    style="width:100%; height:800px; border:none;">
+</iframe>
 ```
 
 ## HQCR celltype analysis
 ```{raw} html
-:file: ./_static/figures/tutorial/hqcr_celltype_qc_analysis.html
+<iframe
+    class="scrollable-report-frame"
+    src="./_static/figures/tutorial/hqcr_celltype_qc_analysis.html"
+    loading="lazy"
+    style="width:100%; height:800px; border:none;">
+</iframe>
 ```
 
 ## HQCR cell region analysis
 ```{raw} html
-:file: ./_static/figures/tutorial/hqcr_cell_region.html
+<iframe
+    class="scrollable-report-frame"
+    src="./_static/figures/tutorial/hqcr_cell_region.html"
+    loading="lazy"
+    style="width:100%; height:800px; border:none;">
+</iframe>
 ```
 
 ## HQPR celltype analysis
 ```{raw} html
-:file: ./_static/figures/tutorial/hqpr_celltype_qc_analysis.html
+<iframe
+    class="scrollable-report-frame"
+    src="./_static/figures/tutorial/hqpr_celltype_qc_analysis.html"
+    loading="lazy"
+    style="width:100%; height:800px; border:none;">
+</iframe>
 ```
 
 ## HQTR celltype analysis
 ```{raw} html
-:file: ./_static/figures/tutorial/hqtr_celltype_qc_analysis.html
+<iframe
+    class="scrollable-report-frame"
+    src="./_static/figures/tutorial/hqtr_celltype_qc_analysis.html"
+    loading="lazy"
+    style="width:100%; height:800px; border:none;">
+</iframe>
 ```

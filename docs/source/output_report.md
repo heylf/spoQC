@@ -10,12 +10,9 @@
 The `report/` folder holds `report.html`, spoQC's interactive, navigable
 summary of a run: a single self-contained page with a sidebar to browse the
 overview, subcluster analysis, spatial plots, HQR/HQPR/HQTR filters, and
-per-modality metrics. `report/` also holds a `report_lowres.html`, a
-lightweight version of the same report with downscaled images, more suitable
-for quickly sharing or viewing a report.
+per-modality metrics.
 
-Below is an example report, generated on the example dataset used throughout
-this documentation.
+Below is an example report, generated on the full [10x Xenium breast cancer data Rep1](https://www.10xgenomics.com/products/xenium-in-situ/preview-dataset-human-breast). The slide includes a DAPI staining labeled as "0". SpoQC is capable of analyzing all stainings in your dataset.
 
 ## Overview
 ```{raw} html
