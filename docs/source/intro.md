@@ -1,15 +1,11 @@
 <img src="./_static/figures/logo/complex.png" width="1000">
 
 ```{note}
-SpoQC is currently under active development and is still in the alpha phase. You may encounter bugs, incomplete features, or unexpected behavior.
-
-If you are testing spoQC and run into any issues, please contact the development team or open an issue in the repository. Feedback, bug reports, and pull requests are highly appreciated and help us improve the project.
+SpoQC is currently under active development and is still in the alpha phase. You may encounter bugs, incomplete features, or unexpected behavior. If you are testing spoQC and run into any issues, please contact the development team or open an issue in the repository. Feedback, bug reports, and pull requests are highly appreciated and help us improve the project.
 ```
 
 ```{note}
-Processing a full-resolution spatial transcriptomics (SRT) dataset with spoQC typically requires access to an HPC (High Performance Computing) environment.
-
-For smaller datasets, reduced-resolution data, or data subsets, it may be possible to run spoQC locally.
+Processing a full-resolution spatial transcriptomics (SRT) dataset with spoQC typically requires access to an HPC (High Performance Computing) environment. For smaller datasets, reduced-resolution data, or data subsets, it may be possible to run spoQC locally.
 ```
 
 <img src="./_static/figures/logo/plus_splialaxe.png" width="400">
