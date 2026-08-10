@@ -17,5 +17,4 @@ output_report_additional.md
 output_tmp.md
 nextflow.md
 contribute.md
-ai_disclosure.md
 ```
