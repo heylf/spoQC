@@ -794,7 +794,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
 
     if os.path.exists(f"{figure_path}/hqcr/hqcr_celltype/hqcr_celltype.html"):
         with open(f"{figure_path}/hqcr/hqcr_celltype/hqcr_celltype.html") as f:
-            pages_second_half.append({"id": "hqcr_celltype", "title": "HQCR Celltype", "content": f.read()})
+            pages_second_half.append({"id": "hqcr_celltype", "title": "HQCR Celltype QC", "content": f.read()})
 
     if os.path.exists(f"{figure_path}/hqcr/hqcr_ident/hqcr_cell_region.html"):
         with open(f"{figure_path}/hqcr/hqcr_ident/hqcr_cell_region.html") as f:
