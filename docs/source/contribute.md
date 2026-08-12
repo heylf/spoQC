@@ -7,8 +7,9 @@ There are several ways to contribute to spoQC. The project is built around four 
 - subworkflows
 - standard pre- and postprocessing scripts
 
-> [!NOTE]
-> We are currently working on standardizing these components and providing templates to make contributions easier and more consistent.
+```{note}
+We are currently working on standardizing these components and providing templates to make contributions easier and more consistent.
+```
 
 ## `spoqc/metrics/`
 
