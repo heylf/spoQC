@@ -54,7 +54,7 @@ The following people contributed directly or indirectly through supervision, cod
 
 # Documentation
 
-For further details please read the [documentation]().
+For further details please read the [documentation](https://spoqc.readthedocs.io/en/latest/).
 
 
 # Installation
@@ -195,7 +195,7 @@ There are several ways to contribute to spoQC. The project is built around four 
 - standard pre- and postprocessing scripts
 
 > [!NOTE]
-> We are currently working on standardizing these components and providing templates to make contributions easier and more consistent.
+We are currently working on standardizing these components and providing templates to make contributions easier and more consistent.
 
 ## `spoqc/metrics/`
 
