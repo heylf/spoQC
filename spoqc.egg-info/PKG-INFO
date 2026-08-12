@@ -1,7 +1,7 @@
 Metadata-Version: 2.4
 Name: spoqc
 Version: 0.0.1
-Summary: A short description of the project.
+Summary: spoQC is a modular framework for multimodal quality control (QC) of imaging-based spatially resolved transcriptomics (SRT).
 Author: Florian Heyl
 License: MIT
 Dynamic: author
