@@ -50,7 +50,6 @@ def cell_category_analysis(
     bool_colors = {False: "#4C78A8", True: "#E45756"}
     log1p_umap_cat = ['convexhull_outside_trnascripts']
 
-    figures = []
     for cat in ['border_cell', 'doublet', 'nucleus_free']:
         if ( not os.path.exists(f"{figure_path}/{cat}") ):
             os.makedirs(f"{figure_path}/{cat}")
@@ -135,7 +134,6 @@ def cell_category_analysis(
                     )
                 )
 
-                figures.append(fig)
                 fig.write_image(
                     f"{figure_path}/{cat}/split_violinplot_{umap_cat}.png",
                     scale=3,
@@ -186,7 +184,6 @@ def cell_category_analysis(
                     legend=dict(traceorder="normal")
                 )
 
-                figures.append(fig)
                 fig.write_image(
                     f"{figure_path}/{cat}/split_boxplot_{umap_cat}.png",
                     scale=3,
@@ -260,12 +257,6 @@ def cell_category_analysis(
                 fig.write_html(f"{figure_path}/{cat}/violin_{umap_cat}.html")
                 fig.write_image(f"{figure_path}/{cat}/violin_{umap_cat}.png", scale=3)
                 fig.write_image(f"{figure_path}/{cat}/violin_{umap_cat}.pdf", scale=3)
-
-
-        # Generate plotly HTML
-        html_content = ''.join(fig.to_html(full_html=False) for fig in figures)
-        with open(f"{figure_path}/{cat}/qc_analysis.html", "w") as f:
-            f.write(html_content)
 
     done_file = open(f"{figure_path}/done.txt", "w")
     done_file.write("its done")
