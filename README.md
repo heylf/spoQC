@@ -12,15 +12,6 @@ Processing a full-resolution spatial transcriptomics (SRT) dataset with spoQC ty
 
 To reduce runtime and improve scalability, we recommend running spoQC with Nextflow. We are continuously working on improving performance and making local execution easier.
 
-
-# Usage and Distribution
-
-spoQC is currently available for private use only.
-
-It is **not permitted** to distribute, share, or publish this code. If you have been invited to collaborate on the project, please ensure that any local copies, forks, or mirrors of the repository remain private.
-
-If you would like to contribute to spoQC or reuse components of the codebase, please see the [Contribute](#contribute) section.
-
 # Supported Spatial Transcriptomics Technologies
 
 Currently supported:
