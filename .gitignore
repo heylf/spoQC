@@ -9,3 +9,7 @@ markov_random_field_zarr_gpu.py
 test_argv.py
 spoQC_tmp
 paper_scripts
+*.egg-info/
+dist/
+build/
+.pytest_cache/
