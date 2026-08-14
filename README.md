@@ -1,5 +1,7 @@
 # spoQC
 
+[![CI](https://github.com/heylf/spoQC_beta/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/heylf/spoQC_beta/actions/workflows/ci.yml)
+
 <img src="./docs/source//_static/figures/logo/complex.png" width="1000">
 
 <div style="height: 20px;"></div>
