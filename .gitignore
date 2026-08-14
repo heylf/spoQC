@@ -13,3 +13,4 @@ paper_scripts
 dist/
 build/
 .pytest_cache/
+.vscode/
