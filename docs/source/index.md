@@ -10,11 +10,9 @@
 
 installation.md
 run.md
-input.md
-output_data.md
-output_report.md
-output_report_additional.md
-output_tmp.md
 nextflow.md
+input.md
+output.md
+metrics_glossary.md
 contribute.md
 ```

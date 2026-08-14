@@ -1,4 +1,4 @@
-# Output Data
+# Output data
 
 SpoQC's output data that is useful.
 

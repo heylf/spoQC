@@ -1,5 +1,4 @@
-
-# Nextflow Subworkflow
+# Nextflow subworkflow
 
 <img src="./_static/figures/logo/plus_splialaxe.png" width="400">
 
