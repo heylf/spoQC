@@ -1,4 +1,4 @@
-# Output data files
+# Output temporary data files
 
 * HQCR = High quality cell region
 * HQPR = High quality pixel region
