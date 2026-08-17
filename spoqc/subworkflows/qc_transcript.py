@@ -9,11 +9,6 @@ from typing import Any
 
 from .. import helperfuncs
 
-# TODO include MT coverage
-# TODO include Rb coverage
-# TODO Hb coverage
-# TODO include transcript count histogram on x and y axsis as in MerQuaCo
-
 # data from https://www.gencodegenes.org/human/
 def parse_gtf(file_path: str) -> None:
     """
@@ -114,10 +109,11 @@ def transcriptqc(sdata, figure_path, annotation_file, key_transcripts):
     fig.update_traces(marker_colors=["lightblue","lightgreen","red","green","red"])
     fig.write_html(f"{figure_path}/transcript_location_pie.html")
     fig.write_image(f"{figure_path}/transcript_location_pie.png", scale=3)
+    fig.write_image(f"{figure_path}/transcript_location_pie.pdf", scale=3)
 
     gene_biotype_dict = parse_gtf(f"{annotation_file}")
 
-    rna_types = [get_rna_type(var, gene_biotype_dict) for var in list(sdata.tables["table"].var_names)]
+    rna_types = [get_rna_type(var, gene_biotype_dict) for var in list(sdata['table'].var_names)]
 
     df = pd.Series(rna_types).value_counts()
     df = pd.DataFrame(df)
@@ -128,15 +124,12 @@ def transcriptqc(sdata, figure_path, annotation_file, key_transcripts):
     rna_types_sdata = np.array([get_rna_type(var, gene_biotype_dict) \
                                 for var in list(sdata.points[key_transcripts]['feature_name'])])
 
-
-    # TODO create local density plots here.
-
-    
     # Pie chart for transcript types-
     fig = go.Figure(data=[go.Pie(labels=df.index, values=df['count'], marker=dict(colors=df['colors']))])
     fig.update_traces(textfont=dict(size=18))
     fig.write_html(f"{figure_path}/transctipt_type_pie.html")
     fig.write_image(f"{figure_path}/transctipt_type_pie.png", scale=3)
+    fig.write_image(f"{figure_path}/transctipt_type_pie.pdf", scale=3)
 
     df = sdata[key_transcripts].compute()
 
@@ -178,7 +171,8 @@ def negativeprobeqc(sdata: Any, figure_path: str, key_transcripts: str) -> None:
     df['neg_probes'] = match_neg_probes
 
     helperfuncs.plot_scatter_density_df(df[df['neg_probes'] == True], figure_path, 
-                                        'neg_probes', 'neg_probes', None, ['black'], None)
+                                        'neg_probes', 'neg_probes', None, ['black'],
+                                        'Density of negative probes')
 
 
 def transcriptz(sdata: Any, figure_path: str, key_transcripts: str) -> None:
@@ -213,6 +207,7 @@ def transcriptz(sdata: Any, figure_path: str, key_transcripts: str) -> None:
     helperfuncs.apply_general_plotly_layout(fig, True)
     figures.append(fig)
     fig.write_image(f"{figure_path}/histogram_z_total.png", scale=3)
+    fig.write_image(f"{figure_path}/histogram_z_total.pdf", scale=3)
     timer.stop()
 
     # Create a histogram trace for each sample
@@ -272,6 +267,7 @@ def transcriptz(sdata: Any, figure_path: str, key_transcripts: str) -> None:
 
     figures.append(fig)
     fig.write_image(f"{figure_path}/histogram_z_all.png", scale=3)
+    fig.write_image(f"{figure_path}/histogram_z_all.pdf", scale=3)
 
     with open(f'{figure_path}/transcript_z.html', 'w') as f:
         for fig in figures:
@@ -306,6 +302,6 @@ def get_low_qc_transcript_count(transcript_df, sdata, qv_tresh, figure_path):
         None,
         'num_low_qc_transcript',
         None,
-        None
+        'Density low quality transcripts',
     )
 

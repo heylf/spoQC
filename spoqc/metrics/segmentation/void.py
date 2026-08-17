@@ -38,7 +38,6 @@ def process_triangle_block(block_index, triangle_block, stuff):
     
     return counts, indices, block_index
 
-# TODO speed_up
 def count_stuff_in_triangles_fast(triangle_array, stuff, threads):
     count_list = [None] * threads
     indices_list = [None] * threads
@@ -61,8 +60,8 @@ def count_stuff_in_triangles_fast(triangle_array, stuff, threads):
 
 
 def build_triangle_graph_using_neighbors(delaunay, points):
-    triangles = delaunay.simplices
-    neighbors = delaunay.neighbors
+    triangles = delaunay.simplices  # Point indices [[1,2,3], [4,5,6]]. [1,2,3] cell indices forming a triangle.
+    neighbors = delaunay.neighbors  # Indices for neighbouring simplices.
     edge_length_list = []
     triangle_dict = {}
 
@@ -125,7 +124,6 @@ def calc_void(
     timer.stop()
 
     # Set as threshold for edge length the 3rd quartile.
-    # TODO test out different thresholds.
     min_edge_length = np.quantile(edge_length_list, q=.75)
 
     # Create traingular graph.
@@ -168,6 +166,7 @@ def calc_void(
 
         plt.title("Triangle Connectivity Graph")
         plt.savefig(f'{figure_path}/traingle_connectivit_graph.png', bbox_inches='tight', dpi=300)
+        plt.savefig(f'{figure_path}/traingle_connectivit_graph.pdf', bbox_inches='tight', dpi=300)
         plt.close()
 
     ###########################
@@ -185,6 +184,7 @@ def calc_void(
 
     figures.append(fig)
     fig.write_image(f"{figure_path}/boxplot_edge_lengths.png", scale=3)
+    fig.write_image(f"{figure_path}/boxplot_edge_lengths.pdf", scale=3)
 
     with open(f'{figure_path}/void.html', 'w') as f:
         for fig in figures:
@@ -260,6 +260,7 @@ def calc_void(
     ax.set_title("Largest Enclosed Empty Patches")
     ax.set_aspect('equal', adjustable='box')
     plt.savefig(f'{figure_path}/spatial_traingle_all_clsuters.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/spatial_traingle_all_clsuters.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
     timer.stop()
@@ -319,6 +320,11 @@ def calc_void(
             bbox_inches='tight',
             dpi=300
         )
+        plt.savefig(
+            f'{figure_path}/spatial_traingle_filtered_clusters_{with_numbers}.pdf',
+            bbox_inches='tight',
+            dpi=300
+        )
         plt.close()
     
     timer.stop()
@@ -348,14 +354,11 @@ def calc_void(
     triangles_df['transcripts_counts_outside_cell'] = counts
 
     ###### Calculate
-    # TODO this needs optimization before it can be used
     # Calculate the variance of z coordiantes for each triangle.
     # print(f'[NOTE] Calculate the variance of z coordiantes for each triangle.')
     # timer.start()
     # triangle_z_var = [-1] * len(triangles_df)
     # for i in range(0, len(triangles_df)):
-    #     # TODO check why this happens 
-    #     # TODO for some reasons it is double packed check this !!!! 
     #     # Something weird is heppening here
     #     if ( len(indices[i]) > 0 ):
     #         triangle_z_var[i] = np.var(transcripts_df.iloc[indices[i]]['z'])
@@ -404,7 +407,6 @@ def calc_void(
     ###### Count
     # Count nuclei in triangles. 
     # This is more of a sanity.
-    # TODO slowest part. Optimize further.
     print(f'[NOTE] counting nuclei for {len(triangles_pointcoords)} triangles')
     timer.start()
     nuclei_centoid_coords = np.array( 
@@ -483,11 +485,15 @@ def calc_void(
         plt.ylabel(y)
 
         plt.savefig(f'{figure_path}/barplot_void_{y}.png', bbox_inches='tight', dpi=300)
+        plt.savefig(f'{figure_path}/barplot_void_{y}.pdf', bbox_inches='tight', dpi=300)
         plt.close()
 
     #################################################
     #### Triangle cluster counting (convex hull) ####
     #################################################
+
+    # TODO this needs renaming because I am not counting uRNAs of the convexhull of the cell.
+    # What I am doing here is counting the uRNAs of all triangles overlapping the cell centroid.
 
     ###### Count
     print("[NOTE] Count transcripts outside the cell in the convexhull of the cell")
@@ -510,7 +516,6 @@ def calc_void(
     timer.stop()
 
     ###### Count
-    # TODO slowest step in void qc right now, Turn this back on if it is optimized.
     # print("[NOTE] Count all transcripts in the convexhull of the cell")
 
     # # For convexhull investigation lets also take all transcripts into account.
@@ -520,7 +525,6 @@ def calc_void(
 
     # print(f'[NOTE] counting transcripts for {len(triangles_pointcoords)} triangles')
 
-    # # TODO optimize this even further
     # counts_all, indices_all = count_stuff_in_triangles_fast(triangles_pointcoords, all_transcript_coords, threads)
     # triangles_df['transcripts_counts_all'] = counts_all
 
@@ -537,47 +541,58 @@ def calc_void(
     ####################
     #### More plots ####
     ####################
-
     print("[NOTE] More triangular plots")
     timer.start()
     for cat in cats_to_check:
-        triangle_cluster_df[f'triangular_cluster_colors_{cat}'] = helperfuncs.values_to_hex_gradient(
-                                                                                            triangle_cluster_df[cat], 
-                                                                                            'hot', 
-                                                                                            reverse=True
+
+        if ( len(triangle_cluster_df[cat]) != 0 ):
+
+            triangle_cluster_df[f'triangular_cluster_colors_{cat}'] = helperfuncs.values_to_hex_gradient(
+                                                                                                triangle_cluster_df[cat], 
+                                                                                                'hot', 
+                                                                                                reverse=True
                                                                                             )
 
-        # Apply the map
-        triangles_df[f'triangular_cluster_colors_{cat}'] = ['#FFFFFF'] * num_triangles
-        
-        for cluster_id in triangle_cluster_df['triangular_cluster_ids']:
-            mask_triangles = triangles_df['triangular_cluster_ids'] == cluster_id
-            mask_triangle_clusters = triangle_cluster_df['triangular_cluster_ids'] == cluster_id
-            triangles_df.loc[mask_triangles, f'triangular_cluster_colors_{cat}'] = list(triangle_cluster_df.loc[mask_triangle_clusters, f'triangular_cluster_colors_{cat}'])[0]
+            # Apply the map
+            triangles_df[f'triangular_cluster_colors_{cat}'] = ['#FFFFFF'] * num_triangles
+            
+            for cluster_id in triangle_cluster_df['triangular_cluster_ids']:
+                mask_triangles = triangles_df['triangular_cluster_ids'] == cluster_id
+                mask_triangle_clusters = triangle_cluster_df['triangular_cluster_ids'] == cluster_id
+                triangles_df.loc[mask_triangles, f'triangular_cluster_colors_{cat}'] = list(triangle_cluster_df.loc[mask_triangle_clusters, f'triangular_cluster_colors_{cat}'])[0]
 
-        triangles_df.loc[triangle_filter, f'triangular_cluster_colors_{cat}'] = '#FFFFFF'
+            triangles_df.loc[triangle_filter, f'triangular_cluster_colors_{cat}'] = '#FFFFFF'
 
-        fig, ax = plt.subplots(figsize=(8, 8))
-        triangles_plotting = [points[simplex] for simplex in triangles]
+            fig, ax = plt.subplots(figsize=(8, 8))
+            triangles_plotting = [points[simplex] for simplex in triangles]
 
-        collection = PolyCollection(
-            triangles_plotting,
-            facecolors=triangles_df[f'triangular_cluster_colors_{cat}'],
-            edgecolors="gray",
-            alpha=0.8,
-            linewidths=0
-        )
+            collection = PolyCollection(
+                triangles_plotting,
+                facecolors=triangles_df[f'triangular_cluster_colors_{cat}'],
+                edgecolors="gray",
+                alpha=0.8,
+                linewidths=0
+            )
 
-        ax.add_collection(collection)
-        ax.scatter(points[:, 0], points[:, 1], c="blue", marker="o", label="Points", s=0.01)
-        if ( flip ):
-            ax.invert_yaxis()
-        ax.set_title(f"Largest Enclosed Empty Patches with gradient for {cat}")
-        ax.set_aspect('equal', adjustable='box')
+            ax.add_collection(collection)
+            ax.scatter(points[:, 0], points[:, 1], c="blue", marker="o", label="Points", s=0.01)
+            if ( flip ):
+                ax.invert_yaxis()
+            ax.set_title(f"{cat}")
+            ax.set_aspect('equal', adjustable='box')
 
-        plt.savefig(f'{figure_path}/spatial_traingle_all_clsuters_{cat}.png', bbox_inches='tight', dpi=300)
-        plt.close()
+            vmin = triangle_cluster_df[cat].min()
+            vmax = triangle_cluster_df[cat].max()
+            sm = plt.cm.ScalarMappable(cmap=plt.cm.hot_r, norm=plt.Normalize(vmin=vmin, vmax=vmax))
+            sm.set_array([])
+            plt.colorbar(sm, ax=ax, label=cat)
 
+            plt.savefig(f'{figure_path}/spatial_traingle_all_clsuters_{cat}.png', bbox_inches='tight', dpi=300)
+            plt.savefig(f'{figure_path}/spatial_traingle_all_clsuters_{cat}.pdf', bbox_inches='tight', dpi=300)
+            plt.close()
+
+        else:
+            print("[WARN] spoQC couldnt define any triangle and thus no plots are given for void QC.")
 
     print("[NOTE] Void QC done!")
     timer.stop()

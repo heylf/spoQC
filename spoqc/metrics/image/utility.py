@@ -34,6 +34,7 @@ def pixel_intensity_qc(figure_path, intensities, background_intensity, hist, bin
     helperfuncs.apply_general_plotly_layout(fig, True)
     figures.append(fig)
     fig.write_image(f"{figure_path}/histogram_intensity.png", scale=3)
+    fig.write_image(f"{figure_path}/histogram_intensity.pdf", scale=3)
 
     with open(f'{figure_path}/histogram_intensity.html', 'w') as f:
         for fig in figures:
@@ -91,9 +92,6 @@ def estimate_background_intensity(intensities):
     nbins = 100
 
     hist, bin_edges = np.histogram(intensities, bins=nbins)
-
-    # TODO so far I assume that bin with the highest density is background because
-    # most of the image is background. Is this correct?
 
     # Find the bin with the highest count
     max_count = np.max(hist)

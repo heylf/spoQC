@@ -13,13 +13,11 @@ def run_qc_cell(sdata, figure_path, CONST, obs_columns):
     timer.stop()
 
     print("[NOTE] Multinuclei QC")
-    # TODO check this again in contradicts the convexity analysis
     timer.start()
     metrics.segmentation.nuclei_count.count_nuclei(sdata, figure_path)
     timer.stop()
 
     print("[NOTE] Border cell inspection")
-    #TODO combine island score and border score to really just pick border cells and not smalle cell islands.
     timer.start()
     metrics.segmentation.border_score.define_border_cells(sdata, figure_path, 1.0, 50, 10, CONST.THREADS)
     timer.stop()
@@ -39,3 +37,5 @@ def run_qc_cell(sdata, figure_path, CONST, obs_columns):
     print("[NOTE] Write results")
     obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
     print("[finish]")
+
+    return obs_columns

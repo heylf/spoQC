@@ -58,7 +58,7 @@ def prepate_qc(sdata, figure_path=None):
     ####################################################################################################################
     print("[TASK] Prepare QC")
 
-    rna = sdata.table
+    rna = sdata['table']
 
     # Perform QC
     rna.var["mt"] = rna.var_names.str.startswith("MT-") # this will add mitochondrial QC to the general QC
@@ -143,6 +143,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
         helperfuncs.apply_general_plotly_layout(fig, True)
         figures.append(fig)
         fig.write_image(f'{figure_path}/histogram_{level}_total.png', scale=int(DPI/100))
+        fig.write_image(f'{figure_path}/histogram_{level}_total.pdf', scale=int(DPI/100))
 
         if ( level not in ["pct_counts_mt", "pct_counts_ribo"] ):
 
@@ -203,6 +204,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
             figures.append(fig)
             fig.write_image(f'{figure_path}/histogram_log10_{level}_all.png', scale=int(DPI/100))
+            fig.write_image(f'{figure_path}/histogram_log10_{level}_all.pdf', scale=int(DPI/100))
 
         # Create a histogram trace for each sample
         traces = []
@@ -259,6 +261,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
         figures.append(fig)
         fig.write_image(f'{figure_path}/histogram_{level}_all.png', scale=int(DPI/100))
+        fig.write_image(f'{figure_path}/histogram_{level}_all.pdf', scale=int(DPI/100))
 
     # ----------------------------------------------------------------------------------------------------------------------
     # Others -------------------------------------------------------------------------------------------------------
@@ -279,6 +282,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
     helperfuncs.apply_general_plotly_layout(fig, False)
     figures.append(fig)
     fig.write_image(f'{figure_path}/histogram_log_n_cells_by_counts.png', scale=int(DPI/100))
+    fig.write_image(f'{figure_path}/histogram_log_n_cells_by_counts.pdf', scale=int(DPI/100))
 
 
     n_cells = 10_000
@@ -307,11 +311,9 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
             cmin=0,
             cmax=100,
             colorbar=dict(
-                title="pct_counts_mt",
-                titleside="right"
+                title=dict(text="pct_counts_mt", side="right")
             ),
-            showscale=True,  # Add this line to show the size scale legend
-            colorbar_title="pct_counts_mt"
+            showscale=True,
         ),
         text=[
             f"total_counts: {count}<br>n_genes_by_counts: {genes}<br>pct_counts_ribo: {ribo}<br>pct_counts_mt: {mt}"
@@ -363,8 +365,9 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
     figures.append(fig)
     fig.write_image(f'{figure_path}/scatterplot_total_counts_vs_n_genes_by_counts.png', scale=int(DPI/100))
+    fig.write_image(f'{figure_path}/scatterplot_total_counts_vs_n_genes_by_counts.pdf', scale=int(DPI/100))
 
-    # TODO this plot seems to cause issue. It is not so important now. Could also be removed.
+    # TODO remove at some point?
     # nGENES = 30
     # idx = np.argsort(rna.var["n_cells_by_counts"])[-nGENES:]
     # expression = rna.X.todense()[:, idx]
@@ -413,6 +416,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
                     
                     figures.append(fig)
                     fig.write_image(f"{figure_path}/scatterplot_pearsoncorr_{x}_{y}_{celltype}.png", scale=int(DPI/100))
+                    fig.write_image(f"{figure_path}/scatterplot_pearsoncorr_{x}_{y}_{celltype}.pdf", scale=int(DPI/100))
                 else:
                     print(f"[NOTE] Not enough cells to analyse correlation of {x} vs {y} for celltype {celltype}")
 
@@ -429,6 +433,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
         figures.append(fig)
         fig.write_image(f"{figure_path}/scatterplot_pearsoncorr_{x}_{y}.png", scale=int(DPI/100))
+        fig.write_image(f"{figure_path}/scatterplot_pearsoncorr_{x}_{y}.pdf", scale=int(DPI/100))
 
     # ------------------------------------------------------------------------------------------------------------------
     # Generate HTML ----------------------------------------------------------------------------------------------------

@@ -48,9 +48,6 @@ def first_version_loopy_belief_propagation(prob_map, beta=1.0, alpha=0.3, max_it
     for it in range(max_iter):
         print(it)
 
-        # TODO discuss those directions or should I consider also diagonal neighbours?
-        # Theoretically it should be fine since the message treavels from the diagonal neighbours to the direkct neighbours
-        # and then to center point,
         up = messages[0, 0:(n_pad-2), 1:(m_pad-1)]
         down = messages[1, 2:n_pad, 1:(m_pad-1)]
         left = messages[2, 1:(n_pad-1), 0:(m_pad-2)]
@@ -163,6 +160,7 @@ def visualize_markov_calculation(average_cell_probability_image, labels, figure_
     helperfuncs.add_manual_legend(legend_dict={"mask": "#FFFFFF", "low Q": "#000000"})
 
     plt.savefig(f'{figure_path}/markov_random_field_calculations.png', bbox_inches='tight')
+    plt.savefig(f'{figure_path}/markov_random_field_calculations.pdf', bbox_inches='tight')
     plt.close()
 
 

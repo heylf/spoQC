@@ -1,151 +1,322 @@
 # spoQC
 
-[![rewrites.bio - Follows best practice principles for rewriting bioinformatics tools with AI](https://rewrites.bio/badges/rewrites-bio.svg)](https://rewrites.bio)
+[![CI](https://github.com/heylf/spoQC_beta/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/heylf/spoQC_beta/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/spoqc.svg)](https://pypi.org/project/spoqc/)
+[![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed?labelColor=000000&logo=docker)](https://www.docker.com/)
+[![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
+[![Get help on Slack](https://img.shields.io/badge/slack-nf--core%20%23spatialaxe-4A154B?labelColor=000000&logo=slack)](https://nfcore.slack.com/channels/spatialaxe)
 
-<img src="figures/logo/complex.png" width="300">
+<img src="./docs/source//_static/figures/logo/complex.png" width="1000">
+
+<div style="height: 20px;"></div>
+
+spoQC is a modular framework for multimodal quality control (QC) of imaging-based spatially resolved transcriptomics (SRT). It independently evaluates cell segmentation, imaging, and transcript data to identify high-quality regions (HQRs) across entire tissue sections. In addition, spoQC uses Markov random fields (MRFs) to incorporate spatial dependencies and generate spatially refined QC masks.
 
 > [!NOTE]
-> :bangbang: SpoQC is under active developement and still in apha phase. You will experience lots of issues. If you are an alpha tester and run into problems please contact us or write an issue. We are happy to receive feeback and PRs to improve spoQC. :bangbang:
+SpoQC is currently under active development and is still in the alpha phase. You may encounter bugs, incomplete features, or unexpected behavior. If you are testing spoQC and run into any issues, please contact the development team or open an issue in the repository. Feedback, bug reports, and pull requests are highly appreciated and help us improve the project.
 
 > [!NOTE]
-> :bangbang: SpoQC needs an HPC infrastructure to perform all tasks on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data. In order to reduce runtime please check out how to run [spoQC with Nextflow](#nextflow-subworkflow). We are continously to improve the performance for spoQC to support an easier local usage. :bangbang:
+Processing a full-resolution spatial transcriptomics (SRT) dataset with spoQC typically requires access to an HPC (High Performance Computing) environment. For smaller datasets, reduced-resolution data, or data subsets, it may be possible to run spoQC locally.
 
-Currently this code is under private usage. It is not allowed to distrbute or publish it. If you are invited to work on this project then please keep a copy/fork of this repo private.
+<img src="./docs/source//_static/figures/logo/plus_splialaxe.png" width="400">
 
-You want to contribute to spoQC or reuse some of our code then checkout [how to contribute to spoQC](#contribute).
+To reduce runtime and improve scalability, we recommend running spoQC with Nextflow. We are continuously working on improving performance and making local execution easier.
 
-<img src="figures/extra/grapical_abstract.png" width="800">
+# Supported Spatial Transcriptomics Technologies
+
+Currently supported:
+
+- 10x Xenium
+
+> [!NOTE]
+Atera support is currently under development and is not yet available.
 
 # Cite
 
-IF you use spoQC then please cite:
+If you use spoQC in your work, please cite:
+
+```
+@software{spoqc,
+  author  = {Heyl, Florian and
+             Sen, Ezgi and
+             Müller-Bötticher, Niklas and
+             Kher, Sameesh and
+             He, Dongze and
+             Long, Brian and
+             Ishaque, Naveed and
+             Stegle, Oliver},
+  title   = {SPOQC},
+  url     = {https://bio.tools/spoqc},
+  note    = {bio.tools identifier: biotools:spoqc},
+  urldate = {2026-08-17}
+}
+```
+
+# Collaborators
+
+This tool was developed in collaboration with the following institutions:
+
+- German Cancer Research Center (DKFZ, Heidelberg, Germany)
+- Centro Nacional de Análisis Genómico (CNAG, Barcelona, Spain)
+- Center for Quantitative Analysis of Molecular and Cellular Biosystems (BioQuant, Heidelberg, Germany)
+- Berlin Institute of Health at Charité (Berlin, Germany)
+- Altos Labs San Diego Institute of Technology (San Diego, USA)
+- Allen Institute for Brain Science (Seattle, USA)
+- European Molecular Biology Laboratory (EMBL, Heidelberg, Germany)
+
+# Contributors
+
+The following people contributed directly or indirectly through supervision, code review, and the development of concepts and ideas:
+
+- Florian Heyl
+- Ezgi Sen
+- Niklas Müller-Bötticher
+- Sameesh Kher
+- Dongze He
+- Brian Long
+- Naveed Ishaque
+- Oliver Stegle
+
+# Documentation
+
+For further details please read the [documentation](https://spoqc.readthedocs.io/en/latest/).
+
 
 # Installation
 
 ## Docker
 
 ```
-docker run -ti heylf/spoqc:0.1.0
+docker run -ti quay.io/heylf/spoqc:0.1.0
 ```
 
-## Python
+## Pip
 
 ```
 pip install spoqc
 ```
 
-# Supported spatial transcriptomics technologies
+# Run
 
-* 10x Xenium
+spoQC is designed to process large spatial transcriptomics (SRT) datasets at full resolution. Running the complete pipeline typically requires access to an HPC (High Performance Computing) environment.
 
-> [!NOTE]
-> Atera: We currently working to support this data. 
+If you do not have access to an HPC system, you may still be able to run spoQC locally by:
 
-# Input
+- Using a lower-resolution dataset.
+- Running spoQC on a subset of your data.
+- Testing individual pipeline steps before processing the full dataset.
 
-* [Input formats](docs/input.md)
+## Step 1: Generate a Cell Type Annotation (Optional)
 
-# Output
+If your dataset does not already contain a cell type annotation, spoQC can create one automatically using unsupervised Leiden clustering.
 
-* [Plots and report explanations](docs/output_report.md)
-* [SpoQC tmp data files](docs/output_tmp.md)
+Run:
 
-# Nextflow subworkflow
-
-You can use the tool sequential, but it will take 4-5 days to complete everything. In order to speed things up, we provide a nextflow subworkflow that will reduce the time to 1-2 days. You can find the subworkflow under [nf-core/spatialxe](https://github.com/nf-core/spatialxe/tree/dev) in the spoQC branch. SpoQC needs an HPC infrastructure to perform all tasks on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data.
-
-> [!NOTE]
-> We are developing a Nextflow SRT QC sub-workflow repository to support all technologies. If new data modalities are added to spoQC they will also be present in this repository: [soon to come]().
-
-# Executing spoQC pipeline via python (sequential)
-
-SpoQC needs an HPC infrastructure to perform all task on a full SRT datset with full resolution. You might be able to perform spoQC locally with a lower resolution or with subsetting your data.
-
-## Annotation
-
-Optional step if you do not have a cell type annotation yet, then spoQC can do an analysis using an unsupervised (Leiden) clustering.
-
-```
+```bash
 python3 -m spoqc -s "annotation" -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores]
 ```
 
-This will generate you an annotation file in spoQC format `[spoqc_tmp_folder]/report/annotation/unsupervised_cell_annotation.tsv`
+After the analysis finishes, spoQC will create an annotation file:
 
-## Execute everything in spoQC
-
-You can execute spoQC completly with:
-
+```text
+[spoqc_tmp_folder]/report/annotation/unsupervised_cell_annotation.tsv
 ```
+
+You can use this file as the value for the `[annotation_file]` parameter in later steps.
+
+---
+
+## Step 2: Run the Complete spoQC Pipeline
+
+To execute all spoQC analyses in the correct order, run:
+
+```bash
 python3 -m spoqc -s all -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
 
+This is the recommended option for most users.
 
-## Individual step execution
+---
 
-You can execute spoQC for each step individually with:
+## Step 3: Run Individual Pipeline Steps
 
-```
+Advanced users can execute individual spoQC steps separately.
+
+Run:
+
+```bash
 python3 -m spoqc -s [step] -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
 
-with [step] in the following order (if you do not follow this order things will break):
+Replace `[step]` with one of the following pipeline stages.
 
-* generalqc
-* bubbleqc
-* doubletqc
-* voidqc
-* cellqc
-* ambientqc
-* hqcr_ident
-* hqcr_celltype
-* hqpr_metrices
-* hqpr_clustering
-* hqpr_clustering
-* hqpr_refinement
-* hqpr_bounding_box
-* hqpr_celltype
-* hqtr_metrices
-* hqtr_ac
-* hqtr_qv
-* hqtr_clustering
-* hqtr_refinement
-* hqtr_bounding_box
-* hqtr_celltype
-* combine_masks
-* transcriptqc
-* modelqc
-* cellcycleqc
-* analysis_overview
-* analysis_cluster
-* analysis_category
+> **Important:** These steps must be executed in the exact order shown below. Running steps out of order will cause downstream analyses to fail.
 
-For example for the first step you execute the command:
+1. generalqc
+2. bubbleqc
+3. doubletqc
+4. voidqc
+5. cellqc
+6. ambientqc
+7. hqcr_ident
+8. hqcr_celltype
+9. hqpr_metrices (has to be run for each staining)
+10. hqpr_clustering (has to be run for each staining)
+11. hqpr_refinement (has to be run for each staining)
+12. hqpr_bounding_box (has to be run for each staining)
+13. hqpr_celltype (has to be run for each staining)
+14. hqtr_metrices
+15. hqtr_ac
+16. hqtr_qv
+17. hqtr_clustering
+18. hqtr_refinement
+19. hqtr_bounding_box
+20. hqtr_celltype
+21. combine_masks (has to be run for each staining)
+22. transcriptqc
+23. modelqc
+24. cellcycleqc
+25. analysis_overview
+26. analysis_cluster
+27. analysis_category
+28. final_report
 
-```
+### Example
+
+To run the first pipeline step (`generalqc`), execute:
+
+```bash
 python3 -m spoqc -s generalqc -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
 ```
 
+Wait until the step has completed successfully before continuing with the next step in the list.
+
+# Nextflow subworkflow
+
+<img src="./docs/source//_static/figures/logo/plus_splialaxe.png" width="400">
+
+spoQC can be executed sequentially, but processing a full-resolution spatial transcriptomics dataset typically takes **4–5 days** to complete.
+
+To significantly reduce runtime, we provide a dedicated Nextflow subworkflow that parallelizes many of the processing steps. Using the Nextflow workflow can reduce the total runtime to approximately **1–2 days**, depending on the available computational resources.
+
+The workflow is available on the **spoQC branch** of [nf-core/spatialaxe](https://github.com/nf-core/spatialaxe/tree/dev).
+
+> [!NOTE]
+Processing a full-resolution spatial transcriptomics (SRT) dataset with spoQC typically requires access to an HPC (High Performance Computing) environment.
+
+If an HPC system is not available, you may still be able to run spoQC locally by:
+
+- Using a lower-resolution dataset.
+- Processing a subset of your data.
+- Running selected workflow components instead of the complete pipeline.
+
 # Contribute
-SpoQC was written with a modular code design. We describe in the [contribution guide](docs/contribute.md), where you find important code snippets, such as metrics, priors and subworkflows. SpoQC was built under the idea that additional metrics and subworkflows can be provided in order to enhance spoQC's capability to identify high quality regions.
 
-# AI Assistance Disclosure
+There are several ways to contribute to spoQC. The project is built around four main pillars:
 
-This tool was written with the assistance of AI coding agents (ChatGPT).
+- metrics
+- priors
+- subworkflows
+- standard pre- and postprocessing scripts
 
-We used AI for the following scripts:
+> [!NOTE]
+We are currently working on standardizing these components and providing templates to make contributions easier and more consistent.
 
-* `markov_random_field_zarr.py` and `markov_random_field_zarr_parallel.py`
-    * an intial version was written `markov_random_field.py` by hand
-    * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
-* `metrics/`
-    * several metrics were written by AI
-* `pixel_scoring_dask.py`
-    * an intial version was written by hand
-    * the first version was then optimized (for runtime and memory) by AI leading to the aforementioned scripts
-* `Dockerfile`
-    * Dockerfile was intially written by AI and optimized by hand
-* AI added to many scripts docstrings and type hints
+## `spoqc/metrics/`
 
+Metrics are used to quantify different aspects of spatial transcriptomics data quality. Currently, metrics are organized into three categories:
 
-Correctness was validated by equal comparison of the output of the different implementations. Humans defined the validation criteria and verified the results.
+- image metrics
+- segmentation metrics
+- transcript density metrics
+
+Some metrics may be relevant to multiple categories. The organization of these layers is still being refined as spoQC evolves.
+
+### Examples
+
+**Segmentation metric**
+
+`spoqc/metrics/segmentation/overlap_area.py`
+
+Segmentation metrics must be linked back to individual cells and stored in the SpatialData object (within the associated AnnData table).
+
+**Image metric**
+
+`spoqc/metrics/image/edge_strength.py`
+
+Image metrics should be saved as a one-dimensional (1D) array.
+
+**Transcript density metric**
+
+`spoqc/metrics/image/transcript_density_image.py`
+
+Transcript density metrics should also be saved as a one-dimensional (1D) array.
+
+## `spoqc/priors/`
+
+Priors are used to estimate the initial probability that a spatial observation (for example, a cell or pixel) is of high or low quality based on a specific metric.
+
+All priors are combined in:
+
+```
+spoqc/priors/combine_priors.py
+```
+
+Each prior contributes evidence about the quality of a spatial observation and is integrated into the overall quality assessment.
+
+## `spoqc/subworkflows/`
+
+SpoQC contains several predefined subworkflows that automate common analysis tasks.
+
+Some subworkflows, such as `qc_doublets.py`, serve as entry points for metric calculation, quality assessment, visualization, and reporting.
+
+Subworkflows are a good place to contribute additional analysis pipelines or improve existing workflows.
+
+## Standard Pre- and Postprocessing Scripts
+
+SpoQC also includes scripts for common preprocessing and postprocessing operations.
+
+Examples include:
+
+- normalization methods
+- data transformations
+- filtering procedures
+- result aggregation and reporting
+
+Contributions that improve interoperability with new data formats or analysis workflows are particularly welcome.
+
+## How to Add a New Metric
+
+To contribute a new metric, follow these steps:
+
+1. Identify which metric category the new metric belongs to (image, segmentation, transcript density, or another relevant layer).
+2. Implement the metric calculation and place the script in the appropriate folder under:
+
+   ```
+   spoqc/metrics/
+   ```
+
+3. Create a corresponding prior estimation method and place it in:
+
+   ```
+   spoqc/priors/
+   ```
+
+4. Register the new prior in:
+
+   ```
+   spoqc/priors/combine_priors.py
+   ```
+
+5. Ensure that the prior returns the probability that a spatial observation (for example, a cell or pixel) is of **high quality**.
+
+### Checklist for New Metrics
+
+- [ ] Metric implementation added to `spoqc/metrics/`
+- [ ] Metric output stored in the expected format
+- [ ] Prior implementation added to `spoqc/priors/`
+- [ ] Prior registered in `spoqc/priors/combine_priors.py`
+- [ ] Prior represents the probability of high-quality observations
+- [ ] Documentation and examples added where appropriate
+
 

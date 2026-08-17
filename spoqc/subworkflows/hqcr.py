@@ -16,9 +16,6 @@ from .. import helperfuncs
 from .. import priors
 
 # Function to print all HQCRs
-# TODO Some very small islands even just 1 cell is identified as high quality and missing in the output. Change this
-# so these cells are merge with bigger islands.
-# TODO do not remove the cells just flag them as outlier cells.
 def plot_hqcr(sdata, figure_path, min_number_good_cells_hqcr, minimum_number_of_total_cells):
     islands = list(set(sdata['table'].obs['island_index']))
     sdata['table'].obs['cell_region'] = np.array(['undefined'] * len(sdata['table']))
@@ -34,7 +31,6 @@ def plot_hqcr(sdata, figure_path, min_number_good_cells_hqcr, minimum_number_of_
         if ( num_bad_qc_cells == 0 ):
             good_bad_ration = 100
         else:
-            # TODO apply log2?
             good_bad_ration = num_good_qc_cells / num_bad_qc_cells
 
         title = ''
@@ -93,7 +89,6 @@ def generate_hqcr_html(figure_path, df_plot, cat, ncat, catnames, qc_metrics):
     qc_metrics = [x for x in qc_metrics if x not in ['celltype']]
 
     for level in qc_metrics:
-        print(level)
         plotname = 'violinplot'
         title = 'Distribution of'
         if ( level == 'doublet' or level == 'nucleus_free' ):
@@ -141,6 +136,7 @@ def generate_hqcr_html(figure_path, df_plot, cat, ncat, catnames, qc_metrics):
 
         figures.append(fig)
         fig.write_image(f"{figure_path}/{plotname}_{level}.png", scale=3)
+        fig.write_image(f"{figure_path}/{plotname}_{level}.pdf", scale=3)
 
     with open(f'{figure_path}/hqcr_{cat}.html', 'w') as f:
         for fig in figures:
@@ -150,9 +146,9 @@ def generate_hqcr_html(figure_path, df_plot, cat, ncat, catnames, qc_metrics):
 def load_cell_df(counts, sdata):
 
     cell_df = pd.DataFrame({
-        counts: sdata['table'].obs[counts], # TODO implement an option to choose: sdata['table'].obs['transcript_counts'],
+        counts: sdata['table'].obs[counts],
         'control_probe_counts': sdata['table'].obs['control_probe_counts'],
-        'n_genes_by_counts': sdata['table'].obs['canorm_n_genes_by_counts'], # TODO implement an option to choose: sdata['table'].obs['n_genes_by_counts'],
+        'n_genes_by_counts': sdata['table'].obs['canorm_n_genes_by_counts'],
         'convexity_metric_cell': sdata['table'].obs['convexity_metric_cell'],
         'convexity_min_nuceli': sdata['table'].obs['convexity_min_nuceli'],
         'nuceli_count': sdata['table'].obs['nuceli_count'],
@@ -176,7 +172,6 @@ def cell_artefact_assignment(cell_df, sdata):
     cell_df.loc[cell_df['doublet'] == 1, 'artefact'] = 'doublet'
     mean_overlap = cell_df['cell_overlap_area'].mean()
 
-    # TODO how to treat multinuceli? different artefact?
     cell_df.loc[(cell_df['nuceli_count'] > 1) & (cell_df['cell_overlap_area'] > mean_overlap), 'artefact'] = 'doublet'
     cell_df.loc[cell_df['nucleus_free'] == 1, 'artefact'] = 'nucleus_free'
     sdata['table'].obs['artefact'] = cell_df['artefact']
@@ -188,11 +183,15 @@ def create_polygon_dataframe(sdata, imagedim, object, prob_col=None):
     polys = sd.transform(sdata[object], to_coordinate_system='global')
 
     if ( prob_col != None ):
-        polys['good_quality_probabilities'] = list(1 - sdata['table'].obs[prob_col])
+        polys[prob_col] = list(sdata['table'].obs[prob_col])
 
-    # These list I need later because the image matrix has not the same index range as the poly coords.
-    x_idx = [i for i in range(int(imagedim.bb_xmin-1), int(imagedim.bb_xmax+1))]
-    y_idx = [i for i in range(int(imagedim.bb_ymin-1), int(imagedim.bb_ymax+1))]
+    # The image matrix has not the same index range as the poly coords, so we need to
+    # offset coordinates into the matrix's index space. x_idx/y_idx used to be materialized
+    # as Python lists searched with list.index() (O(image_width)/O(image_height) per vertex);
+    # since they are contiguous ranges starting at bb_xmin-1/bb_ymin-1, the index is just an
+    # O(1) arithmetic offset.
+    x_offset = int(imagedim.bb_xmin - 1)
+    y_offset = int(imagedim.bb_ymin - 1)
 
     # Translate poly coords.
     for index, row in polys.iterrows():
@@ -204,7 +203,7 @@ def create_polygon_dataframe(sdata, imagedim, object, prob_col=None):
 
             if ( x >= int(imagedim.bb_xmin) and x <= int(imagedim.bb_xmax) -1 and \
                  y >= int(imagedim.bb_ymin) and y <= int(imagedim.bb_ymax) - 1 ):
-                translated_poly.append((x_idx.index(x),y_idx.index(y)))
+                translated_poly.append((x - x_offset, y - y_offset))
                 
         translated_poly = Polygon(translated_poly)
 
@@ -218,7 +217,7 @@ def create_polygon_dataframe(sdata, imagedim, object, prob_col=None):
     return polys
 
 
-def create_cell_probability_image(sdata, polys, img, resolution):
+def create_cell_probability_image(sdata, polys, img, resolution, prob_col):
 
     dim_x = len(sdata[img][resolution].image.y.values)
     dim_y = len(sdata[img][resolution].image.x.values)
@@ -230,7 +229,7 @@ def create_cell_probability_image(sdata, polys, img, resolution):
     transform = from_origin(0, height, 1, 1)  # top-left at (0, height), cell size = 1
 
     # Define your list of (polygon, value) tuples
-    polygons_with_values = [ (row['geometry'], row['good_quality_probabilities']) for index, row in polys.iterrows() ]
+    polygons_with_values = [ (row['geometry'], row[prob_col]) for index, row in polys.iterrows() ]
 
     # Get for each pixel the summed cell quality probabilties from each cell polygon.
     shapes = ((mapping(poly), val) for poly, val in polygons_with_values)
@@ -289,13 +288,10 @@ def map_values_to_cells(
     # Define output matrix size
     height, width = int(dim_x), int(dim_y)
 
-    print(height)
-    print(width)
-
     # Define transform: (origin_x, origin_y, pixel_width, pixel_height)
     transform = from_origin(0, height, 1, 1)  # top-left at (0, height), cell size = 1
 
-    polygons_with_values = [ (row['geometry'], index) for index, row in polys.iterrows() ]
+    polygons_with_values = zip(polys['geometry'], polys.index)
 
     shapes = [(mapping(geom), value) for geom, value in polygons_with_values]
 
@@ -311,9 +307,6 @@ def map_values_to_cells(
     # Flatten the arrays
     flat_index = index_map.ravel()
     flat_labels = labels.ravel()
-
-    print(len(flat_index))
-    print(len(flat_labels))
 
     # Extract only valid pixels (index_map > 0 or > -1 depending on background)
     valid = flat_index >= 0  # change to >0 if background is 0
@@ -370,26 +363,76 @@ def map_values_to_cells(
             sdata['table'].obs[res_col] = polygon_scores
 
 
+    if ( mode == 'mean_values_nonzero' ):
+
+        # Exclude zero-valued pixels before computing mean
+        nonzero_mask = flat_labels != 0
+        flat_labels_nz = flat_labels[nonzero_mask]
+        flat_index_nz = flat_index[nonzero_mask]
+
+        polygon_scores = ndimage.mean(
+            input=flat_labels_nz,
+            labels=flat_index_nz,
+            index=polygon_ids
+        )
+
+        # Polygons with no non-zero pixels produce NaN — treat as 0
+        polygon_scores = np.nan_to_num(polygon_scores, nan=0.0)
+
+        if ( len(polygon_scores) < sdata['table'].n_obs ):
+            sdata['table'].obs[res_col] = [0] * sdata['table'].n_obs
+            polygon_ids = [str(x) for x in polygon_ids]
+            sdata['table'].obs.loc[polygon_ids, res_col] = polygon_scores
+        else:
+            sdata['table'].obs[res_col] = polygon_scores
+
+    # This mode is for hqtr and hqpr because a lot of pixels are not informative.
+    # This you can see in the distribution of the pixel beliefs for hqtr and hqpr.
+    # I think the issue is currently the PS score.
+    if ( mode == 'mean_values_informative' ):
+
+        # Use pixels with a bliefs of > 0.2 before computing mean
+        non_t_mask = flat_labels > 0.2
+        flat_labels_nz = flat_labels[non_t_mask]
+        flat_index_nz = flat_index[non_t_mask]
+
+        polygon_scores = ndimage.mean(
+            input=flat_labels_nz,
+            labels=flat_index_nz,
+            index=polygon_ids
+        )
+
+        # Polygons with no non-zero pixels produce NaN — treat as 0
+        polygon_scores = np.nan_to_num(polygon_scores, nan=0.0)
+
+        if ( len(polygon_scores) < sdata['table'].n_obs ):
+            sdata['table'].obs[res_col] = [0] * sdata['table'].n_obs
+            polygon_ids = [str(x) for x in polygon_ids]
+            sdata['table'].obs.loc[polygon_ids, res_col] = polygon_scores
+        else:
+            sdata['table'].obs[res_col] = polygon_scores
+
+
 def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution, figure_path, 
                                         prob_col, res_col, spoqc_tmp_folder, suffix):
     
     polys = create_polygon_dataframe(sdata, imagedim, 'cell_boundaries', prob_col)
-    average_cell_probability_image = create_cell_probability_image(sdata, polys, image_type, resolution)
+    average_cell_probability_image = create_cell_probability_image(sdata, polys, image_type, resolution, prob_col)
 
     # This is a sanity check
-    has_values_over_1 = np.any(np.array(polys['good_quality_probabilities']) > 1)
+    has_values_over_1 = np.any(np.array(polys[prob_col]) > 1)
     print(f'Are there any values bigger than 1: {has_values_over_1}')
 
     has_values_over_1 = np.any(average_cell_probability_image > 1)
     print(f'Are there any values bigger than 1: {has_values_over_1}')
 
-    # Plot input image
+    # Plot input prior image
     helperfuncs.plot_pixels(
         figure_path,
         (average_cell_probability_image > 0).astype(np.uint8),
         imagedim,
-        'input_cell_segmentation',
-        'input_cell_segmentation',
+        'input_priors',
+        'input_priors',
         'gray',
         False,
         True,
@@ -409,7 +452,16 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
     map_values_to_cells(sdata, polys, image_type, resolution, labels[:], res_col, figure_path, 'markov_labels')
 
     # Write out hqcr mask
-    df = pd.DataFrame({'hqcr_beliefs': beliefs[:].flatten(), 'hqcr_mask': labels[:].flatten()})
+    df_smoothed = pd.DataFrame({
+        'hqcr_beliefs_smoothed': beliefs[:].flatten(),
+        'hqcr_mask_smoothed': labels[:].flatten(),
+    })
+    df_smoothed.to_parquet(f"{spoqc_tmp_folder}/hqcr_output_mask_smoothed_{suffix}.parquet")
+
+    df = pd.DataFrame({
+        'hqcr_beliefs': average_cell_probability_image.flatten(),
+        'hqcr_mask': (average_cell_probability_image.flatten() > 0.5).astype(np.uint8)
+    })
     df.to_parquet(f"{spoqc_tmp_folder}/hqcr_output_mask_{suffix}.parquet")
 
 
@@ -441,13 +493,28 @@ def clustering_for_hqcr(qc_domains_adata, figure_path, seed, test_res_n_clusters
     if ( test_res ):
         ss = helperfuncs.test_resolutions_leiden(qc_domains_adata, figure_path, test_res_n_clusters)
 
-    # TODO automatic search for res
-    # TODO instead of leiden mayb h-NNE clustering?
     sc.tl.leiden(qc_domains_adata, resolution=1.2)
 
 
 def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
     figure_path = f'{CONST.FIGURE_PATH}/hqcr/hqcr_ident/'
+
+    # Generate first the input cell and nucleus segmentation figures
+    for seg in ['cell_labels', 'nucleus_labels']:
+        values = sdata.labels[seg][CONST.RESOLUTION].image.values
+        values = (values > 0.0).astype(np.uint8)
+        helperfuncs.plot_pixels(
+            figure_path,
+            values,
+            imagedim,
+            f'input_segmentation_{seg}',
+            f'input_segmentation_{seg}',
+            'gray',
+            False,
+            True,
+            legend_dict={"mask": "#FFFFFF", "empty": "#000000"},
+            flip=True
+        )
 
     counts = 'transcript_counts'
     if ( CONST.CANORM ):
@@ -456,19 +523,8 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
     qc_domains_adata, cell_df, qc_metrices = load_data_for_hqcr(sdata, spoqc_tmp_folder, counts)
     clustering_for_hqcr(qc_domains_adata, figure_path, seed)
     
-    bad_quality_probabilities, cell_df = priors.hqcr.transcript_counts.calc_transcript_counts_probs(
-        sdata, 
-        figure_path,
-        cell_df,
-        qc_domains_adata,
-        counts
-    )
-
-    # TODO
-    # TODO so far I only use counts to define bad quality cells, consider later to inroduce other metrices as well.
-    # priors.combine_priors.combine_priors_hqtr(spoqc_tmp_folder, image_ddf)
-
-    sdata['table'].obs['bad_quality_probabilities'] = bad_quality_probabilities
+    # Here we combine available priors
+    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts)
 
     # Cell quality probability refinement
     cell_quality_probability_refinement(
@@ -477,7 +533,7 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
         CONST.IMAGE_TYPE,
         CONST.RESOLUTION,
         figure_path,
-        'bad_quality_probabilities',
+        'good_quality_probabilities',
         'refined_qc_class',
         spoqc_tmp_folder,
         'raw'
@@ -655,6 +711,7 @@ def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_
                 fig.update_layout(width=800, height=2500, violinmode='overlay')
                 figures.append(fig)
                 fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.png", scale=3)
+                fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.pdf", scale=3)
 
                 # Bar plot of artefact scores
                 df_artefact_scores = pd.DataFrame({'celltype': celltypes, 'artefact_scores': artefact_scores })
@@ -682,6 +739,7 @@ def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_
                 fig.update_layout(width=800, height=2500, violinmode='overlay')
                 figures.append(fig)
                 fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.png", scale=3)
+                fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.pdf", scale=3)
 
             else:
                 print(f"[NOTE] {qc_metric} is not implemented yet for doublet and nucelus free cell check.")
@@ -697,6 +755,7 @@ def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_
         )
         figures.append(fig_bar)
         fig_bar.write_image(f"{figure_path}/barplot_total_artefact_scores.png", scale=3)
+        fig_bar.write_image(f"{figure_path}/barplot_total_artefact_scores.pdf", scale=3)
 
         # Generate plotly HTML
         html_content = ''.join(fig.to_html(full_html=False) for fig in figures)
@@ -727,7 +786,7 @@ def refine_hqcr_with_celltype_thresholds(
     # Refine HQCR based on cell type thresholds.
     # Now I have to find out which of those multiplets and emtplets are true and which are real cells still.
     qc_metric = counts
-    bad_quality_probs_celltype, cell_df = priors.hqcr.transcript_counts.calc_celltype_transcript_counts_probs(
+    good_quality_probs_celltype, cell_df = priors.hqcr.transcript_counts.calc_celltype_transcript_counts_probs(
         sdata, 
         cell_df, 
         threshold_left_dict, 
@@ -736,16 +795,17 @@ def refine_hqcr_with_celltype_thresholds(
         qc_metric,
         df_coords
     )
-    sdata['table'].obs['bad_quality_probs_celltype'] = bad_quality_probs_celltype
+    sdata['table'].obs['good_quality_probs_celltype'] = good_quality_probs_celltype
+    sdata['table'].obs['bad_quality_probs_celltype'] = 1 - good_quality_probs_celltype
 
-    # Refine bad_quality_probs_celltype assignment per cell based on the bad quality probability.
+    # Refine good_quality_probs_celltype assignment per cell based on the bad quality probability.
     cell_quality_probability_refinement(
         sdata,
         imagedim,
         image_type,
         resolution,
         figure_path,
-        'bad_quality_probs_celltype',
+        'good_quality_probs_celltype',
         'refine_qc_celltype_class',
         spoqc_tmp_folder,
         'celltype_refined'

@@ -5,7 +5,6 @@ from ... import helperfuncs
 
 def pixel_relevance(figure_path, xy_intensities, background_intensity, imagedim):
     """
-    # TODO adjust description
     Determines if each pixel belongs to a segmented region and visualizes relevance.
 
     Args:

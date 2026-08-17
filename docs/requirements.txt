@@ -1,0 +1,7 @@
+sphinx
+sphinx-book-theme
+myst-parser
+myst-nb
+sphinxcontrib-bibtex
+sphinx-copybutton
+sphinx-autodoc-typehints

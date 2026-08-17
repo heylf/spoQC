@@ -71,14 +71,20 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
                 linewidth=2,
             )
         else:
+            print("[NOTE] Not flipping red boxes")
             plt.plot(
-                [min_col, max_col, max_col, min_col, min_col],  # x (columns)
-                [min_row, min_row, max_row, max_row, min_row],  # y (rows)
+                [min_col, min_col, max_col, max_col, min_col],
+                [imagedim.bb_ymin + imagedim.bb_ymax - min_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - max_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - max_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - min_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - min_row],
                 color="red",
                 linewidth=2,
             )
-        
+
     plt.savefig(f'{figure_path}/imageplot_{suffix}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -102,7 +108,7 @@ def define_bounding_boxes(
 
     prefix = modality
     if ( staining ):
-        figure_path = f'{figure_path}/{modality}/{staining}/{modality}_bounding_box/'
+        figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/{staining}/'
         prefix = f'{modality}_{staining}'
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/'
@@ -126,11 +132,11 @@ def define_bounding_boxes(
         )
         image = intensities.reshape(dim_x, dim_y)
 
-    mask = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_{suffix}', 
-                           columns=[f"{prefix}_mask"], engine="pyarrow")
+    mask = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_smoothed_{suffix}',
+                           columns=[f"{prefix}_mask_smoothed"], engine="pyarrow")
 
     # Convert DataFrame to a NumPy array for processing
-    binary_image = mask[f"{prefix}_mask"].compute().to_numpy().reshape(dim_x, dim_y)
+    binary_image = mask[f"{prefix}_mask_smoothed"].compute().to_numpy().reshape(dim_x, dim_y)
 
     # Apply dilation to merge nearby regions
     structuring_element = disk(dilation_radius)
@@ -153,6 +159,7 @@ def define_bounding_boxes(
         )
     plt.title(f"Dilated image")
     plt.savefig(f'{figure_path}/imageplot_dilated_image_for_bounding_box.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/imageplot_dilated_image_for_bounding_box.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -201,8 +208,8 @@ def define_bounding_boxes(
 
     # Correct the coordinates of the bounding box
     for i, box in enumerate(bounding_boxes):
-        bounding_boxes[i] = [box[0]+imagedim.bb_ymin, box[1]+imagedim.bb_xmin, 
-                             box[2]+imagedim.bb_ymin, box[3]+imagedim.bb_xmin]
+        bounding_boxes[i] = [float(box[0]+imagedim.bb_ymin), float(box[1]+imagedim.bb_xmin),
+                             float(box[2]+imagedim.bb_ymin), float(box[3]+imagedim.bb_xmin)]
 
     # Merge overlapping bounding boxes
     merged_bounding_boxes = _merge_overlapping_boxes(bounding_boxes)

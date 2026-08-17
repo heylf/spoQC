@@ -1,4 +1,5 @@
 #In[]
+import json
 import scanpy as sc
 import plotly.express as px   # plotly
 import pandas as pd
@@ -7,6 +8,110 @@ import anndata
 from typing import List, Any
 
 from .. import helperfuncs
+
+_cell_cycle_genes = {
+    "S": [
+        "MCM5",
+        "PCNA",
+        "TYMS",
+        "FEN1",
+        "MCM2",
+        "MCM4",
+        "RRM1",
+        "UNG",
+        "GINS2",
+        "MCM6",
+        "CDCA7",
+        "DTL",
+        "PRIM1",
+        "UHRF1",
+        "MLF1IP",
+        "HELLS",
+        "RFC2",
+        "RPA2",
+        "NASP",
+        "RAD51AP1",
+        "GMNN",
+        "WDR76",
+        "SLBP",
+        "CCNE2",
+        "UBR7",
+        "POLD3",
+        "MSH2",
+        "ATAD2",
+        "RAD51",
+        "RRM2",
+        "CDC45",
+        "CDC6",
+        "EXO1",
+        "TIPIN",
+        "DSCC1",
+        "BLM",
+        "CASP8AP2",
+        "USP1",
+        "CLSPN",
+        "POLA1",
+        "CHAF1B",
+        "BRIP1",
+    ],
+    "G2M": [
+        "E2F8",
+        "HMGB2",
+        "CDK1",
+        "NUSAP1",
+        "UBE2C",
+        "BIRC5",
+        "TPX2",
+        "TOP2A",
+        "NDC80",
+        "CKS2",
+        "NUF2",
+        "CKS1B",
+        "MKI67",
+        "TMPO",
+        "CENPF",
+        "TACC3",
+        "FAM64A",
+        "SMC4",
+        "CCNB2",
+        "CKAP2L",
+        "CKAP2",
+        "AURKB",
+        "BUB1",
+        "KIF11",
+        "ANP32E",
+        "TUBB4B",
+        "GTSE1",
+        "KIF20B",
+        "HJURP",
+        "CDCA3",
+        "HN1",
+        "CDC20",
+        "TTK",
+        "CDC25C",
+        "KIF2C",
+        "RANGAP1",
+        "NCAPD2",
+        "DLGAP5",
+        "CDCA2",
+        "CDCA8",
+        "ECT2",
+        "KIF23",
+        "HMMR",
+        "AURKA",
+        "PSRC1",
+        "ANLN",
+        "LBR",
+        "CKAP5",
+        "CENPE",
+        "CTCF",
+        "NEK2",
+        "G2E3",
+        "GAS2L3",
+        "CBX5",
+        "CENPA",
+    ],
+}
 
 def cellcycle_qc(
         rna_adata: anndata.AnnData,
@@ -79,6 +184,7 @@ def cellcycle_qc(
         
         fig.write_html(f"{figure_path}/scatter_cellcylce_{o}.html")
         fig.write_image(f"{figure_path}/scatter_cellcylce_{o}.png", scale=3)
+        fig.write_image(f"{figure_path}/scatter_cellcylce_{o}.pdf", scale=3)
 
     for x in ['sample']:
 
@@ -91,6 +197,7 @@ def cellcycle_qc(
         
         fig.write_html(f"{figure_path}/barplot_{x}_cellcycle_fractions.html")
         fig.write_image(f"{figure_path}/barplot_{x}_cellcycle_fractions.png", scale=3)
+        fig.write_image(f"{figure_path}/barplot_{x}_cellcycle_fractions.pdf", scale=3)
 
     return rna_adata
 
@@ -128,13 +235,21 @@ def spatial_cellcycle_qc(figure_path: str, sdata: Any) -> None:
 
 
 def run_qc_cellcycle(sdata, figure_path, CONST):
-    rna_adata = sdata.table
+    rna_adata = sdata['table']
 
     # Get cell cylce genes
-    cell_cycle_genes = [x.strip() for x in open(f'{CONST.CELLCYCLE_GENE_FILE}')]
-    cell_cycle_genes = list(set(cell_cycle_genes))
-    s_genes = cell_cycle_genes[:43]
-    g2m_genes = cell_cycle_genes[43:]
+    cellcycle_gene_dict = dict()
+    if ( CONST.CELLCYCLE_GENE_FILE != '' ):
+        print(f"[NOTE] Read cell cycling genes from file {CONST.CELLCYCLE_GENE_FILE}")
+        with open(CONST.CELLCYCLE_GENE_FILE) as f:
+            cellcycle_gene_dict = json.load(f)
+    else:
+       print(f"[NOTE] Using default cell cycling genes")
+       cellcycle_gene_dict = _cell_cycle_genes
+
+    s_genes = list(set(cellcycle_gene_dict["S"]))
+    g2m_genes = list(set(cellcycle_gene_dict["G2M"]))
+    cell_cycle_genes = list(set(s_genes + g2m_genes))
 
     # Filter for genes that are in the sdata
     cell_cycle_genes = list(set(cell_cycle_genes) & set(rna_adata.var_names))

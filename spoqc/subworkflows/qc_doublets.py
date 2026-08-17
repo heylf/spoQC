@@ -10,7 +10,6 @@ def run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns):
 
     print(f"[NOTE] Estimated cell diameter is {mean_diameter}")
 
-    # TODO maybe introduce also leiden clustering for estimation
     ncelltypes = -1
     if ( CONST.ANNOTATION_FILE and CONST.N_CELLTYPES == None ):
         ncelltypes = annotation.ncelltypes
@@ -23,6 +22,7 @@ def run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns):
         sdata,
         figure_path,
         CONST.TMP_PATH,
+        CONST.THREADS,
         'transcripts',
         ncelltypes,
         mean_diameter,
@@ -31,7 +31,7 @@ def run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns):
         3,
         [10, 60],
         1,
-        10
+        10,
     )
     timer.stop()
 
@@ -43,3 +43,5 @@ def run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns):
     print("[NOTE] Write results")
     obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
     print("[finish]")
+
+    return obs_columns

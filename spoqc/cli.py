@@ -2,30 +2,23 @@
 # coding: utf-8
 from __future__ import annotations
 
-# TODO create under helperfunc a general plot layout
-# TODO check the orientation of the plots again (if it makes sense to invert y axis).
-# TODO check topology methods for more stuff.
-# TODO maybe for all spatial plots remove x and y axsis and just call the labels spatialdim1, spatialdim2, spatialdim3 ...
-# TODO remove packages that are not used anymroe
-# TODO put every metric into their own script, so it is easier for people to find them and add new metrics
-# TODO why do I have negative values for canorm_transcript counts?
-# TODO change x and y axis for the correct once from the coordinate system. For all plots.
-
 # In[]
 import sys
+import numba
 
 # Utility imports
 import os
 import random
 import argparse
-import importlib
 import numpy as np
 import pandas as pd
 import re
+import importlib
 
 # Tool imports
 import spatialdata as sd
 import spatialdata_plot
+from spatialdata.models import PointsModel
 
 # Own scripts
 from spoqc import general
@@ -99,7 +92,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--cellcycle_gene_file",
         dest="cellcycle_gene_file",
         type=str,
-        help="Path to a file containing gene names for the cell cycles.",
+        default='',
+        help='Path to a JSON file with "S" and "G2M" keys listing S-phase and G2M-phase gene names.',
         required=False
     )
     parser.add_argument(    
@@ -144,7 +138,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--nstds_prior_pixel",
         dest="nstds_prior_pixel",
         type=float,
-        default=None,
+        default=6,
         help="You can set the number of stds for the pixel prior distribution. Please read the documentation to understand what this does before you set it.",
         required=False
     )
@@ -157,10 +151,24 @@ def build_parser() -> argparse.ArgumentParser:
         required=False
     )
     parser.add_argument(
+        "--spatial_smoothing",
+        dest="spatial_smoothing",
+        action="store_true",
+        help="Turn on spatial smoothing for prior beliefs.",
+        required=False
+    )
+    parser.add_argument(
         "--dev_test",
         dest="dev_test",
         action="store_true",
         help="This is just for developing and testing the tool.",
+        required=False
+    )
+    parser.add_argument(
+        "--dev_report",
+        dest="dev_report",
+        action="store_true",
+        help="This is just for developing and testing the tool (report).",
         required=False
     )
 
@@ -287,6 +295,12 @@ def main(argv: list[str] | None = None) -> None:
         @constant
         def CLUSTER_CELLTYPE():
             return args['cluster_celltype']
+        @constant
+        def GENERATE_REPORT_DOC():
+            if args['dev_report']:
+                return True
+            else:
+                return False
 
     # Initialize constant variables
     CONST = _Const()
@@ -304,7 +318,16 @@ def main(argv: list[str] | None = None) -> None:
 
     # ---------------- Environment ----------------
     # Numba threads
-    os.environ["NUMBA_NUM_THREADS"] = str(CONST.THREADS)
+    print(f"[NOTE] Setting numba threads to {CONST.THREADS}")
+    requested_threads = CONST.THREADS
+    maximum_threads = numba.config.NUMBA_NUM_THREADS
+    active_threads = min(requested_threads, maximum_threads)
+    print(
+        f"[NOTE] Numba thread pool maximum: {maximum_threads}; "
+        f"using: {active_threads}"
+    )
+    numba.set_num_threads(active_threads)
+
     # Blosc threads (for the Zarr datasets we still write)
     os.environ["BLOSC_NTHREADS"] = str(CONST.THREADS)
     # Timer
@@ -325,6 +348,18 @@ def main(argv: list[str] | None = None) -> None:
         process_datasets.process_sdata(CONST.DATASET, sdata)
     print(sdata)
 
+    # Ensure transcripts have a globally unique, monotonic index (required by
+    # spatialdata>=0.7's get_centroids/transform). The Xenium zarr reader can
+    # produce a points dataframe whose partitions each restart their own local
+    # index, and plain ddf.reset_index(drop=True) does not fix this since dask
+    # resets per-partition; deduplicate_dask_index() offsets each partition by
+    # the cumulative length of the partitions before it instead. The existing
+    # 'global' transform lives in .attrs, which map_partitions carries over,
+    # so PointsModel.parse() picks it up without passing transformations=.
+    sdata.points['transcripts'] = PointsModel.parse(
+        helperfuncs.deduplicate_dask_index(sdata.points['transcripts'])
+    )
+
     # In[]
     # Cropping for testing
     if ( CONST.TESTING > 0 ):
@@ -336,14 +371,14 @@ def main(argv: list[str] | None = None) -> None:
 
     # In[]
     # Apply Integer indexing
-    sdata.table.obs.index = [int(i) for i in range(len(sdata.table.obs.index))]
-    mapping = sdata.table.obs.index.to_series().set_axis(sdata.table.obs["cell_id"].values)
+    sdata['table'].obs.index = [int(i) for i in range(len(sdata['table'].obs.index))]
+    mapping = sdata['table'].obs.index.to_series().set_axis(sdata['table'].obs["cell_id"].values)
     sdata.shapes['cell_boundaries'].index = sdata.shapes['cell_boundaries'].index.map(mapping)
     sdata.shapes['cell_circles'].index = sdata.shapes['cell_circles'].index.map(mapping)
     sdata.shapes['nucleus_boundaries'].index = sdata.shapes['nucleus_boundaries'].index.map(mapping)
 
     # Mapping of transcript table
-    mapping = dict(zip(sdata.table.obs["cell_id"], sdata.table.obs.index))
+    mapping = dict(zip(sdata['table'].obs["cell_id"], sdata['table'].obs.index))
     sdata.points['transcripts']['cell_id'] = (
         sdata.points['transcripts']['cell_id']
             .map(mapping, meta=('cell_id', int))
@@ -351,24 +386,43 @@ def main(argv: list[str] | None = None) -> None:
             .astype(int)
     )
 
-    # TODO need a plot for that
+    # In[]
     # Check for nan's in transcripts feature names
-    transcripts = sdata.points['transcripts'].assign(
-        feature_name=sdata.points['transcripts']['feature_name'].astype('string').fillna('NaN').astype('category')
+    sdata.points['transcripts']['feature_name'] = (
+        sdata.points['transcripts']['feature_name']
+        .astype('string')
+        .fillna('NaN')
+        .astype('category')
     )
-    sdata.points['transcripts'] = transcripts
 
+    # In[]
+    # Mapping of nucleus gemoetires
+    if 'cell_id' in list(sdata.shapes['nucleus_boundaries'].columns):
+        sdata.shapes['nucleus_boundaries']['cell_id'] = (
+            sdata.shapes['nucleus_boundaries']['cell_id']
+                .map(mapping)
+                .fillna(-1)
+                .astype(int)
+        )
+
+        # Check for nan's in sdata.shapes['nucleus_boundaries'].index
+        if sdata.shapes['nucleus_boundaries'].index.hasnans:
+            sdata.shapes['nucleus_boundaries'].index = sdata.shapes['nucleus_boundaries']['cell_id']
+        
+    # make index unqiue for multinulcei cells
+    sdata.shapes["nucleus_boundaries"].index = pd.RangeIndex(len(sdata.shapes["nucleus_boundaries"]))
+
+    # In[]
     # I need string indexes for anndata else code breaks
-    sdata.table.obs.index = sdata.table.obs.index.astype(str)
+    sdata['table'].obs.index = sdata['table'].obs.index.astype(str)
     sdata['table'].obs.index.name = 'index'
 
     # In[]
     # Get RNA data and set raw data layer
-    rna_adata = sdata.tables["table"]
+    rna_adata = sdata['table']
     rna_adata.layers['raw'] = rna_adata.X
 
     # Add annotation
-    # TODO check adding the annotation again. I found during hitchhikersguide a potential error.
     annotation = helperfuncs.AnnotationStruct(0, [""])
     if ( CONST.ANNOTATION_FILE ):
         print(f"[NOTE] Adding annotation {CONST.ANNOTATION_FILE}")
@@ -446,7 +500,7 @@ def main(argv: list[str] | None = None) -> None:
     if ( CONST.STEP in ['all', 'unittest', 'generalqc'] ):
         print('[NOTE] General QC')
         figure_path = f'{CONST.FIGURE_PATH}/generalqc/'
-        subworkflows.qc_sc.run_qc_sc(sdata, figure_path, CONST, obs_columns)
+        obs_columns = subworkflows.qc_sc.run_qc_sc(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     # Low resources and quick
@@ -471,7 +525,7 @@ def main(argv: list[str] | None = None) -> None:
     #######################
     if ( CONST.STEP in ['all', 'unittest', 'bubbleqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/bubbleqc/'
-        subworkflows.qc_bubble.run_qc_bubble(sdata, figure_path, CONST, obs_columns)
+        obs_columns = subworkflows.qc_bubble.run_qc_bubble(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     ########################
@@ -480,7 +534,7 @@ def main(argv: list[str] | None = None) -> None:
     # High resources and slow (takes 18-19 hours for a full dataset)
     if ( CONST.STEP in ['all', 'unittest', 'doubletqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/doubletqc/'
-        subworkflows.qc_doublets.run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns)
+        obs_columns = subworkflows.qc_doublets.run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns)
 
     # In[]
     # Low resource but long (takes 4-5 hours)
@@ -489,7 +543,7 @@ def main(argv: list[str] | None = None) -> None:
     #####################
     if ( CONST.STEP in ['all', 'unittest', 'voidqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/voidqc/'
-        subworkflows.qc_void.run_qc_void(sdata, figure_path, CONST, obs_columns)
+        obs_columns = subworkflows.qc_void.run_qc_void(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     #####################
@@ -498,7 +552,7 @@ def main(argv: list[str] | None = None) -> None:
     # Low resources and quicks for full dataset (40-50 min)
     if ( CONST.STEP in ['all', 'unittest', 'cellqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/cellqc/'
-        subworkflows.qc_cell.run_qc_cell(sdata, figure_path, CONST, obs_columns)
+        obs_columns = subworkflows.qc_cell.run_qc_cell(sdata, figure_path, CONST, obs_columns)
 
     # In[]
     ##################
@@ -519,7 +573,6 @@ def main(argv: list[str] | None = None) -> None:
             print("[NOTE] No annotation file provided so I will not perform start_hqcr_celltype")
 
     # In[]
-    # TODO I have not taking the z axis varability into account.
     ##################
     ###### HQPR ######
     ##################
@@ -532,7 +585,7 @@ def main(argv: list[str] | None = None) -> None:
         CONST,
         seed,
         thresh_p=CONST.THRESHOLD_PRIOR_PIXEL,
-        nstds_p=CONST.NSTDS_PRIOR_PIXEL
+        nstds_p=CONST.NSTDS_PRIOR_PIXEL,
     )
 
     # In[]
@@ -545,7 +598,6 @@ def main(argv: list[str] | None = None) -> None:
     #####################
     ###### AMBIENT ######
     #####################
-
     if ( CONST.STEP in ['all', 'hqtr', 'unittest', 'ambientqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/ambientqc/'
         _ = subworkflows.qc_ambient.start_qc_ambient(sdata, figure_path, CONST.TMP_PATH, CONST.THREADS)
@@ -554,7 +606,17 @@ def main(argv: list[str] | None = None) -> None:
     ##################
     ###### HQTR ######
     ##################
-    subworkflows.hqtr.get_hqtr(sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST, seed)
+    subworkflows.hqtr.get_hqtr(
+        sdata, 
+        CONST.TMP_PATH, 
+        imagedim, 
+        dim_x, 
+        dim_y, 
+        CONST, 
+        seed,
+        thresh_p=CONST.THRESHOLD_PRIOR_PIXEL,
+        nstds_p=CONST.NSTDS_PRIOR_PIXEL,
+    )
 
     # In[]
     if ( CONST.ANNOTATION_FILE ):
@@ -572,6 +634,24 @@ def main(argv: list[str] | None = None) -> None:
         hqr.combine_masks.start_combining_masks(
             CONST.FIGURE_PATH,
             CONST.TMP_PATH,
+            imagedim,
+            dim_x,
+            dim_y,
+            CONST.STAINING,
+            celltype_refined=False
+        )
+
+        print('[finish]')
+
+    # In[]
+    if ( CONST.STEP in ['combine_masks_zoom'] ):
+
+        hqr.combine_masks_zoom.start_combining_masks(
+            sdata,
+            CONST.FIGURE_PATH,
+            CONST.TMP_PATH,
+            CONST.IMAGE_TYPE,
+            CONST.RESOLUTION,
             imagedim,
             dim_x,
             dim_y,
@@ -623,7 +703,7 @@ def main(argv: list[str] | None = None) -> None:
     ###### MARKER QC ######
     #######################
     # Low resources, fast
-    if ( CONST.STEP in ['all', 'markerqc'] ):
+    if ( CONST.STEP in ['markerqc'] ):
         if ( CONST.ANNOTATION_FILE ):
             figure_path = f'{CONST.FIGURE_PATH}/markerqc'
             subworkflows.qc_marker.run_qc_marker(sdata, figure_path, CONST)
@@ -635,16 +715,23 @@ def main(argv: list[str] | None = None) -> None:
     #################################
     ###### ADDITIONAL ANALYSIS ######
     #################################
-    subworkflows.qc_additional_analysis.run_qc_additional_analysis(
-        sdata,
-        CONST,
-        annotation,
-        seed,
-        imagedim,
-        dim_x,
-        dim_y,
-        stainings
-    )
+    if ( 'analysis' in CONST.STEP or CONST.STEP == 'all' ):
+        subworkflows.qc_additional_analysis.run_qc_additional_analysis(
+            sdata,
+            CONST,
+            annotation,
+            seed,
+            imagedim,
+            dim_x,
+            dim_y,
+        )
 
+    # In[]
+    ##########################
+    ###### FINAL REPORT ######
+    ##########################
+    # Low resources, fast
+    if ( CONST.STEP in ['all', 'final_report'] ):
+        subworkflows.final_report.create_final_report(CONST.FIGURE_PATH, stainings, CONST.GENERATE_REPORT_DOC)
     print("[FINISH]")
-# %%
+    # %%

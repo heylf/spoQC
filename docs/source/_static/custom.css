@@ -1,0 +1,17 @@
+/* On the "Output reports" page, every ## section title duplicates the
+   title already shown inside its embedded report panel. Hide just those
+   <h2> elements (not the sections they live in) so the sidebar/on-this-page
+   links still work and the panel content underneath stays visible.
+   The `>` combinators keep this scoped to the page's own top-level section
+   headings and out of headings nested inside the embedded report panels. */
+#output-reports > section > h2:first-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

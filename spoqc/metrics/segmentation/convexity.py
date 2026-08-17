@@ -119,7 +119,7 @@ def calc_convexity(sdata, figure_path):
     sdata['table'].obs['convexity_nuclei'] = [True if x > 0.5 else False for x in min_convexity_metric_list]
 
     plotcats = [['convexity_cell', 'convexity_metric_cell'], 
-                ['convexity_nuclei', 'convexity_mean_nuceli', 'convexity_metric_cell']]
+                ['convexity_nuclei', 'convexity_mean_nuceli']]
 
     figures = []
     for i, cat in enumerate(plotcats):
@@ -127,11 +127,8 @@ def calc_convexity(sdata, figure_path):
         helperfuncs.plot_scatter(sdata['table'], figure_path, cat[0], None, 
                                 cat[0], ['black', 'lightblue'], None)
         helperfuncs.plot_scatter_density(sdata['table'], figure_path, f'{cat[0]}_{cat[1]}', 
-                                         cat[0], cat[1], ['black', 'lightblue'], None)
-        
-        if ( i == 1 ):
-            helperfuncs.plot_scatter_density(sdata['table'], figure_path, f'{cat[0]}_{cat[2]}', 
-                                             cat[0], cat[2], ['black', 'lightblue'], None)
+                                         cat[0], cat[1], ['black', 'lightblue'], '' \
+                                         f'Density of {cat[1]}')
         
         fig = px.histogram(sdata['table'].obs, x=cat[1], nbins=100, width=800, height=800)
         fig.update_layout(
@@ -140,6 +137,7 @@ def calc_convexity(sdata, figure_path):
         helperfuncs.apply_general_plotly_layout(fig, True)
         figures.append(fig)
         fig.write_image(f"{figure_path}/histogram_{cat[1]}.png", scale=3)
+        fig.write_image(f"{figure_path}/histogram_{cat[1]}.pdf", scale=3)
 
     with open(f'{figure_path}/convexity.html', 'w') as f:
         for fig in figures:

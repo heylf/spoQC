@@ -13,3 +13,4 @@ from . import qc_wsi
 from . import hqcr
 from . import hqpr
 from . import hqtr
+from . import final_report

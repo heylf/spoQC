@@ -35,7 +35,6 @@ def calculate_global_moran_I_values(sdata, figure_path, spoqc_tmp_folder, thread
     # Create Moran's I variances and values
     genes_list = list(rna_adata.var_names)
 
-    # TODO 
     # Be careful with the order because of threading the list is filled based on how fast the indidivudal thread is.
     with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
         futures = [executor.submit(compute_for_gene, gene, rna_adata) for gene in genes_list]
@@ -59,6 +58,7 @@ def calculate_global_moran_I_values(sdata, figure_path, spoqc_tmp_folder, thread
     helperfuncs.apply_general_plotly_layout(fig, True)
     fig.write_html(f"{figure_path}/contamination_global_morans_I.html")
     fig.write_image(f"{figure_path}/contamination_global_morans_I.png", scale=3)
+    fig.write_image(f"{figure_path}/contamination_global_morans_I.pdf", scale=3)
     
     helperfuncs.df_to_parquet(data_sorted, 'ambient', spoqc_tmp_folder, [], 'genes')
     return data_sorted

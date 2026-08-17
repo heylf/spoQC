@@ -2,7 +2,18 @@
 from .. import image_analysis
 from .. import metrics
 
-def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
+def get_hqtr(
+        sdata, 
+        spoqc_tmp_folder,
+        imagedim,
+        dim_x,
+        dim_y,
+        CONST,
+        seed,
+        *,
+        thresh_p=None,
+        nstds_p=None,
+    ):
 
     if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_metrices'] ):
 
@@ -54,7 +65,6 @@ def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
 
         print('[finish]')
 
-
     if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_clustering'] ):
 
         image_analysis.pixel_scoring_dask.start_pixel_qc(
@@ -68,11 +78,15 @@ def get_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST, seed):
             dim_y,
             imagedim,
             seed,
-            CONST.THREADS
+            CONST.THREADS,
+            thresh_p=thresh_p,
+            nstds_p=nstds_p,
         )
 
         print("[finish]")
 
+
+# In[]
 
     if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_refinement'] ):
 

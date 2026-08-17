@@ -24,7 +24,7 @@ def start_image_celltype_analysis(
 
     prefix = modality
     if ( staining ):
-        figure_path = f'{figure_path}/{modality}/{staining}/{modality}_celltype/'
+        figure_path = f'{figure_path}/{modality}/{modality}_celltype/{staining}/'
         prefix = f'{modality}_{staining}'
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_celltype/'
@@ -35,16 +35,22 @@ def start_image_celltype_analysis(
 
     # You have to read as dask because these paquet files are dask dataframes.
     # Else you run into partition errors.
-    image_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_prob', columns=qc_metrics, engine="pyarrow")
+    image_ddf = dd.read_parquet(
+        f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
+        columns=qc_metrics,
+        engine="pyarrow"
+    )
     image_df = image_ddf.compute()
     image_df.index = image_df.index.set_names('index')
     image_df['intensity'] = np.log10( image_df['intensity'] + 1 )
 
-    mask_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
-                               columns=[f'{prefix}_mask'], engine="pyarrow")
+    mask_ddf = dd.read_parquet(
+        f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
+        columns=[f'{prefix}_mask'],
+        engine="pyarrow"
+    )
     mask_df = mask_ddf.compute()
 
-    # TODO here I have to make this better that I do not run into this flipping issue
     for col in image_df.columns:
         image_df[col] = np.flipud(np.array(image_df[col]).reshape(dim_x, dim_y)).flatten()
 
@@ -72,7 +78,7 @@ def start_image_celltype_analysis(
     subworkflows.hqcr.cell_artefact_assignment(cell_df, sdata)
 
     figures = []
-    for object in ['cell', 'nucleus']:
+    for object in ['cell']:
         polys = subworkflows.hqcr.create_polygon_dataframe(sdata, imagedim, f'{object}_boundaries')
 
         for qc_metric in qc_metrics:
@@ -80,7 +86,7 @@ def start_image_celltype_analysis(
                                     image_df[qc_metric], qc_metric, figure_path, 'mean_values')
 
             fig = px.violin(
-                sdata.table.obs,
+                sdata['table'].obs,
                 x=qc_metric,
                 y=annotation_key,
                 color='artefact',
@@ -90,13 +96,14 @@ def start_image_celltype_analysis(
             fig.update_layout(width=800, height=2500, violinmode='overlay')
             figures.append(fig)
             fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}_{object}.png", scale=3)
+            fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}_{object}.pdf", scale=3)
 
         if ( object == 'cell' ):
             subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
                                     mask_df[f'{prefix}_mask'], f'{prefix}_class', figure_path, 'markov_labels')
             
             bar_plot_df_1 = (
-                sdata.table.obs
+                sdata['table'].obs
                 .groupby(annotation_key)[f'{prefix}_class']
                 .apply(lambda x: (x == 1).sum())
                 .reset_index(name=f'num_class')
@@ -104,7 +111,7 @@ def start_image_celltype_analysis(
             bar_plot_df_1['class'] = [modality] * len(bar_plot_df_1)
 
             bar_plot_df_2 = (
-                sdata.table.obs
+                sdata['table'].obs
                 .groupby(annotation_key)[f'{prefix}_class']
                 .apply(lambda x: (x == 0).sum())
                 .reset_index(name=f'num_class')
@@ -125,6 +132,7 @@ def start_image_celltype_analysis(
             fig_bar.update_layout(barmode="stack", height=2500)
             figures.append(fig_bar)
             fig_bar.write_image(f"{figure_path}/barplot_celltypes_{modality}.png", scale=3)
+            fig_bar.write_image(f"{figure_path}/barplot_celltypes_{modality}.pdf", scale=3)
 
             bar_plot_pct = (
                 bar_plot_df
@@ -147,6 +155,7 @@ def start_image_celltype_analysis(
             fig_pct.update_layout(barmode="stack", xaxis_title="Percentage (%)", height=2500)
             figures.append(fig_pct)
             fig_pct.write_image(f"{figure_path}/barplot_celltypes_pct_{modality}.png", scale=3)
+            fig_pct.write_image(f"{figure_path}/barplot_celltypes_pct_{modality}.pdf", scale=3)
 
 
     # Generate plotly HTML

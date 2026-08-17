@@ -5,7 +5,7 @@ import time
 import matplotlib.pyplot as plt
 import zarr
 
-from numcodecs import Blosc
+from zarr.codecs import BloscCodec
 
 from .. import helperfuncs
 
@@ -46,53 +46,58 @@ def first_version_loopy_belief_propagation(
     # -----------------------
     # Zarr store setup
     # -----------------------
-    compressor = Blosc(cname="zstd", clevel=5, shuffle=Blosc.SHUFFLE)
-    store = zarr.DirectoryStore(f"{spoqc_tmp_folder}/lbp_store_{modality}_zarr")
+    compressor = BloscCodec(cname="zstd", clevel=5, shuffle="shuffle")
+    store = zarr.storage.LocalStore(f"{spoqc_tmp_folder}/lbp_store_{modality}_zarr")
     root = zarr.group(store=store, overwrite=True)
 
     # Prob map (input) in Zarr
-    prob_map = root.create_dataset(
+    prob_map = root.create_array(
         "prob_map",
         shape=(n, m),
         chunks=(min(n, chunk_read), min(m, chunk_read)),
-        compressor=compressor,
+        compressors=[compressor],
+        dtype="f4",
     )
     prob_map[:] = prob_map_np  # one-time write; remove if you already have this on disk
 
-    # Unary (n, m, 2)
-    unary = root.create_dataset(
+    # Unary (n, m, 2) — chunk size matches tile size to avoid partial chunk writes
+    unary = root.create_array(
         "unary",
         shape=shape,
-        chunks=(min(n, chunk_read), min(m, chunk_read), 2),
-        compressor=compressor,
+        chunks=(min(n, chunk_update), min(m, chunk_update), 2),
+        compressors=[compressor],
+        dtype="f4",
     )
 
     # Messages (4, n+2, m+2, 2) with padding; and a copy for deltas
-    messages = root.create_dataset(
+    messages = root.create_array(
         "messages",
         shape=(4, n_pad, m_pad, 2),
         chunks=(1, min(n_pad, chunk_update), min(m_pad, chunk_update), 2),  # chunk per direction
-        compressor=compressor,
+        compressors=[compressor],
+        dtype="f4",
     )
-    old_messages = root.create_dataset(
+    old_messages = root.create_array(
         "old_messages",
         shape=(4, n_pad, m_pad, 2),
         chunks=messages.chunks,
-        compressor=compressor,
+        compressors=[compressor],
+        dtype="f4",
     )
-    # Beliefs and labels
-    beliefs = root.create_dataset(
+    # Beliefs and labels — chunk size matches tile size to avoid partial chunk writes
+    beliefs = root.create_array(
         "beliefs",
         shape=shape,
-        chunks=(min(n, chunk_read), min(m, chunk_read), 2),
-        compressor=compressor,
+        chunks=(min(n, chunk_update), min(m, chunk_update), 2),
+        compressors=[compressor],
+        dtype="f4",
     )
-    labels = root.create_dataset(
+    labels = root.create_array(
         "labels",
         shape=(n, m),
-        chunks=(min(n, chunk_read), min(m, chunk_read)),
+        chunks=(min(n, chunk_update), min(m, chunk_update)),
         dtype="int8",
-        compressor=compressor,
+        compressors=[compressor],
     )
 
     # -----------------------
@@ -262,5 +267,6 @@ def visualize_markov_calculation(average_cell_probability_image, labels, figure_
     helperfuncs.add_manual_legend(legend_dict={"mask": "#FFFFFF", "low Q": "#000000"})
 
     plt.savefig(f'{figure_path}/markov_random_field_calculations.png', bbox_inches='tight')
+    plt.savefig(f'{figure_path}/markov_random_field_calculations.pdf', bbox_inches='tight')
     plt.close()
 

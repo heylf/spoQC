@@ -22,12 +22,12 @@ def start_image_struc_analyis(
 
     timer = helperfuncs.Timer()
 
-    print(f'[NOTE] start HQPR analysis with {image_type} and {resolution}')
+    print(f'[NOTE] start structural analysis with {image_type} and {resolution} for {modality}')
     
     tmp_suffix = modality
     if ( staining ):
         spoqc_tmp_folder = f'{spoqc_tmp_folder}/metrices/{modality}/{staining}/'
-        figure_path = f'{figure_path_base}/{modality}/{staining}/{modality}_metrices/'
+        figure_path = f'{figure_path_base}/{modality}/{modality}_metrices/{staining}/'
         tmp_suffix = f'{modality}_{staining}'
     else:
         figure_path = f'{figure_path_base}/{modality}/{modality}_metrices/'
@@ -45,6 +45,19 @@ def start_image_struc_analyis(
             resolution
         )
         xy_intensities = intensities.reshape(dim_x, dim_y)
+
+        # Plot transcript point plot
+        helperfuncs.plot_scatter_by_category(
+            sdata.points['transcripts'].compute(),
+            None, 
+            figure_path, 
+            'transcript_points',
+            'transcript_points',
+            None,
+            pointsize=0.5
+        )
+
+        helperfuncs.nparr_to_parquet(intensities, 'transcript_density', spoqc_tmp_folder, tmp_suffix)
     else:
         xy_intensities = sdata[image_type][resolution].image.values[int(staining)]
         xy_intensities = np.flipud(xy_intensities)
@@ -59,7 +72,6 @@ def start_image_struc_analyis(
     else:
         sys.exit('[ERROR] Modality not supported')
 
-    # TODO I need to generate log here to make the image stick out more
     helperfuncs.plot_pixels(
         figure_path,
         np.log10(xy_intensities + 1),
@@ -105,7 +117,6 @@ def start_image_struc_analyis(
         timer.stop()
         helperfuncs.nparr_to_parquet(signal_noise_ratio_log2fc, step, spoqc_tmp_folder, tmp_suffix)
 
-    # TODO not used so far
     step = 'lbp'
     if ( step in steps ):
         # Pixel pattern information. Does a pixel live in a specific pattern?

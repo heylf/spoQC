@@ -13,6 +13,7 @@ def calc_doublet_score(
         sdata,
         figure_path,
         spoqc_tmp_folder,
+        threads,
         key_transcripts, 
         n_expected_celltypes,
         cell_diameter,
@@ -21,7 +22,7 @@ def calc_doublet_score(
         signal_threshold,
         window_sizes,
         num_doublet,
-        distance
+        distance_thresh,
 ):
 
     transcript_coordinates_df = sdata.points[key_transcripts].compute()
@@ -33,16 +34,26 @@ def calc_doublet_score(
     min_x = min(transcript_coordinates_df['x'])
     min_y = min(transcript_coordinates_df['y'])
 
-    signal_integrity, signal_strength, visualizer = ovrlpy.run(
-        df=transcript_coordinates_df,
-        n_expected_celltypes=n_expected_celltypes,
-        cell_diameter=cell_diameter
-    )
+    n_components = 30
+    if (n_expected_celltypes and n_expected_celltypes > 0):
+        n_components = n_expected_celltypes
+    if ( sdata['table'].n_obs < 500 ):
+        n_components = 10
+    if ( sdata['table'].n_obs < 100 ):
+        n_components = 2
 
-    doublet_df = ovrlpy.detect_doublets(
-        signal_integrity, signal_strength, 
-        minimum_signal_strength=minimum_signal_strength, integrity_sigma=integrity_sigma
+    ovrlp = ovrlpy.Ovrlp(
+        transcript_coordinates_df,
+        min_distance=cell_diameter,
+        n_components=n_components,
+        n_workers=threads,
     )
+    ovrlp.analyse()
+
+    doublet_df = ovrlp.detect_doublets(
+        min_signal=minimum_signal_strength,
+        integrity_sigma=integrity_sigma,
+    ).to_pandas()
 
     plt.scatter(
         doublet_df["x"],
@@ -58,25 +69,28 @@ def calc_doublet_score(
     plt.xlabel("x")
     plt.ylabel("y")
     plt.savefig(f'{figure_path}/scatter_signal_integrity.png')
+    plt.savefig(f'{figure_path}/scatter_signal_integrity.pdf')
     plt.close()
 
+    transcripts_processed = ovrlp.transcripts.to_pandas()
     fig = plt.figure(figsize=(10, 10))
     ax = plt.subplot(111, projection="3d")
     for i in range(-2, 3):
-        subset = transcript_coordinates_df[
-            (transcript_coordinates_df.z - transcript_coordinates_df.z_delim).between(i, i + 1)
+        subset = transcripts_processed[
+            (transcripts_processed['z'] - transcripts_processed['z_center']).between(i, i + 1)
         ]
         # downsample the number of transcripts
         subset = subset[::100]
 
         ax.scatter(subset["x"], subset["y"], i, s=1, alpha=0.1)
-    ratio = transcript_coordinates_df["x"].max() / transcript_coordinates_df["y"].max()
+    ratio = transcripts_processed["x"].max() / transcripts_processed["y"].max()
     ax.set_box_aspect([ratio, 1, 0.75])
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.set_zlabel("z")
     plt.tight_layout(pad=2)
     plt.savefig(f'{figure_path}/scatter_signal_integrity_3d.png')
+    plt.savefig(f'{figure_path}/scatter_signal_integrity_3d.pdf')
     plt.close()
 
     # Integrity density plot
@@ -96,10 +110,12 @@ def calc_doublet_score(
     plt.tight_layout()
 
     plt.savefig(f'{figure_path}/histogram_signal_integrity_and_signal.png')
+    plt.savefig(f'{figure_path}/histogram_signal_integrity_and_signal.pdf')
     plt.close()
-    fig, ax = ovrlpy.plot_signal_integrity(signal_integrity, signal_strength, signal_threshold=signal_threshold)
+    fig = ovrlpy.plot_signal_integrity(ovrlp, signal_threshold=signal_threshold)
     plt.tight_layout()
     plt.savefig(f'{figure_path}/spatial_signal_integrity_map.png')
+    plt.savefig(f'{figure_path}/spatial_signal_integrity_map.pdf')
     plt.close()
 
     if ( len(doublet_df) < num_doublet ):
@@ -109,31 +125,27 @@ def calc_doublet_score(
 
         doublet_case = i
         x, y = doublet_df.loc[doublet_case, ["x", "y"]]
-        fig, axes = ovrlpy.plot_region_of_interest(
+        fig = ovrlpy.plot_region_of_interest(
+            ovrlp,
             x,
             y,
-            transcript_coordinates_df,
-            visualizer,
-            signal_integrity,
-            signal_strength,
             window_size=window_sizes[0],
         )
         # Adjust layout to prevent overlap
         fig.tight_layout()
         fig.savefig(f'{figure_path}/doublet_case_{i}_zoomed.png')
+        fig.savefig(f'{figure_path}/doublet_case_{i}_zoomed.pdf')
 
         x, y = doublet_df.loc[doublet_case, ["x", "y"]]
-        fig, axes = ovrlpy.plot_region_of_interest(
+        fig = ovrlpy.plot_region_of_interest(
+            ovrlp,
             x,
             y,
-            transcript_coordinates_df,
-            visualizer,
-            signal_integrity,
-            signal_strength,
             window_size=window_sizes[1],
         )
         fig.tight_layout()
         fig.savefig(f'{figure_path}/doublet_case_{i}.png')
+        fig.savefig(f'{figure_path}/doublet_case_{i}.pdf')
 
     # Link doublet detection back to spatial.
     # Based on a distance parameter say if a cell might be a doublet or not.
@@ -141,7 +153,8 @@ def calc_doublet_score(
         'x': [poly.centroid.x for poly in sdata['cell_boundaries']['geometry']],
         'y': [poly.centroid.y for poly in sdata['cell_boundaries']['geometry']],
         'doublet': [False] * sdata['table'].n_obs,
-        'wdoublet': [0] * sdata['table'].n_obs
+        'wdoublet': [0] * sdata['table'].n_obs,
+        'doublet_distance': [100_000.0] * sdata['table'].n_obs
     })
 
     corrected_doublet_df = doublet_df.copy()
@@ -150,11 +163,14 @@ def calc_doublet_score(
     corrected_doublet_df['x'] = doublet_df['x'] + min_x
     corrected_doublet_df['y'] = doublet_df['y'] + min_y
 
+    final_distances = np.array([100_000.0] * sdata['table'].n_obs)
     for i, doublet in corrected_doublet_df.iterrows():
         x1, y1 = doublet['x'], doublet['y']
         distances = np.sqrt((cell_dobulet_df['x'] - x1)**2 + (cell_dobulet_df['y'] - y1)**2)
-        cell_dobulet_df.loc[distances <= distance, 'doublet'] = True
-        cell_dobulet_df.loc[distances <= distance, 'wdoublet'] = 1
+        final_distances = np.minimum(final_distances, distances) 
+        cell_dobulet_df.loc[distances <= distance_thresh, 'doublet'] = True
+        cell_dobulet_df.loc[distances <= distance_thresh, 'wdoublet'] = 1
+    cell_dobulet_df['doublet_distance'] = final_distances
 
     # Plot doublet density
     helperfuncs.plot_scatter_density_df(
@@ -164,12 +180,13 @@ def calc_doublet_score(
         'doublet',
         'wdoublet',
         ['lightblue', 'black'],
-        None
+        'Cells close to doublet events'
     )
 
     # Write into sdata
     sdata['table'].obs['doublet'] = np.array(cell_dobulet_df['doublet'])
     sdata['table'].obs['wdoublet'] = np.array(cell_dobulet_df['wdoublet'])
+    sdata['table'].obs['doublet_distance'] = np.array(cell_dobulet_df['doublet_distance'])
 
     # Have to call this again because overlpy corrects also the transcript coordinates
     transcript_coordinates_df = sdata.points[key_transcripts].compute()
@@ -180,8 +197,8 @@ def calc_doublet_score(
     for i, doublet in corrected_doublet_df.iterrows():
         x1, y1 = doublet['x'], doublet['y']
         distances = np.sqrt((transcript_coordinates_df['x'] - x1)**2 + (transcript_coordinates_df['y'] - y1)**2)
-        transcript_doublet[distances <= distance] = True
-        transcript_wdoublet[distances <= distance] = 1
+        transcript_doublet[distances <= distance_thresh] = True
+        transcript_wdoublet[distances <= distance_thresh] = 1
 
     # Write out transcript doublet information for later usage
     transcript_doublet_df = pd.DataFrame({

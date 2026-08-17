@@ -24,7 +24,6 @@ def reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
     helperfuncs.plot_scatter(qc_domains_adata, figure_path, 'leiden', None, 'leiden', None, None)
 
     # Shrink down number of leidenclusters into 3 main quality levels (low, mid, high) based QC metrices.
-    # TODO so far I just unse transcripts count. Think about to incooporate different or more QC metrices.
     mean_counts = [np.mean(cell_df.loc[cell_df['leiden'] == c][counts]) for c in clusters]
 
     n = len(clusters)
@@ -55,15 +54,27 @@ def calc_transcript_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, 
     # Get bad cluster
     mean_counts = [np.mean(cell_df.loc[cell_df['qc_cluster'] == c][counts]) for c in [0,1,2]]
     bad_cluster = np.argmin(mean_counts)
+    t = np.min(mean_counts)
 
     # Apply hard threshold just to check if the bad cluster is really bad and not just a specific domain.
-    thres_transcript_counts = 100
+    # We use so far cell area normalized transcript counts.
+    thres_transcript_counts = 1.0
     if ( np.min(mean_counts) > thres_transcript_counts ):
         print(f"[NOTE] Bad cluster is actually not bad." + \
             "Switching to hard theshold of {thres_transcript_counts} transcripts per cell")
         hard_qc_clusters = np.zeros(len(cell_df))
         hard_qc_clusters[cell_df[counts] > thres_transcript_counts] = 1
         cell_df['qc_cluster'] = hard_qc_clusters
+        t = thres_transcript_counts 
+
+    helperfuncs.plot_histogram_for_array(
+        cell_df[counts],
+        20,
+        figure_path,
+        f"{counts}: t={np.round(t, 3)} with {0} x {np.round(0.0, 3)} std",
+        f"{counts}_prior",
+        t=t
+    )
 
     # For each cell calculate the bad quality probability, which is basically the poportion of 
     # all the cells in a distance beloning to the bad quality cluster.
@@ -73,11 +84,16 @@ def calc_transcript_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, 
     })
 
     distance_matrix = helperfuncs.points_within_radius(df_coords, 30, False)
-    bad_quality_probabilities =  [get_bad_quality_probability(x, cell_df, distance_matrix, bad_cluster, 'qc_cluster') \
-                                  for x in range(sdata['table'].n_obs)]
-    
+    bad_quality_probabilities =  np.array([get_bad_quality_probability(
+        x,
+        cell_df,
+        distance_matrix,
+        bad_cluster,
+        'qc_cluster'
+    ) for x in range(sdata['table'].n_obs)])
+    good_quality_probabilities = 1 - bad_quality_probabilities
 
-    return bad_quality_probabilities, cell_df
+    return good_quality_probabilities, cell_df
 
 
 def calc_celltype_transcript_counts_probs(
@@ -103,7 +119,13 @@ def calc_celltype_transcript_counts_probs(
 
     # Calculate bad quality probability
     distance_matrix = helperfuncs.points_within_radius(df_coords, 30, False)
-    bad_quality_probs_celltype =  [get_bad_quality_probability(x, cell_df, distance_matrix, 1, 'qc_celltype_class') \
-                                   for x in range(sdata['table'].n_obs)]
+    bad_quality_probs_celltype =  np.array([get_bad_quality_probability(
+        x,
+        cell_df,
+        distance_matrix,
+        1,
+        'qc_celltype_class'
+    ) for x in range(sdata['table'].n_obs)])
+    good_quality_probabilities = 1 - bad_quality_probs_celltype
     
-    return bad_quality_probs_celltype, cell_df
+    return good_quality_probabilities, cell_df

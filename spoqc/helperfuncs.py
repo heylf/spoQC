@@ -14,6 +14,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import shutil
 import scanpy as sc
+import matplotlib
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
@@ -25,6 +26,7 @@ from matplotlib.colors import to_hex
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from scipy.ndimage import gaussian_filter
+from scipy.stats import norm
 
 class ImageDimStruct(NamedTuple):
     bb_xmin: int
@@ -67,7 +69,7 @@ def sort_files(data_path, prefix_or_suffix, remove_from_moving):
         s = 1
     files = os.listdir(data_path)
 
-    if ( '.files_sorted.txt' not in files ):
+    if ( 'hist' not in files ):
         files = [x for x in files if x not in remove_from_moving]
         files_prefixes = list(set([x.split("_")[s] for x in files]))
         for prefix in files_prefixes:
@@ -75,10 +77,6 @@ def sort_files(data_path, prefix_or_suffix, remove_from_moving):
                 os.makedirs(f'{data_path}/{prefix}')
         for f in files:
             shutil.move(f"{data_path}/{f}", f"{data_path}/{f.split('_')[s]}/{f}")
-
-        # Just a stamp to if I run the function again the code does not break.
-        sorted_stamp = open(f'{data_path}/.files_sorted.txt', 'w')
-        sorted_stamp.close()
 
 
 def create_fraction_df(adata: AnnData, group: str, category: str) -> Dict[str, Union[List[str], List, np.ndarray]]:
@@ -127,7 +125,30 @@ def create_fraction_df(adata: AnnData, group: str, category: str) -> Dict[str, U
     return(d)    
 
 
-def image_crop(sdata: Any, bb_xmin: float, bb_ymin: float, 
+def deduplicate_dask_index(ddf: Any) -> Any:
+    """
+    Return a copy of a dask DataFrame with a globally unique, monotonically
+    increasing RangeIndex.
+
+    Some readers (e.g. the Xenium zarr reader) build points partitions that
+    each carry their own locally-scoped 0..n index, so the same index value
+    repeats across partitions. `ddf.reset_index(drop=True)` does not fix this
+    because dask resets the index independently per partition. Here we
+    compute the (cheap) per-partition lengths and offset each partition's
+    index by the cumulative length of the partitions before it.
+    """
+    def _assign_partition_index(df, offsets, partition_info=None):
+        start = offsets[partition_info["number"]]
+        df = df.copy()
+        df.index = pd.RangeIndex(start, start + len(df))
+        return df
+
+    lengths = ddf.map_partitions(len).compute().to_numpy()
+    offsets = np.concatenate(([0], np.cumsum(lengths)[:-1]))
+    return ddf.map_partitions(_assign_partition_index, offsets, meta=ddf._meta)
+
+
+def image_crop(sdata: Any, bb_xmin: float, bb_ymin: float,
                bb_xmax: float, bb_ymax: float, coordsystem: str) -> Tuple[Any, float, float]:
     """
     Crop a spatial dataset to a specified bounding box within a given coordinate system.
@@ -237,7 +258,6 @@ def get_cbar_shrink(df_shrink):
     x_range = np.max(df_shrink['x']) - np.min(df_shrink['x'])
     shrink = y_range / x_range if x_range > 0 else 1.0
     shrink = max(0.05, min(shrink, 1.0))
-    print(shrink)
     return shrink
 
 
@@ -287,7 +307,6 @@ def fast_kde2d(
 
 
 # Create a function to generate density plots for each category of a key
-# TODO make this compatible with anndata
 def plot_density_by_category(df: pd.DataFrame, key: str, figure_path: Union[str, None], flip=False) -> None:
     """
     Generate and save density plots for each category in a given column of a DataFrame.
@@ -308,7 +327,6 @@ def plot_density_by_category(df: pd.DataFrame, key: str, figure_path: Union[str,
 
     ax = plt.gca()
     
-    # TODO plotly plot here?
     for i, category in enumerate(categories):
         plt.subplot(1, len(categories), i + 1)
         
@@ -337,10 +355,10 @@ def plot_density_by_category(df: pd.DataFrame, key: str, figure_path: Union[str,
 
     plt.tight_layout()
     plt.savefig(f'{figure_path}/densityplot_{key}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/densityplot_{key}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 # Same as kde but scatter plot
-# TODO make this compatible with anndata
 def plot_scatter_by_category(df: pd.DataFrame, key: str, figure_path: str, suffix: str,
                              title: Optional[str], palette: Union[str, Dict[str, str]],
                              pointsize=1.0, flip=False) -> None:
@@ -380,10 +398,10 @@ def plot_scatter_by_category(df: pd.DataFrame, key: str, figure_path: str, suffi
 
     plt.tight_layout()
     plt.savefig(f'{figure_path}/scatterplot_{key}_{suffix}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/scatterplot_{key}_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
-# TODO docstring needs update
 def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path: Union[str, None], suffix: str,
                                         palette: Union[str, dict, None],
                                         title: Optional[str], pointsize=1.0, flip=False) -> None:
@@ -440,6 +458,8 @@ def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path:
     if figure_path is not None:
         plt.savefig(f'{figure_path}/scatterplot_densityplot_{key}_{suffix}.png',
                     bbox_inches='tight', dpi=300)
+        plt.savefig(f'{figure_path}/scatterplot_densityplot_{key}_{suffix}.pdf',
+                    bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -494,6 +514,7 @@ def plot_density(adata: AnnData, key: str, figure_path: str, flip=False) -> None
 
     plt.tight_layout()
     plt.savefig(f'{figure_path}/densityplot_{key}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/densityplot_{key}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -551,6 +572,7 @@ def plot_scatter(adata: AnnData, figure_path: str, suffix: str, rect: Optional[A
 
     plt.tight_layout()
     plt.savefig(f'{figure_path}/scatterplot_{suffix}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/scatterplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -578,8 +600,9 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
     # Move the legend outside the plot (further to the right)
     handles, labels = scatter.get_legend_handles_labels()
 
-    plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.6, 1), 
-               loc='upper left', borderaxespad=0., markerscale=1)
+    if handles and labels:
+        plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.25, 1),
+                   loc='upper left', borderaxespad=0., markerscale=1)
 
     # Add density category
     try:
@@ -614,12 +637,9 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
         print("Just plotting scatter plot.")
         handles, labels = scatter.get_legend_handles_labels()
         if handles and labels:
-            plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.6, 1), 
+            plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.05, 1), 
                     loc='upper left', borderaxespad=0., markerscale=1)
 
-    if handles == None and labels == None:
-        ax.get_legend().remove()
-        
     if ( title ):
         plt.title(title)
 
@@ -634,6 +654,7 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
     
     plt.tight_layout()
     plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -667,7 +688,7 @@ def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
         print("Just plotting scatter plot.")
         handles, labels = scatter.get_legend_handles_labels()
         if handles and labels:
-            plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.6, 1), 
+            plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.05, 1), 
                     loc='upper left', borderaxespad=0., markerscale=1)
 
     if handles == None and labels == None:
@@ -687,12 +708,14 @@ def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
     
     plt.tight_layout()
     plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
 def plot_original_image_cell_circles(sdata, figure_path, suffix):
-    sdata.pl.render_shapes(elements="cell_circles", scale=0.3).pl.show(dpi=300)
+    sdata.pl.render_shapes(elements="cell_circles", scale=0.3).pl.show(dpi=300, show=False)
     plt.savefig(f'{figure_path}/image_cell_circles_{suffix}.png')
+    plt.savefig(f'{figure_path}/image_cell_circles_{suffix}.pdf')
     plt.close()
 
 def min_value_shift(data: Union[np.ndarray, list]) -> np.ndarray:
@@ -739,7 +762,6 @@ def points_within_radius(df: pd.DataFrame, radius: float, num: bool) -> List[Uni
     for i, point in df.iterrows():
         x1, y1 = point['x'], point['y']
         
-        # TODO just do this once and add distance to cell_spatial_coords?
         # Calculate the distance from this point to all other points
         distances = np.sqrt((df['x'] - x1)**2 + (df['y'] - y1)**2)
         
@@ -802,7 +824,7 @@ def add_manual_legend(legend_dict, points=None):
     leg = ax.legend(handles=handles, title=legend_title, loc=legend_loc,
                     ncols=legend_ncol, frameon=legend_frame)
 
-    ax.legend(handles=handles, title=legend_title, loc="upper left", bbox_to_anchor=(1.02, 1.0), borderaxespad=0)
+    ax.legend(handles=handles, title=legend_title, loc="upper left", bbox_to_anchor=(1.05, 1.0), borderaxespad=0)
 
 
 def plot_pixels(
@@ -846,6 +868,7 @@ def plot_pixels(
         add_manual_legend(legend_dict, points)
 
     plt.savefig(f'{figure_path}/imageplot_{suffix}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -927,6 +950,7 @@ def test_resolutions_leiden(rna, figure_path, n_clusters):
 
     # Saving the figure
     plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering.png')
+    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering.pdf')
     plt.close()
 
     return ss
@@ -1007,6 +1031,7 @@ def dummyplot(figure_path, suffix):
     plt.figure(figsize=(13, 10))
     scatter = sns.scatterplot(x=[1,2], y=[1,2])
     plt.savefig(f'{figure_path}/dummy_plot_{suffix}.png', bbox_inches='tight')
+    plt.savefig(f'{figure_path}/dummy_plot_{suffix}.pdf', bbox_inches='tight')
     plt.close()
 
 
@@ -1023,7 +1048,7 @@ def values_to_hex_gradient(values, cmap_name='hot', reverse=False):
         list of str: A list of hex color strings corresponding to each value.
     """
     norm = mcolors.Normalize(vmin=min(values), vmax=max(values))
-    cmap = cm.get_cmap(cmap_name)
+    cmap = matplotlib.colormaps[cmap_name]
     if reverse:
         cmap = cmap.reversed()
     hex_colors = [mcolors.to_hex(cmap(norm(v))) for v in values]
@@ -1041,15 +1066,20 @@ def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
     try:
         tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder) \
                      if file.endswith(f'{suffix}.parquet')]
+        sdata['table'].obs.index = [str(x) for x in sdata['table'].obs.index]
         for tmp_file in tmp_files:
+            # Check the on-disk schema (cheap, no data read) so files already joined in a
+            # previous call are skipped instead of being re-read from disk every time.
+            columns = pq.ParquetFile(tmp_file).schema.names
+            if all(col in sdata['table'].obs.columns for col in columns):
+                print(f'[NOTE] skip {tmp_file}, already loaded in')
+                continue
             print(f'[NOTE] read in {tmp_file}')
             tmp_data = pd.read_parquet(tmp_file)
             tmp_data.index = [str(x) for x in tmp_data.index]
-            sdata['table'].obs.index = [str(x) for x in sdata['table'].obs.index]
             sdata['table'].obs = sdata['table'].obs.join(tmp_data, how='left')
     except Exception as e:
-        print(f"[ERROR] Failed to read parquet files from {spoqc_tmp_folder} most likely because" + \
-              f"the data was already loaded in: {e}")
+        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder}: {e}")
         return None
 
 def nparr_to_parquet(np_arr, prefix, spoqc_tmp_folder, suffix):
@@ -1143,7 +1173,7 @@ def read_df_parquet_tmp_files(intensities, spoqc_tmp_folder, suffix):
             gc.collect()
         return read_image_df
     except Exception as e:
-        print(f"[ERROR] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
+        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
         return None
 
 
@@ -1172,7 +1202,7 @@ def read_df_parquet_tmp_files_daskified(num_values_image, spoqc_tmp_folder, suff
         return read_image_ddf
 
     except Exception as e:
-        print(f"[ERROR] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
+        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
         return None
 
 
@@ -1196,16 +1226,26 @@ def read_df_parquet_tmp_files_scorify(cluster_df, spoqc_tmp_folder, suffix):
             cluster_df['score'] += tmp_data.sum(axis=1).values
 
     except Exception as e:
-        print(f"[ERROR] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
+        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
         return None
 
 
-def plot_histogram_for_array(array, nbins, figure_path, title, suffix):
+def plot_histogram_for_array(array, nbins, figure_path, title, suffix, t=None, std=None, nstds=1):
     sns.histplot(array, bins=nbins)
     plt.title(title)
     plt.xlabel("value")
     plt.ylabel("frequency")
+    if t:
+        plt.axvline(x=t, color='red', linestyle='-', alpha=1.0)  # Adding vertical lines
+    if t is not None and std is not None:
+        bin_edges = np.histogram_bin_edges(array, bins=nbins)
+        bin_width = np.mean(np.diff(bin_edges))
+        scale = len(array) * bin_width  # rescale pdf to match histplot's count-based y-axis
+        x = np.linspace(np.min(array), np.max(array), 200)
+        y = norm.pdf(x, loc=t, scale=nstds * std) * scale
+        plt.plot(x, y, color='gray')
     plt.savefig(f'{figure_path}/histogram_{suffix}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/histogram_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 

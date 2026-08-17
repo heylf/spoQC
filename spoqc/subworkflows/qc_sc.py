@@ -5,16 +5,22 @@ from .. import subworkflows
 from .. import metrics
 from .. import general
 
-def quick_viz_images(figure_path, image_names, sdata):
+def quick_viz_images(figure_path, image_names, sdata, flip=True):
 
     for i, image in enumerate(image_names):
-        sdata.pl.render_images(image).pl.show(title=image, dpi=300)
-    plt.savefig(f'{figure_path}/all_images.png')
-    plt.close()
+        ax = sdata.pl.render_images(image).pl.show(title=image, dpi=300, return_ax=True, show=False)
+        if flip:
+            ax.invert_yaxis()
+        plt.savefig(f'{figure_path}/all_images.png')
+        plt.savefig(f'{figure_path}/all_images.pdf')
+        plt.close()
 
     for i in image_names:
-        sdata.pl.render_images(i).pl.show(title=i)
+        ax = sdata.pl.render_images(i).pl.show(title=i, return_ax=True, show=False)
+        if flip:
+            ax.invert_yaxis()
         plt.savefig(f'{figure_path}/{i}.png')
+        plt.savefig(f'{figure_path}/{i}.pdf')
         plt.close()
 
 def run_qc_sc(sdata, figure_path, CONST, obs_columns):
@@ -29,3 +35,5 @@ def run_qc_sc(sdata, figure_path, CONST, obs_columns):
     print("[NOTE] Write results")
     obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
     print("[finish]")
+
+    return obs_columns
