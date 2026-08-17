@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import matplotlib
+matplotlib.use("Agg")
+
 try:
     from importlib.metadata import version as _version
     __version__ = _version("spoqc")
