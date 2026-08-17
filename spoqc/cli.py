@@ -367,7 +367,6 @@ def main(argv: list[str] | None = None) -> None:
         start = 10500
         end = CONST.TESTING
         cropped_sdata, _, _ = helperfuncs.image_crop(sdata, start, start, start+end, start+end+500, 'global')
-        #cropped_sdata, _, _ = helperfuncs.image_crop(sdata, 3000, 13000, 6000, 17000, 'global')
         sdata = cropped_sdata
 
     # In[]
