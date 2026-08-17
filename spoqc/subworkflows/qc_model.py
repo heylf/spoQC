@@ -80,8 +80,6 @@ def plot_spatial_vs_exression_variance(sdata, figure_path, df, nPCs):
 
     for i in range(0, nPCs):
 
-        print(i)
-
         # Convert to GeoDataFrame which is needed to take sparsity of spatial data into account.
         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.x, df.y))
 

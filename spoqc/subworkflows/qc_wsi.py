@@ -54,8 +54,6 @@ def measure_stripe_thickness_and_black_area(image_path: str,
         if upper_bound_background[i] > 255:
             upper_bound_background[i] = 255
 
-    print(background_color)
-
     # Read the image
     image = cv2.imread(image_path)
     # Turn background color to white
@@ -141,11 +139,12 @@ def min_distance(coords: Tuple[float, float], compare_coords: List[Tuple[float, 
 def generate_input(sdata, figure_path, CONST):
     ax = sdata.pl.render_images(CONST.IMAGE_TYPE).pl.show(
         title='',
-        frameon=False, 
+        frameon=False,
         return_ax=True,
         pad_extent=0,
-        dpi=300
-    )   
+        dpi=300,
+        show=False
+    )
     ax.axis('off')
     ax.invert_yaxis()
     plt.savefig(f'{figure_path}/input_domain_thickness_analysis.png', bbox_inches='tight')

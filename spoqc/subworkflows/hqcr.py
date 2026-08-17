@@ -89,7 +89,6 @@ def generate_hqcr_html(figure_path, df_plot, cat, ncat, catnames, qc_metrics):
     qc_metrics = [x for x in qc_metrics if x not in ['celltype']]
 
     for level in qc_metrics:
-        print(level)
         plotname = 'violinplot'
         title = 'Distribution of'
         if ( level == 'doublet' or level == 'nucleus_free' ):

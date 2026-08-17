@@ -713,7 +713,7 @@ def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
 
 
 def plot_original_image_cell_circles(sdata, figure_path, suffix):
-    sdata.pl.render_shapes(elements="cell_circles", scale=0.3).pl.show(dpi=300)
+    sdata.pl.render_shapes(elements="cell_circles", scale=0.3).pl.show(dpi=300, show=False)
     plt.savefig(f'{figure_path}/image_cell_circles_{suffix}.png')
     plt.savefig(f'{figure_path}/image_cell_circles_{suffix}.pdf')
     plt.close()
