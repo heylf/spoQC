@@ -45,7 +45,7 @@ If you use spoQC in your work, please cite:
              Long, Brian and
              Ishaque, Naveed and
              Stegle, Oliver},
-  title   = {SPOQC},
+  title   = {spoQC},
   url     = {https://bio.tools/spoqc},
   note    = {bio.tools identifier: biotools:spoqc},
   urldate = {2026-08-17}
