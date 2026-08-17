@@ -30,7 +30,22 @@ Atera support is currently under development and is not yet available.
 
 If you use spoQC in your work, please cite:
 
-> Citation information will be provided soon.
+```
+@software{spoqc,
+  author  = {Heyl, Florian and
+             Sen, Ezgi and
+             Müller-Bötticher, Niklas and
+             Kher, Sameesh and
+             He, Dongze and
+             Long, Brian and
+             Ishaque, Naveed and
+             Stegle, Oliver},
+  title   = {SPOQC},
+  url     = {https://bio.tools/spoqc},
+  note    = {bio.tools identifier: biotools:spoqc},
+  urldate = {2026-08-17}
+}
+```
 
 # Collaborators
 
