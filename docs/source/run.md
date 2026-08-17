@@ -81,6 +81,7 @@ Replace `[step]` with one of the following pipeline stages.
 25. analysis_overview
 26. analysis_cluster
 27. analysis_category
+28. final_report
 
 ### Example
 
