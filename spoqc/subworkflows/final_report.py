@@ -419,7 +419,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     description = """
     **Summary:** Spatial density plot of the cells, weighted by the number of low-quality (QV < 20) transcripts. High-density regions indicate quality issues.
 
-    **Details:** QV is the Phred-scaled quality value (Q-score) defined by 10x Genomics, estimating the probability of an incorrect base call. A QV threshold of 20 is used, following the 10x Genomics convention.
+    **Details:** QV is the Phred-scaled quality value (Q-score) defined by 10x Genomics, estimating the probability of an incorrect transcript call. A QV threshold of 20 is used, following the 10x Genomics convention.
     """
     img_low_qv_trans = image_to_base64(f"{figure_path}/cellqc/scatterplot_densityplot_num_low_qc_transcript.png")
     html_overview += f"""

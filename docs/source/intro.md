@@ -20,7 +20,7 @@ To reduce runtime and improve scalability, we recommend running spoQC with Nextf
 
 Currently supported:
 
-- 10x Xenium
+- 10x Xenium (XOA v4.0 or lower)
 
 ```{note}
 Atera support is currently under development and is not yet available.
@@ -40,7 +40,7 @@ If you use spoQC in your work, please cite:
              Long, Brian and
              Ishaque, Naveed and
              Stegle, Oliver},
-  title   = {SPOQC},
+  title   = {spoQC},
   url     = {https://bio.tools/spoqc},
   note    = {bio.tools identifier: biotools:spoqc},
   urldate = {2026-08-17}
