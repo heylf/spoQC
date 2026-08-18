@@ -13,6 +13,13 @@ def transform(text: str) -> str:
         flags=re.DOTALL,
     )
 
+    text = re.sub(
+        r"\[Run\]\(run\.md\)",
+        r"[Run](#run)",
+        text,
+        flags=re.DOTALL,
+    )
+
     return text.replace("_static", f"{docs_dir}/_static")
 
 

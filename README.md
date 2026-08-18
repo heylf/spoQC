@@ -90,7 +90,7 @@ For further details please read the [documentation](https://spoqc.readthedocs.io
 pip install spoqc
 ```
 
-Once istalled, run spoQC exactly as described in [Run](run.md).
+Once istalled, run spoQC exactly as described in [Run](#run).
 
 ## Docker
 
@@ -107,7 +107,7 @@ container can read and write it:
 docker run -ti -v /path/to/data:/data quay.io/heylf/spoqc:0.1.0 bash
 ```
 
-Once inside the container, run spoQC exactly as described in [Run](run.md), for example:
+Once inside the container, run spoQC exactly as described in [Run](#run), for example:
 
 ```
 python3 -m spoqc -s all -i [input_spatial_data_bundle] -o [output_folder] -t [spoqc_tmp_folder] -n [n_cores] -a [annotation_file]
