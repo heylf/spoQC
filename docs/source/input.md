@@ -65,6 +65,4 @@ cell_3	Macrophage
 
 ## Cell cycle gene file
 
-spoQC currently provides a default cell cycle reference file.
-
-This behavior will change in a future version. Users will then need to provide their own cell cycle gene file.
+SpoQC ships with a default cell cycle gene set (see `subworkflows/qc_cellcycle`), but you can supply your own using `--cellcycle_gene_file cellcycle_gene_file.json`. The file should be in JSON format and include the S and G2M genes.
