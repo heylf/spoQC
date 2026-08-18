@@ -20,7 +20,7 @@ To reduce runtime and improve scalability, we recommend running spoQC with Nextf
 
 Currently supported:
 
-- 10x Xenium
+- 10x Xenium (XOA v4.0 or lower)
 
 ```{note}
 Atera support is currently under development and is not yet available.

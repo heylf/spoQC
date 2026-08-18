@@ -40,7 +40,7 @@ This is the recommended option for most users.
 
 ---
 
-## Step 3: Run Individual Pipeline Steps
+## (Run Individual Pipeline Steps)
 
 Advanced users can execute individual spoQC steps separately.
 
