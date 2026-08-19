@@ -129,6 +129,7 @@ def start_pixel_qc(
     #####################
     ###### Metrics ######
     #####################
+    # We calculate pixel scores for each pixel cluster.
     pixel_scores_ds, clusters_ids, image_ddf = metrics.image.pixel_score.calc_pixel_score(
         sdata,
         figure_path,
@@ -164,7 +165,7 @@ def start_pixel_qc(
     ###### Downstream ######
     ########################
 
-    # Map cluster probabilites to each pixel.
+    # Map cluster densities to each pixel.
     cluster_prob_map = dict(zip(clusters_ids, prob_densities))
     image_ddf = image_ddf.assign(p_informative_pixel=image_ddf['cluster'].map(cluster_prob_map))
 
@@ -179,7 +180,7 @@ def start_pixel_qc(
         belief_name = f"{modality}_{staining}_beliefs"
         mask_name = f"{modality}_{staining}_mask"
 
-    # I only normlize cluster probs and not all pixel probs.
+    # I only generate cluster probs and not all pixel probs.
     scaled_ddf = scaler.fit_transform(image_ddf[['p_informative_pixel']])
     image_ddf = image_ddf.assign(
         **{
