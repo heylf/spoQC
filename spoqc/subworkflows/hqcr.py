@@ -786,7 +786,7 @@ def refine_hqcr_with_celltype_thresholds(
     # Refine HQCR based on cell type thresholds.
     # Now I have to find out which of those multiplets and emtplets are true and which are real cells still.
     qc_metric = counts
-    good_quality_probs_celltype, cell_df = priors.hqcr.transcript_counts.calc_celltype_transcript_counts_probs(
+    good_quality_probs_celltype, cell_df = priors.hqcr.transcript_counts_celltype.calc_celltype_transcript_counts_probs(
         sdata, 
         cell_df, 
         threshold_left_dict, 
