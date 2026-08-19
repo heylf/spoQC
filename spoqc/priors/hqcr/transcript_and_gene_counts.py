@@ -47,7 +47,7 @@ def reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
     helperfuncs.plot_scatter(qc_domains_adata, figure_path, 'qc_cluster', None, 'qc_cluster', None, None)
 
 
-def calc_transcript_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts):
+def calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thres_counts):
 
     reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts)
 
@@ -57,15 +57,13 @@ def calc_transcript_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, 
     t = np.min(mean_counts)
 
     # Apply hard threshold just to check if the bad cluster is really bad and not just a specific domain.
-    # We use so far cell area normalized transcript counts.
-    thres_transcript_counts = 1.0
-    if ( np.min(mean_counts) > thres_transcript_counts ):
+    if ( np.min(mean_counts) > thres_counts ):
         print(f"[NOTE] Bad cluster is actually not bad." + \
-            "Switching to hard theshold of {thres_transcript_counts} transcripts per cell")
+            "Switching to hard theshold of {thres_counts} transcripts per cell")
         hard_qc_clusters = np.zeros(len(cell_df))
-        hard_qc_clusters[cell_df[counts] > thres_transcript_counts] = 1
+        hard_qc_clusters[cell_df[counts] > thres_counts] = 1
         cell_df['qc_cluster'] = hard_qc_clusters
-        t = thres_transcript_counts 
+        t = thres_counts 
 
     helperfuncs.plot_histogram_for_array(
         cell_df[counts],
@@ -93,39 +91,4 @@ def calc_transcript_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, 
     ) for x in range(sdata['table'].n_obs)])
     good_quality_probabilities = 1 - bad_quality_probabilities
 
-    return good_quality_probabilities, cell_df
-
-
-def calc_celltype_transcript_counts_probs(
-        sdata, 
-        cell_df, 
-        threshold_left_dict, 
-        threshold_right_dict, 
-        annotation_key,
-        qc_metric,
-        df_coords
-):
-    cell_df['qc_celltype_class'] = np.array([0] * len(cell_df))
-    for i, celltype in enumerate(threshold_left_dict['celltypes']):
-        df_check = cell_df[cell_df[annotation_key] == celltype]
-
-        # Apply left threshold
-        idx_qc = df_check[df_check[qc_metric] < threshold_left_dict[qc_metric][i]].index
-        cell_df['qc_celltype_class'][idx_qc] = 1 # 1 for beeing bad
-
-        # Apply right threshold
-        idx_qc = df_check[df_check[qc_metric] > threshold_right_dict[qc_metric][i]].index
-        cell_df['qc_celltype_class'][idx_qc] = 1 # 1 for beeing bad
-
-    # Calculate bad quality probability
-    distance_matrix = helperfuncs.points_within_radius(df_coords, 30, False)
-    bad_quality_probs_celltype =  np.array([get_bad_quality_probability(
-        x,
-        cell_df,
-        distance_matrix,
-        1,
-        'qc_celltype_class'
-    ) for x in range(sdata['table'].n_obs)])
-    good_quality_probabilities = 1 - bad_quality_probs_celltype
-    
     return good_quality_probabilities, cell_df
