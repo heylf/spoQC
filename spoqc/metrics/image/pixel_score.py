@@ -74,9 +74,11 @@ def calc_pixel_score(
     timer.start()
     image_ddf = image_ddf.assign(s_score=s_score, as_score=as_score)
 
+    background_intensity = 0.0
     if ( modality == 'hqpr' ):
-        intensity = da.from_array(np.flipud(sdata[image_type][resolution].image.values[int(staining)]).flatten(), 
-                                  chunks=chunk_size)
+        intensity_np = np.flipud(sdata[image_type][resolution].image.values[int(staining)]).flatten()
+        background_intensity, _, _ = metrics.image.utility.estimate_background_intensity(intensity_np)
+        intensity = da.from_array(intensity_np, chunks=chunk_size)
         image_ddf = image_ddf.assign(intensity=intensity)
     elif ( modality == 'hqtr' ):
         # Intensities already flipped
@@ -85,21 +87,16 @@ def calc_pixel_score(
         image_ddf = image_ddf.assign(intensity=intensity)
     else:
         sys.exit(f'[ERROR] Modality {modality} does not exist')
-    timer.stop()
 
     # Materialize s_score/as_score/intensity once so the repeated .compute()
     # calls below don't each re-walk the whole graph from scratch.
     image_ddf = image_ddf.persist()
+    timer.stop()
 
-    # Background refined image
+    # Background refined image (background_intensity was already estimated
+    # directly from numpy above, no Dask round-trip needed).
     print('[NOTE] Background estimation')
     timer.start()
-    background_intensity = 0.0
-
-    if ( modality == 'hqpr' ):
-        background_intensity, _, _ = metrics.image.utility.estimate_background_intensity(
-                                                image_ddf['intensity'].compute().to_numpy()
-                                     )
     t=1.5
     if ( background_intensity == 0 ):
         background_intensity = 1
@@ -115,58 +112,55 @@ def calc_pixel_score(
 
     # Since kmeans clusters might not find enough clusters I have to get all possible clsuter ids from the dataframe.
     clusters_ids = list(cluster_mean_int_df.index)
-    abs_cluster_signla_noise_log2fc = np.zeros(len(clusters_ids))
-
-    background_clusters = []
+    clusters_ids_arr = np.array(clusters_ids)
 
     print("[NOTE] Compare clusters to background")
     timer.start()
-    for i in range(0, len(clusters_ids)):
-        mean_cluster_sigal = cluster_mean_int_df.iloc[i]
-        abs_cluster_signla_noise_log2fc[i] = np.abs( np.log2( ( mean_cluster_sigal + 1) / background_intensity ) )
-        if ( abs_cluster_signla_noise_log2fc[i] < t ):
-            background_clusters.append(i)
+    abs_cluster_signla_noise_log2fc = np.abs(
+        np.log2((cluster_mean_int_df.to_numpy() + 1) / background_intensity)
+    )
+    background_clusters = set(clusters_ids_arr[abs_cluster_signla_noise_log2fc < t])
     timer.stop()
 
     print("[NOTE] Get ps scores")
+    # Each pixel cluster get a pixel_score = s_score - as_score.
     timer.start()
     cluster_mean_s_score_ds = cluster_means_df['s_score'].rename('mean_s_score')
     cluster_mean_as_score_ds = cluster_means_df['as_score'].rename('mean_as_score')
     pixel_scores_ds = np.round(cluster_mean_s_score_ds - cluster_mean_as_score_ds, 2)
     timer.stop()
 
-    cluster_array = image_ddf['cluster'].compute().to_numpy()
+    # Generate plots to investigate individual pixel clusters.
+    # cluster_array is only needed for plotting, so skip materializing it (and the loop
+    # below) entirely when plot_all_pixel_clusters is False.
+    if ( plot_all_pixel_clusters ):
+        timer.start()
+        print("[NOTE] Generate pixel cluster plots")
+        cluster_array = image_ddf['cluster'].compute().to_numpy()
+        for k in clusters_ids:
+            cluster_selection = cluster_array == k
 
-    # Calculating pixel scores and generate plots to investigate individual pixel clusters.
-    # Each pixel cluster get a pixel_score = s_score - as_score.
-    print("[NOTE] Give each pixel a pixel cluster score")
-    timer.start()
-    for k in clusters_ids:
-        cluster_selection = cluster_array == k
+            s_score = np.round(cluster_mean_s_score_ds.loc[k],2)
+            as_score = np.round(cluster_mean_as_score_ds.loc[k],2)
+            pixel_score = pixel_scores_ds.loc[k]
 
-        s_score = np.round(cluster_mean_s_score_ds.loc[k],2)
-        as_score = np.round(cluster_mean_as_score_ds.loc[k],2)
-        pixel_score = pixel_scores_ds.loc[k]
-
-        title = f'Pixel Cluster {k}'
-        if ( k in background_clusters ):
-            title = f'Background Pixel Cluster {k}'
-        title = title + f' with pixel_score {pixel_score:.2f} s_core {s_score:.2f} and as_score {as_score:.2f}'
-
-        if ( plot_all_pixel_clusters ):
+            title = f'Pixel Cluster {k}'
+            if ( k in background_clusters ):
+                title = f'Background Pixel Cluster {k}'
+            title = title + f' with pixel_score {pixel_score:.2f} s_core {s_score:.2f} and as_score {as_score:.2f}'
 
             # Check the sturucture of those pixel clusters.
             helperfuncs.plot_pixels(
                 figure_path,
                 np.array(cluster_selection).reshape(dim_x, dim_y),
                 imagedim,
-                'clusters', 
-                title, 
+                'clusters',
+                title,
                 'gray',
                 False,
                 True
             )
-    timer.stop()
+        timer.stop()
 
     print("[NOTE] Pixel scoring calculation took:")
     timer_all.stop()
