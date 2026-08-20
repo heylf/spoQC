@@ -1,6 +1,5 @@
-import pandas as pd
+import dask
 import dask.dataframe as dd
-from dask_ml.preprocessing import MinMaxScaler
 
 from .. import priors
 from .. import helperfuncs
@@ -55,35 +54,47 @@ def combine_priors_hqpr(spoqc_tmp_folder, image_ddf, belief_name, mask_name):
 
 
 def combine_priors_hqtr(spoqc_tmp_folder, image_ddf, belief_name, mask_name):
-    scaler = MinMaxScaler()
-
     qv_ddf = dd.read_parquet(
-        f'{spoqc_tmp_folder}/hqtr_output_qv_prob',
+        f"{spoqc_tmp_folder}/hqtr_output_qv_prob",
         columns=["norm_p_qv_density"],
         engine="pyarrow",
+        calculate_divisions=True,
     )
+
     ac_ddf = dd.read_parquet(
-        f'{spoqc_tmp_folder}/hqtr_output_ac_prob',
+        f"{spoqc_tmp_folder}/hqtr_output_ac_prob",
         columns=["norm_p_ac_density"],
         engine="pyarrow",
+        calculate_divisions=True,
     )
 
-    # Informative pixel probability for hqtr = p(structure) + p(good qv) + p(not ambient)
-    a = image_ddf['norm_p_pixel_score'].compute().values
-    b = qv_ddf['norm_p_qv_density'].compute().values
-    c = ac_ddf['norm_p_ac_density'].compute().values
-    series_np = a + b + c
+    # Keep everything lazy / partitioned
+    belief = (
+        image_ddf["norm_p_pixel_score"]
+        + qv_ddf["norm_p_qv_density"]
+        + ac_ddf["norm_p_ac_density"]
+    )
 
-    chunk_size = image_ddf.divisions[1] - image_ddf.divisions[0]
-    series_ddf = dd.from_pandas(pd.Series(series_np), chunksize=chunk_size)
-    image_ddf = image_ddf.assign(**{belief_name: series_ddf})
-    scaled_ddf = scaler.fit_transform(image_ddf[[belief_name]])
-    image_ddf = image_ddf.assign(
+    image_ddf = image_ddf.assign(**{belief_name: belief})
+
+    # MinMaxScaler(x) is simply (x - min) / (max - min)
+    min_val, max_val = dask.compute(
+        image_ddf[belief_name].min(),
+        image_ddf[belief_name].max(),
+    )
+
+    value_range = max_val - min_val
+
+    if value_range == 0:
+        scaled = image_ddf[belief_name] * 0
+    else:
+        scaled = (image_ddf[belief_name] - min_val) / value_range
+
+    return image_ddf.assign(
         **{
-            belief_name: scaled_ddf.iloc[:,0],
-            mask_name: (scaled_ddf.iloc[:, 0] > 0.5).astype(int),
+            belief_name: scaled,
+            mask_name: (scaled > 0.5).astype("int8"),
         }
-    )
-    return image_ddf
+    ) 
 
 # %%
