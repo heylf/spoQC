@@ -106,27 +106,14 @@ def celltype_cluster_analysis(
     win_res = -1
     if ( not os.path.exists(res_file_name) ):
         if ( subdir == 'overview' ):
-            win_res = analysis_funcs.test_resolutions_leiden(
-                rna, 
-                figure_path, 
-                CONST.THREADS,
-                annotation_key=CONST.ANNOTATION_KEY,
-                resolutions=[0.2, 0.5, 1.0, 1.5]
-                # steps=20
-            )
+            k = len(set(rna.obs[CONST.ANNOTATION_KEY])) + 3
         else:
             k=15
             if ( rna.n_obs < 50 ):
                 k = 3
 
-            win_res = analysis_funcs.test_resolutions_leiden(
-                rna, 
-                figure_path,
-                CONST.THREADS,
-                k=k,
-                resolutions=[0.2, 0.5, 1.0, 1.5]
-                # steps=20
-            )
+        res = [0.2, 0.5, 1.0, 1.5]
+        win_res = analysis_funcs.find_resolution_coarse_to_fine(rna, k, res)
 
         res_file = open(f"{figure_path}/res.txt", "w")
         res_file.write(f"{win_res}\nIs the winning leiden resolution\n")
@@ -143,15 +130,8 @@ def celltype_cluster_analysis(
         print("[NOTE] Resolution was too far off. Doing further optimization")
         timer.start()
         rna.obs.drop(columns=['leiden'], inplace=True)
-        win_res = analysis_funcs.test_resolutions_leiden(
-            rna,
-            figure_path,
-            CONST.THREADS,
-            resolutions=[0.001, 0.01, 0.1]
-            # steps=30,
-            # end=0.1,
-            # start=0.000001
-        )
+        res = [0.001, 0.01, 0.1]
+        win_res = analysis_funcs.find_resolution_coarse_to_fine(rna, k, res)
         sc.tl.leiden(rna, resolution=win_res, key_added='leiden', random_state=seed)
         timer.stop()
 
