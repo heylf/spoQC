@@ -1,8 +1,6 @@
-import dask
 import dask.dataframe as dd
 
 from .. import priors
-from .. import helperfuncs
 
 # We will combine the pixel scorep prior with more priors
 def combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts):
@@ -38,7 +36,8 @@ def combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts):
         prior_negative_probe_counts + \
         prior_invalid_cell_geometry + \
         prior_invalid_nucelus_geometry
-    final_prior = helperfuncs.min_max_normalize(final_prior)
+    num_priors = 6.0
+    final_prior = final_prior / num_priors
 
     sdata['table'].obs['good_quality_probabilities'] = final_prior
 
@@ -76,19 +75,8 @@ def combine_priors_hqtr(spoqc_tmp_folder, image_ddf, belief_name, mask_name):
     )
 
     image_ddf = image_ddf.assign(**{belief_name: belief})
-
-    # MinMaxScaler(x) is simply (x - min) / (max - min)
-    min_val, max_val = dask.compute(
-        image_ddf[belief_name].min(),
-        image_ddf[belief_name].max(),
-    )
-
-    value_range = max_val - min_val
-
-    if value_range == 0:
-        scaled = image_ddf[belief_name] * 0
-    else:
-        scaled = (image_ddf[belief_name] - min_val) / value_range
+    num_priors = 3.0
+    scaled = image_ddf[belief_name] / num_priors
 
     return image_ddf.assign(
         **{
