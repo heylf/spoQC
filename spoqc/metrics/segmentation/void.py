@@ -5,58 +5,32 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import plotly.express as px   # plotly
 import pandas as pd
-import matplotlib.path
 from matplotlib.collections import PolyCollection
 import seaborn as sns
-import concurrent.futures
 import os
 
 from ... import helperfuncs
 
-def count_stuff_in_triangles(triangle_array, stuff):
-    counts = np.zeros(len(triangle_array), dtype=int)
-    indices_list = []
+def count_stuff_in_triangles_via_delaunay(delaunay, stuff):
+    num_triangles = len(delaunay.simplices)
+    stuff = np.asarray(stuff)
 
-    for i, triangle in enumerate(triangle_array):
-        path = matplotlib.path.Path(triangle) # Create a polygon path for the triangle
-        indices = np.where(path.contains_points(stuff))
-        indices_list.append(indices)
-        counts[i] = np.count_nonzero(path.contains_points(stuff))
+    # This is an array where each transcript is basically assigned to a triangle id.
+    simplex_ids = delaunay.find_simplex(stuff)
+
+    # This counts how often a triangle id appears.
+    counts = np.bincount(simplex_ids[simplex_ids >= 0], minlength=num_triangles)
+
+    point_idx = np.nonzero(simplex_ids >= 0)[0]
+    order = np.argsort(simplex_ids[point_idx], kind='stable')
+    point_idx = point_idx[order]
+    sorted_simplex_ids = simplex_ids[point_idx]
+    boundaries = np.searchsorted(sorted_simplex_ids, np.arange(num_triangles + 1))
+    indices_list = [
+        (point_idx[boundaries[i]:boundaries[i + 1]],) for i in range(num_triangles)
+    ]
 
     return counts, indices_list
-
-# Define a single worker function
-def process_triangle_block(block_index, triangle_block, stuff):
-    counts = []
-    indices = []
-
-    for triangle in triangle_block:
-        path = matplotlib.path.Path(triangle)
-        mask = path.contains_points(stuff)
-        indices.append(np.where(mask))
-        counts.append(np.count_nonzero(mask))
-    
-    return counts, indices, block_index
-
-def count_stuff_in_triangles_fast(triangle_array, stuff, threads):
-    count_list = [None] * threads
-    indices_list = [None] * threads
-    thread_split_triangle_array = helperfuncs.thread_split_list(triangle_array, threads)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
-        futures = [executor.submit(process_triangle_block,
-                    block_index,
-                    triangle_block,
-                    stuff
-                ) for block_index, triangle_block in enumerate(thread_split_triangle_array)]
-        for future in concurrent.futures.as_completed(futures):
-            results = future.result()
-            count_list[results[2]] = results[0]
-            indices_list[results[2]] = results[1]
-
-    # Unpack stuff
-    unpacked_count_list_sorted = [item for sublist in count_list for item in sublist]
-    unpacked_indices_list_sorted = [item for sublist in indices_list for item in sublist]
-    return unpacked_count_list_sorted, unpacked_indices_list_sorted
 
 
 def build_triangle_graph_using_neighbors(delaunay, points):
@@ -92,7 +66,6 @@ def calc_void(
         spoqc_tmp_folder,
         min_n_triangles_in_cluster,
         contaminant_list,
-        threads,
         *,
         debug=False,
         flip=False
@@ -349,7 +322,7 @@ def calc_void(
     transcripts_outside_cell_df = transcripts_df.loc[transcripts_df['cell_id'] == -1]
     transcript_ocell_coords = np.array(list(zip(transcripts_outside_cell_df['x'], transcripts_outside_cell_df['y'])))
     timer.start()
-    counts, indices = count_stuff_in_triangles_fast(triangles_pointcoords, transcript_ocell_coords, threads)
+    counts, indices = count_stuff_in_triangles_via_delaunay(delaunay, transcript_ocell_coords)
     timer.stop()
     triangles_df['transcripts_counts_outside_cell'] = counts
 
@@ -375,7 +348,7 @@ def calc_void(
         transcripts_doublet_df = transcripts_outside_cell_df.loc[transcripts_outside_cell_df['doublet']]
         if ( len(transcripts_doublet_df) > 0 ):
             transcript_doublet_coords = np.array(list(zip(transcripts_doublet_df['x'], transcripts_doublet_df['y'])))
-            counts, indices = count_stuff_in_triangles_fast(triangles_pointcoords, transcript_doublet_coords, threads)
+            counts, indices = count_stuff_in_triangles_via_delaunay(delaunay, transcript_doublet_coords)
             triangles_df['transcripts_counts_doublets'] = counts
         else:
             print(f'[NOTE] no doublets found')
@@ -394,10 +367,9 @@ def calc_void(
             if ( len(transcripts_contaminant_df) > 0 ):
                 transcript_contaminant_coords = np.array(list(zip(transcripts_contaminant_df['x'],
                                                               transcripts_contaminant_df['y'])))
-                counts, indices = count_stuff_in_triangles_fast(
-                    triangles_pointcoords,
-                    transcript_contaminant_coords,
-                    threads
+                counts, indices = count_stuff_in_triangles_via_delaunay(
+                    delaunay,
+                    transcript_contaminant_coords
                 )
                 triangles_df[f'transcripts_counts_{contaminant}'] = counts
             else:
@@ -418,7 +390,7 @@ def calc_void(
         ) 
     )
     timer.stop()
-    counts, indices = count_stuff_in_triangles_fast(triangles_pointcoords, nuclei_centoid_coords, threads)
+    counts, indices = count_stuff_in_triangles_via_delaunay(delaunay, nuclei_centoid_coords)
 
     # Lets just consider nulcei_counts > 3 because my triangle consists of 3 cells.
     # Of course this does not consider cells with multi-nucei or multiplets.
