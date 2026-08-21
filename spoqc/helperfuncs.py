@@ -402,9 +402,18 @@ def plot_scatter_by_category(df: pd.DataFrame, key: str, figure_path: str, suffi
     plt.close()
 
 
-def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path: Union[str, None], suffix: str,
-                                        palette: Union[str, dict, None],
-                                        title: Optional[str], pointsize=1.0, flip=False) -> None:
+def plot_scatter_density_by_category_df(
+        df: pd.DataFrame,
+        key: str, figure_path:
+        Union[str, None],
+        suffix: str,
+        palette: Union[str, dict, None],
+        title: Optional[str],
+        *,
+        pointsize=1.0,
+        flip=False,
+        plot_categories=None,
+    ) -> None:
     """
     Generate and save density plots for each category in a given column of a DataFrame.
 
@@ -418,7 +427,8 @@ def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path:
     """
 
     categories = df[key].unique()
-
+    if plot_categories:
+        categories = plot_categories
     fig, axes = plt.subplots(1, len(categories), figsize=(5 * len(categories), 5), squeeze=False)
     axes = axes.ravel()
 
