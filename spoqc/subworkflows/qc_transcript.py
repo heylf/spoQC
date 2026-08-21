@@ -137,11 +137,11 @@ def transcriptqc(sdata, figure_path, annotation_file, key_transcripts):
     df['feature_type'] = rna_types_sdata
 
     timer.start()
-    helperfuncs.plot_scatter_density_by_category_df(df, 'location', figure_path, '1', None, None, 1)
+    helperfuncs.plot_scatter_density_by_category_df(df, 'location', figure_path, '1', None, None, pointsize=1)
     timer.stop()
 
     timer.start()
-    helperfuncs.plot_scatter_density_by_category_df(df, 'feature_type', figure_path, '1', None, None, 1)
+    helperfuncs.plot_scatter_density_by_category_df(df, 'feature_type', figure_path, '1', None, None, pointsize=1)
     timer.stop()
 
     # Phred-scaled quality value (Q-Score) estimating the probability of incorrect call

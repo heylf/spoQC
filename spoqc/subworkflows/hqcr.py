@@ -460,9 +460,16 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
 
     df = pd.DataFrame({
         'hqcr_beliefs': average_cell_probability_image.flatten(),
-        'hqcr_mask': (average_cell_probability_image.flatten() > 0.5).astype(np.uint8)
+        'hqcr_mask': (average_cell_probability_image.flatten() > 0.5).astype(np.uint8),
     })
     df.to_parquet(f"{spoqc_tmp_folder}/hqcr_output_mask_{suffix}.parquet")
+
+    # This is in cell dimension.
+    df = pd.DataFrame({
+        'hqcr_traffic_light': sdata['table'].obs['hqcr_traffic_light'],
+    })
+    df.index = sdata['table'].obs.index
+    df.to_parquet(f"{spoqc_tmp_folder}/traffic_light_output_hqcr.parquet")
 
 
 def load_data_for_hqcr(sdata, spoqc_tmp_folder, counts):

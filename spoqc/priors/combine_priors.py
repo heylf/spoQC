@@ -2,6 +2,22 @@ import dask.dataframe as dd
 
 from .. import priors
 
+def traffic_light(priors, bad_threshold=0.3, warning_threshold=0.6):
+    n_bad = sum(p < bad_threshold for p in priors)
+    n_warning = sum(
+        bad_threshold <= p < warning_threshold
+        for p in priors
+    )
+
+    if n_bad >= 2:
+        return "red"
+
+    if n_bad == 1 or n_warning >= 2:
+        return "yellow"
+
+    return "green"
+
+
 # We will combine the pixel scorep prior with more priors
 def combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts):
 
@@ -40,6 +56,19 @@ def combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts):
     final_prior = final_prior / num_priors
 
     sdata['table'].obs['good_quality_probabilities'] = final_prior
+
+    traffic_lights = [
+        traffic_light(cell_priors)
+        for cell_priors in zip(
+            prior_transcript_counts,
+            prior_gene_counts,
+            prior_doublet_distance,
+            prior_negative_probe_counts,
+            prior_invalid_cell_geometry,
+            prior_invalid_nucelus_geometry,
+        )
+    ]
+    sdata['table'].obs['hqcr_traffic_light'] = traffic_lights
 
 
 def combine_priors_hqpr(spoqc_tmp_folder, image_ddf, belief_name, mask_name):
@@ -83,6 +112,6 @@ def combine_priors_hqtr(spoqc_tmp_folder, image_ddf, belief_name, mask_name):
             belief_name: scaled,
             mask_name: (scaled > 0.5).astype("int8"),
         }
-    ) 
+    )
 
 # %%

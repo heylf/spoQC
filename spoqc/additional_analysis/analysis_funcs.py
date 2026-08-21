@@ -12,7 +12,7 @@ from sklearn.metrics import silhouette_score
 from .. import helperfuncs
 from .. import subworkflows
 
-def create_celltype_fraction_df(x, label, rna):
+def create_fraction_df(x, label, rna):
         
     # adata: your AnnData object
     df = rna.obs[[label, x]].copy()
@@ -29,10 +29,14 @@ def create_celltype_fraction_df(x, label, rna):
         label: 'label'
     })
 
-    # Sort x numerically
-    fractions_df['x'] = fractions_df['x'].astype(int)
-    fractions_df = fractions_df.sort_values('x').reset_index(drop=True)
-    fractions_df['x'] = fractions_df['x'].astype(str)
+    # Sort x numerically if possible, otherwise fall back to string sort
+    try:
+        fractions_df['x'] = fractions_df['x'].astype(int)
+        fractions_df = fractions_df.sort_values('x').reset_index(drop=True)
+        fractions_df['x'] = fractions_df['x'].astype(str)
+    except (ValueError, TypeError):
+        fractions_df['x'] = fractions_df['x'].astype(str)
+        fractions_df = fractions_df.sort_values('x').reset_index(drop=True)
 
     return(fractions_df)
 
