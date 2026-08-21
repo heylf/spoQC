@@ -605,6 +605,27 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     # Fifth page
     ####################################################################################################################
 
+    html_sp_leiden_subcluster = ""
+
+    html_sp_leiden_subcluster += f"""
+    <h1>Spatial plots of Leiden clusters</h1>
+    """
+
+    description = """
+    Spatial plots for the individual Leiden clusters identified in the <u>Subcluster analysis</u> panel.
+    """
+
+    folder_path = f"{figure_path}/analysis/cluster/scatterplot"
+    html_sp_leiden_subcluster += render_numbered_image_gallery(
+        "Leiden clusters", folder_path, "scatterplot_leiden_cluster",
+        description=description
+    )
+
+
+    ####################################################################################################################
+    # Sixth page
+    ####################################################################################################################
+
     html_hqr = ""
 
     html_hqr += f"""
@@ -644,7 +665,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     """
 
     ####################################################################################################################
-    # Sixth page
+    # Seventh page
     ####################################################################################################################
 
     html_filters = ""
@@ -692,7 +713,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     """
 
     ####################################################################################################################
-    # Seventh page
+    # Eigth page
     ####################################################################################################################
 
     html_hqcr = ""
@@ -714,7 +735,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
             """
 
     ####################################################################################################################
-    # Eigth page
+    # Nineth page
     ####################################################################################################################
 
     html_hqpr = ""
@@ -735,7 +756,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
 
 
     ####################################################################################################################
-    # Nineth page
+    # Tenth page
     ####################################################################################################################
 
     html_hqtr = ""
@@ -765,6 +786,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
         pages_first_half.append({"id": "subcluster", "title": "Subcluster analysis", "content": html_subcluster})
     pages_first_half.append({"id": "spatialplot_leiden", "title": "Spatial plots Leiden clusters", "content": html_sp_leiden})
     pages_first_half.append({"id": "spatialplot_annotation", "title": "Spatial plots annotation clusters", "content": html_sp_ann})
+    pages_first_half.append({"id": "spatialplot_annotation", "title": "Spatial plots Leiden clusters of Subcluster analysis", "content": html_sp_leiden_subcluster})
     pages_first_half.append({"id": "hqr", "title": "High quality regions (HQRs)", "content": html_hqr})
     pages_first_half.append({"id": "individual_filters", "title": "Individual HQR filters", "content": html_filters})
     pages_first_half.append({"id": "hqcr_boxplots", "title": "All HQCR metrics", "content": html_hqcr})
@@ -776,6 +798,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
         html_subcluster,
         html_sp_leiden,
         html_sp_ann,
+        html_sp_leiden_subcluster,
         html_hqr,
         html_filters,
         html_hqcr,
