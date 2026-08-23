@@ -1,4 +1,5 @@
 import dask.dataframe as dd
+import numpy as np
 
 from .. import priors
 
@@ -16,6 +17,17 @@ def traffic_light(priors, bad_threshold=0.3, warning_threshold=0.6):
         return "yellow"
 
     return "green"
+
+
+# Asymetric evidence aggregation will put a penalty on priors that are extremely bad.
+# Example A: [.90,.90,.90,.90,.90,.90], result = 0.900
+# Example B: [.99,.99,.99,.99,.99,.10], result = 0.391
+def asymmetric_evidence_aggregation(priors, gamma=2.0, axis=-1):
+    priors = np.asarray(priors, dtype=float)
+    priors = np.clip(priors, 1e-12, 1.0)
+    surprise = -np.log(priors)
+    weighted_surprise = np.mean(surprise ** gamma, axis=axis) ** (1 / gamma)
+    return np.exp(-weighted_surprise)
 
 
 # We will combine the pixel scorep prior with more priors
@@ -45,15 +57,18 @@ def combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts):
     prior_invalid_cell_geometry = priors.hqcr.invalid_geometry.calc_probs(sdata, figure_path, 'cell')
     prior_invalid_nucelus_geometry = priors.hqcr.invalid_geometry.calc_probs(sdata, figure_path, 'nucleus')
 
-    final_prior = \
-        prior_transcript_counts + \
-        prior_gene_counts + \
-        prior_doublet_distance + \
-        prior_negative_probe_counts + \
-        prior_invalid_cell_geometry + \
-        prior_invalid_nucelus_geometry
-    num_priors = 6.0
-    final_prior = final_prior / num_priors
+    stacked_priors = np.stack(
+        [
+            prior_transcript_counts,
+            prior_gene_counts,
+            prior_doublet_distance,
+            prior_negative_probe_counts,
+            prior_invalid_cell_geometry,
+            prior_invalid_nucelus_geometry,
+        ],
+        axis=1,
+    )
+    final_prior = asymmetric_evidence_aggregation(stacked_priors, axis=1)
 
     sdata['table'].obs['good_quality_probabilities'] = final_prior
 
