@@ -1,5 +1,3 @@
-import dask
-import dask.dataframe as dd
 import dask.array as da
 import numpy as np
 import sys
@@ -7,35 +5,10 @@ import sys
 from ... import helperfuncs
 from ... import metrics
 
-def read_data_as_ddf(tmp_files, chunk_size):
-
-    # Preallocate a Dask Array with correct shape and chunks
-    col_series = [
-        dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
-        for file in tmp_files
-    ]
-
-    # Compute all per-file partition lengths together (in parallel) instead of
-    # letting to_dask_array(lengths=True) block on each file one at a time.
-    lengths_per_col = dask.compute(*[s.map_partitions(len) for s in col_series])
-
-    array_columns = []
-    for col_ddf, lengths in zip(col_series, lengths_per_col):
-        col_arr = col_ddf.to_dask_array(lengths=tuple(lengths)).rechunk((chunk_size,))
-        array_columns.append(col_arr[:, None])  # make 2D for stacking
-
-    # Stack columns into 2D Dask Array
-    dask_array = da.hstack(array_columns).astype(np.float32)  # Much cheaper than dd.concat
-    dask_array = dask_array.rechunk((chunk_size, -1))
-    # Optional but recommended to avoid re-reading Parquet each epoch:
-    # da.to_zarr(dask_array, "dask_array.zarr", overwrite=True); dask_array = da.from_zarr("dask_array.zarr")
-
-    return dask_array
-
 
 def dask_summify(spoqc_tmp_folder, suffix, metrices, chunk_size):
     tmp_files = [f'{spoqc_tmp_folder}/{metric}_output_{suffix}.parquet' for metric in metrices]
-    ddf = read_data_as_ddf(tmp_files, chunk_size)
+    ddf = helperfuncs.read_data_as_ddf(tmp_files, chunk_size)
     structure_scores = ddf.sum(axis=1)
     return structure_scores
 
@@ -76,14 +49,19 @@ def calc_pixel_score(
 
     background_intensity = 0.0
     if ( modality == 'hqpr' ):
-        intensity_np = np.flipud(sdata[image_type][resolution].image.values[int(staining)]).flatten()
-        background_intensity, _, _ = metrics.image.utility.estimate_background_intensity(intensity_np)
-        intensity = da.from_array(intensity_np, chunks=chunk_size)
-        image_ddf = image_ddf.assign(intensity=intensity)
+        # Lazy Dask-native histogram instead of eagerly pulling the whole
+        # full-resolution image into a numpy array just to estimate this.
+        background_intensity, _, _ = metrics.image.utility.estimate_background_intensity_dask(
+            sdata, image_type, resolution, staining
+        )
+        intensity_da = da.flip(
+            sdata[image_type][resolution].image.data[int(staining)], axis=0
+        ).flatten().rechunk((chunk_size,))
+        image_ddf = image_ddf.assign(intensity=intensity_da)
     elif ( modality == 'hqtr' ):
         # Intensities already flipped
         td_file = f'{spoqc_tmp_folder_metrices}/transcript_density_output_hqtr.parquet'
-        intensity = read_data_as_ddf([td_file], chunk_size)[:, 0]
+        intensity = helperfuncs.read_data_as_ddf([td_file], chunk_size)[:, 0]
         image_ddf = image_ddf.assign(intensity=intensity)
     else:
         sys.exit(f'[ERROR] Modality {modality} does not exist')

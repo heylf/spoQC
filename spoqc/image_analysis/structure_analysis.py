@@ -35,6 +35,11 @@ def start_image_struc_analyis(
 
     xy_intensities = None
     intensities = None
+    # Quantized copy used only by the entropy/uniformity/homogeneity sliding-window metrics below:
+    # each window's np.bincount allocates max(window_values)+1 elements, so raw uint16 image intensities 
+    # (full 0-65535 dynamic range) make every window allocation far larger than the handful of values it summarizes.
+    # Transcript density values (hqtr) are already small integers and don't need this.
+    texture_intensities = None
     if ( modality == 'hqtr' ):
         # Intensities already flipped
         intensities = metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
@@ -58,11 +63,18 @@ def start_image_struc_analyis(
         )
 
         helperfuncs.nparr_to_parquet(intensities, 'transcript_density', spoqc_tmp_folder, tmp_suffix)
+        texture_intensities = xy_intensities
     else:
         xy_intensities = sdata[image_type][resolution].image.values[int(staining)]
         xy_intensities = np.flipud(xy_intensities)
         intensities = xy_intensities.flatten()
-    
+
+        n_bins = 256
+        texture_intensities = np.floor(
+            (xy_intensities.astype(np.float64) - xy_intensities.min())
+            / max(xy_intensities.max() - xy_intensities.min(), 1) * (n_bins - 1)
+        ).astype(np.uint8)
+
     # Plot intensities
     name = 'input'
     if ( modality == 'hqtr' ):
@@ -165,7 +177,7 @@ def start_image_struc_analyis(
         # Computational expensive.
         print("[NOTE] Calculate pixel entropy")
         timer.start()
-        pixel_entropy = metrics.image.entropy.pixel_entropy(figure_path, xy_intensities, 5, imagedim)
+        pixel_entropy = metrics.image.entropy.pixel_entropy(figure_path, texture_intensities, 5, imagedim)
         timer.stop()
         helperfuncs.nparr_to_parquet(pixel_entropy, step, spoqc_tmp_folder, tmp_suffix)
 
@@ -178,7 +190,7 @@ def start_image_struc_analyis(
         # Is the pixel in a noisy region?
         print("[NOTE] Calculate pixel uniformity with")
         timer.start()
-        pixel_uniformity = metrics.image.uniformity.pixel_uniformity(figure_path, xy_intensities, 5, imagedim)
+        pixel_uniformity = metrics.image.uniformity.pixel_uniformity(figure_path, texture_intensities, 5, imagedim)
         timer.stop()
         helperfuncs.nparr_to_parquet(pixel_uniformity, step, spoqc_tmp_folder, tmp_suffix)
 
@@ -189,6 +201,6 @@ def start_image_struc_analyis(
         # Computational expensive.
         print("[NOTE] Calculate pixel homogeneity")
         timer.start()
-        pixel_homogeneity = metrics.image.homogenity.pixel_homogeneity(figure_path, xy_intensities, imagedim, 5)
+        pixel_homogeneity = metrics.image.homogenity.pixel_homogeneity(figure_path, texture_intensities, imagedim, 5)
         timer.stop()
         helperfuncs.nparr_to_parquet(pixel_homogeneity, step, spoqc_tmp_folder, tmp_suffix)

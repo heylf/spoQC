@@ -8,6 +8,7 @@ import sys
 import os
 import gc
 import dask.dataframe as dd
+import dask.array as da
 import dask
 import time
 import pyarrow as pa
@@ -123,6 +124,31 @@ def create_fraction_df(adata: AnnData, group: str, category: str) -> Dict[str, U
          'fractions': np.concatenate(fractions, axis = None)}
 
     return(d)    
+
+
+def read_data_as_ddf(tmp_files, chunk_size):
+    # Preallocate a Dask Array with correct shape and chunks
+    col_series = [
+        dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
+        for file in tmp_files
+    ]
+
+    # Compute all per-file partition lengths together (in parallel) instead of
+    # letting to_dask_array(lengths=True) block on each file one at a time.
+    lengths_per_col = dask.compute(*[s.map_partitions(len) for s in col_series])
+
+    array_columns = []
+    for col_ddf, lengths in zip(col_series, lengths_per_col):
+        col_arr = col_ddf.to_dask_array(lengths=tuple(lengths)).rechunk((chunk_size,))
+        array_columns.append(col_arr[:, None])  # make 2D for stacking
+
+    # Stack columns into 2D Dask Array
+    dask_array = da.hstack(array_columns).astype(np.float32)  # Much cheaper than dd.concat
+    dask_array = dask_array.rechunk((chunk_size, -1))
+    # Optional but recommended to avoid re-reading Parquet each epoch:
+    # da.to_zarr(dask_array, "dask_array.zarr", overwrite=True); dask_array = da.from_zarr("dask_array.zarr")
+
+    return dask_array
 
 
 def deduplicate_dask_index(ddf: Any) -> Any:

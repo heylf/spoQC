@@ -143,6 +143,22 @@ def build_parser() -> argparse.ArgumentParser:
         required=False
     )
     parser.add_argument(
+        "--pixel_qc_chunk_size",
+        dest="pixel_qc_chunk_size",
+        type=int,
+        default=200_000,
+        help="Row-chunk size for the pixel-level QC dask arrays/dataframes (hqpr/hqtr clustering and scoring). Larger values reduce dask task-graph overhead but increase peak memory per chunk.",
+        required=False
+    )
+    parser.add_argument(
+        "--kmeans_sample_size",
+        dest="kmeans_sample_size",
+        type=int,
+        default=5_000_000,
+        help="Number of pixels randomly subsampled to fit the pixel-cluster MiniBatchKMeans model (hqpr/hqtr). The full dataset is then labeled in parallel using the fitted model.",
+        required=False
+    )
+    parser.add_argument(
         "--cluster_celltype",
         dest="cluster_celltype",
         type=str,
@@ -286,6 +302,12 @@ def main(argv: list[str] | None = None) -> None:
         @constant
         def STAINING():
             return args['staining']
+        @constant
+        def PIXEL_QC_CHUNK_SIZE():
+            return args['pixel_qc_chunk_size']
+        @constant
+        def KMEANS_SAMPLE_SIZE():
+            return args['kmeans_sample_size']
         @constant
         def THRESHOLD_PRIOR_PIXEL():
             return args['thresh_prior_pixel']
