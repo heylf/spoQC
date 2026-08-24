@@ -39,7 +39,7 @@ def plot_funkyheatmap(rna, figure_path):
     
     for col in cols:
         funky_heatmap_df = funky_heatmap_df.join(rna.obs.groupby('leiden')[col].median(), how='left')
-        column_lists.append([col, "beliefs", col, "bar", {"width": 2, "legend": False}, "beliefs"])
+        column_lists.append([col, "beliefs", col, "bar", {"width": 2, "legend": False, "scale": False}, "beliefs"])
 
     # Add cell metrics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     counts = 'transcript_counts'
@@ -112,6 +112,17 @@ def plot_funkyheatmap(rna, figure_path):
         column_lists.append([col, "hqtr_others", col, "circle", {"width": 1, "legend": False}, "hqtr_others"])
 
     # Create column info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # funkyheatmappy min-max scales each column's value/size/color via. A metric that's identical across every leiden 
+    # cluster (e.g. all-NaN after groupby, or genuinely constant) makes that 0/0 = NaN, giving every circle/bar a NaN 
+    # size and crashing matplotlib's bbox_inches='tight' computation at savefig time. Keep such columns in the plot but
+    # disable their per-column min-max scaling and substitute a fixed neutral value, since the real (constant) value 
+    # carries no differentiating signal across clusters anyway.
+    for row in column_lists[1:]:
+        col = row[0]
+        if col != "id" and funky_heatmap_df[col].nunique(dropna=True) <= 1:
+            funky_heatmap_df[col] = 0.5
+            row[4] = {**row[4], "scale": False}
 
     column_info = pd.DataFrame(column_lists[1:], columns=column_lists[0])
     column_info.index = column_info["id"]
