@@ -140,7 +140,7 @@ def generate_transcript_ambient_density_image(
     # combined = -1     ---> -1 * 1 or 1 * -1 = disagreement, direction between global and local
     # combined = 1      ---> -1 * -1 or 1 * 1 = agreement, direction between global and local
     # combined = 0      ---> 0 * -1 or 0 * 1 or -1 * 0 or 1 * 0 = vanishing, RNA is either global or local ambient
-    xy_kernel_ac_density = local_xy_kernel_transcript_density * xy_kernel_transcript_density
+    xy_kernel_ac_density = np.abs(local_xy_kernel_transcript_density * xy_kernel_transcript_density)
 
     if ( figure_path != None ):
         helperfuncs.plot_pixels(
