@@ -465,11 +465,12 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
     df.to_parquet(f"{spoqc_tmp_folder}/hqcr_output_mask_{suffix}.parquet")
 
     # This is in cell dimension.
-    df = pd.DataFrame({
-        'hqcr_traffic_light': sdata['table'].obs['hqcr_traffic_light'],
-    })
-    df.index = sdata['table'].obs.index
-    df.to_parquet(f"{spoqc_tmp_folder}/traffic_light_output_hqcr.parquet")
+    if 'hqcr_traffic_light' in sdata['table'].obs.columns :
+        df = pd.DataFrame({
+            'hqcr_traffic_light': sdata['table'].obs['hqcr_traffic_light'],
+        })
+        df.index = sdata['table'].obs.index
+        df.to_parquet(f"{spoqc_tmp_folder}/traffic_light_output_hqcr.parquet")
 
 
 def load_data_for_hqcr(sdata, spoqc_tmp_folder, counts):
