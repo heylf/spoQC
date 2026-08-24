@@ -67,7 +67,7 @@ def calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thr
 
     helperfuncs.plot_histogram_for_array(
         cell_df[counts],
-        20,
+        100,
         figure_path,
         f"{counts}: t={np.round(t, 3)} with {0} x {np.round(0.0, 3)} std",
         f"{counts}_prior",

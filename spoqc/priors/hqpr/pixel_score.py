@@ -29,7 +29,7 @@ def calc_probs_pixel_score(pixel_scores, figure_path, gmm_mod=3, nstds=1, t=None
 
     helperfuncs.plot_histogram_for_array(
         pixel_scores,
-        20,
+        100,
         figure_path,
         f"Pixel scores: t={np.round(max_mean, 3)} with {nstds} x {np.round(max_std, 3)} std",
         "pixel_scores_prior",

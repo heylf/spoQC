@@ -51,7 +51,7 @@ def calc_prob_pixel_stuff_v2(image_ddf, figure_path, thresh, std, tail, col):
 
     helperfuncs.plot_histogram_for_array(
         image_ddf[col].compute().to_numpy(),
-        20,
+        100,
         figure_path,
         f"{col}: t={np.round(thresh, 3)} with {1} x {np.round(std, 3)} std",
         f"{col}_prior",
