@@ -49,7 +49,7 @@ def combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts):
         "n_genes_by_counts",
         0.5,
     )
-    prior_doublet_distance = priors.hqcr.doublet_distance.calc_probs_doublet_distance(sdata, figure_path, nstds=100)
+    prior_doublet_distance = priors.hqcr.doublet_distance.calc_probs_doublet_distance(sdata, figure_path, nstds=10)
     prior_negative_probe_counts = priors.hqcr.negative_probe_counts.calc_probs(
         cell_df,
         figure_path
