@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from .. import helperfuncs
 
 # I tested geopandas.GeoSeries.make_valid instead of of the convex hull, but it still looked weird.
+# The function obs.is_valid is from shapely.
+# Each obj is a 'shapely.geometry.polygon.Polygon'.
 def correct_for_valid_geometries(sdata):
     for obj_type in ['cell', 'nucleus']:
         # Because of invalid geometris I have to take for those the convex hull.
