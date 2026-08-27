@@ -18,6 +18,7 @@ import scanpy as sc
 import matplotlib
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
+import concurrent.futures
 
 from typing import NamedTuple, Dict, List, Union, Tuple, Any, Optional, Sequence
 from anndata import AnnData
@@ -936,60 +937,118 @@ def apply_general_plotly_layout(fig, showlegend):
     )
 
 
-def leiden_silhouette(adata, resolution, rs, n_clusters):
+def leiden_silhouette(adata, resolution, res_index, ninits=5):
     '''
-    returns a silhouette score based on a given resolution and random state
+    Returns average silhouette score and average number of clusters based on a given resolution and random state 
+    with ninits=random initializations.
     '''
 
-    sc.tl.leiden(adata, resolution=resolution, key_added='temp_leiden', random_state=rs)
+    scores = []
+    num_clusters = []
+    adata_test = adata.copy()
 
-    score = silhouette_score(adata.obsm['X_umap'], adata.obs['temp_leiden'])
-    num_clusters = len(list(set(adata.obs['temp_leiden'])))
+    for rs in range(0, ninits): #since the random seed will change result - multiple samples per resolution
+        sc.tl.leiden(adata_test, resolution=resolution, key_added='temp_leiden', random_state=rs)
 
-    adata.obs.drop(columns=['temp_leiden'], inplace=True)
+        if ( len(set(adata_test.obs['temp_leiden'])) > 1 ):
+            scores.append(silhouette_score(adata_test.obsm['X_umap'], adata_test.obs['temp_leiden']))
+            num_clusters.append(len(set(adata_test.obs['temp_leiden'])))
+            adata_test.obs.drop(columns=['temp_leiden'], inplace=True)
+        else:
+            scores.append(0.0)
+            num_clusters.append(0.0)
+            adata_test.obs.drop(columns=['temp_leiden'], inplace=True)
 
-    return (score, num_clusters == n_clusters, num_clusters)
+    return [res_index, [resolution]*ninits, scores, list(range(0, ninits)), num_clusters]
+
 
 # This is for checking which leiden cluster resoltuion would work the best.
 # Pick the one with the highest silhouette score but not the one from the beginning.
-def test_resolutions_leiden(rna, figure_path, n_clusters):
-    resolutions = np.linspace(0, 2, num = 21)[1:]
+def test_resolutions_leiden(
+        rna, 
+        figure_path,
+        threads,
+        annotation_key=None,
+        k=None,
+        steps=None,
+        end=2.0,
+        start=0.0,
+        resolutions=None,
+    ):
+    
+    if ( resolutions == None ):
+        resolutions = np.linspace(0, 3, num = 21)[1:]
+        if ( steps ):
+            resolutions = np.linspace(start, end, num = steps)[1:]
 
-    resolutions
+    out = [-1] * len(resolutions)
+    win_res = 0.5
+    diff_clusters = 100
 
-    out = []
-    for res in tqdm(resolutions):
-        for rs in [0,1,2]: #since the random seed will change result - multiple samples per resolution
-            score, hit_n_clusters, num_clusters = leiden_silhouette(rna, res, rs, n_clusters)
-            out.append([res, score, rs, hit_n_clusters, num_clusters])
+    # Parallel testing for resolutions.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+        futures = [executor.submit(leiden_silhouette, rna, res, res_index) for res_index, res in enumerate(resolutions)]
+        for future in concurrent.futures.as_completed(futures):
+            results = future.result()
+            out[results[0]] = results[1:]
 
-    ss = pd.DataFrame(out, columns = ['res','ss', 'rs', 'hit_n_clusters', 'num_clusters'])
+    for res in range(0, len(resolutions)):
+        average_num_clusters = int(np.mean(out[res][-1]))
 
-    # Set up the plot grid
+        if ( annotation_key ):
+            diff_clusters_new = np.abs(average_num_clusters-( len(set(rna.obs[annotation_key])) + 3 ) )
+            if ( diff_clusters_new < diff_clusters ):
+                diff_clusters = diff_clusters_new
+                win_res = resolutions[res]
+        if ( k ):
+            diff_clusters_new = np.abs(average_num_clusters-k)
+            if ( diff_clusters_new < diff_clusters ):
+                diff_clusters = diff_clusters_new
+                win_res = resolutions[res]
+
+    # Unpack data into dataframe.    
+    rows = []
+    for block in out:
+        rows.extend(zip(*block))
+    ss = pd.DataFrame(rows, columns=['res','ss', 'rs', 'num_clusters'])
+
     plt.figure(figsize=(15, 5))
-
     ax = sns.lineplot(data = ss, x = 'res', y = 'ss')
-
-    # Set y-axis limit
-    plt.ylim(min(ss['ss']) * 0.9, max(ss['ss']) * 1.1)  # Adding a little padding (10%)
-
-    # Adding labels
     plt.xlabel('resolutions')
     plt.ylabel('silhouettescore')
-
-    # Adding vertical grey lines for each step in 'res'
     for res_value in ss['res'].unique():  # Assuming 'res' contains the breakpoints
         plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)  # Adding vertical lines
-
-    # Setting the breaks on the x-axis
     plt.xticks(ss['res'].unique())  # Ensure all 'res' values are shown on the x-axis
-
-    # Saving the figure
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering.png')
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering.pdf')
+    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.png')
+    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.pdf')
     plt.close()
 
-    return ss
+    if ( annotation_key or k):
+        title = ''
+        if ( annotation_key ):
+            title = len(set(rna.obs[annotation_key]))
+        else:
+            title = str(k)
+
+        plt.figure(figsize=(15, 5))
+        ax = sns.lineplot(data=ss, x='res', y='num_clusters')
+        plt.xlabel('resolutions')
+        plt.ylabel('number of clusters')
+        plt.ylim([0, 40])
+        for res_value in ss['res'].unique():
+            plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)
+        for y in [5, 10, 15, 20, 25, 30, 35, 40]:
+            plt.axhline(y=y, color='grey', linestyle='--', alpha=0.7)
+        plt.axvline(x=win_res, color='black', linestyle='-', alpha=0.7)
+        plt.title(f'Annotation had {title} celltypes')
+        plt.xticks(ss['res'].unique())  # ensure all 'res' values appear
+        plt.tight_layout()
+        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.png')
+        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.pdf')
+        plt.close()
+
+    return win_res
+
 
 def min_max_normalize(array):
     array = np.array(array)
