@@ -1,7 +1,6 @@
 import scanpy as sc
 import pandas as pd
 
-from . import additional_analysis
 from . import helperfuncs
 
 def process_sdata(dataset, sdata):
