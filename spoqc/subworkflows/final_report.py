@@ -611,15 +611,16 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     <h1>Spatial plots of Leiden clusters</h1>
     """
 
-    description = """
-    Spatial plots for the individual Leiden clusters identified in the <u>Subcluster analysis</u> panel.
-    """
+    if second_page_present:
+        description = """
+        Spatial plots for the individual Leiden clusters identified in the <u>Subcluster analysis</u> panel.
+        """
 
-    folder_path = f"{figure_path}/analysis/cluster/scatterplot"
-    html_sp_leiden_subcluster += render_numbered_image_gallery(
-        "Leiden clusters", folder_path, "scatterplot_leiden_cluster",
-        description=description
-    )
+        folder_path = f"{figure_path}/analysis/cluster/scatterplot"
+        html_sp_leiden_subcluster += render_numbered_image_gallery(
+            "Leiden clusters", folder_path, "scatterplot_leiden_cluster",
+            description=description
+        )
 
 
     ####################################################################################################################
@@ -904,7 +905,8 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
         pages_first_half.append({"id": "subcluster", "title": "Subcluster analysis", "content": html_subcluster})
     pages_first_half.append({"id": "spatialplot_leiden", "title": "Spatial plots Leiden clusters", "content": html_sp_leiden})
     pages_first_half.append({"id": "spatialplot_annotation", "title": "Spatial plots annotation clusters", "content": html_sp_ann})
-    pages_first_half.append({"id": "spatialplot_subcluster", "title": "Spatial plots Leiden clusters of Subcluster analysis", "content": html_sp_leiden_subcluster})
+    if second_page_present:
+        pages_first_half.append({"id": "spatialplot_subcluster", "title": "Spatial plots Leiden clusters of Subcluster analysis", "content": html_sp_leiden_subcluster})
     pages_first_half.append({"id": "traffic_light", "title": "Traffic Light System HQCR", "content": html_traffic_light})
     pages_first_half.append({"id": "hqr", "title": "High quality regions (HQRs)", "content": html_hqr})
     pages_first_half.append({"id": "individual_filters", "title": "Individual HQR filters", "content": html_filters})
@@ -912,19 +914,33 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     pages_first_half.append({"id": "hqpr_boxplots", "title": "All HQPR metrics", "content": html_hqpr})
     pages_first_half.append({"id": "hqtr_boxplots", "title": "All HQTR metrics", "content": html_hqtr})
 
-    all_pages = [
-        html_overview,
-        html_subcluster,
-        html_sp_leiden,
-        html_sp_ann,
-        html_sp_leiden_subcluster,
-        html_traffic_light,
-        html_hqr,
-        html_filters,
-        html_hqcr,
-        html_hqpr,
-        html_hqtr,
-    ]
+    all_pages = []
+    if second_page_present:
+        all_pages = [
+            html_overview,
+            html_subcluster,
+            html_sp_leiden,
+            html_sp_ann,
+            html_sp_leiden_subcluster,
+            html_traffic_light,
+            html_hqr,
+            html_filters,
+            html_hqcr,
+            html_hqpr,
+            html_hqtr,
+        ]
+    else:
+        all_pages = [
+            html_overview,
+            html_sp_leiden,
+            html_sp_ann,
+            html_traffic_light,
+            html_hqr,
+            html_filters,
+            html_hqcr,
+            html_hqpr,
+            html_hqtr,
+        ]
 
     ### Second half ###
     # Fold the other Plotly-generated HTML fragments into the same document as
