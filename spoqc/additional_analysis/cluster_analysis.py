@@ -74,7 +74,7 @@ def celltype_cluster_analysis(
         print(f"[NOTE] Picking cluster {largest_cluster}")
         rna = rna[rna.obs[CONST.ANNOTATION_KEY] == largest_cluster]
 
-    if ( rna.n_obs < 10 ):
+    if ( rna.n_obs < 100 ):
         print("[WARN] Too few cells. The cluster investigation has to be stopped.")
         analysis_funcs.write_out_anndata(sdata, rna, CONST, subdir)
         return 0
