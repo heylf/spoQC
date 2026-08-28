@@ -697,49 +697,51 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     <img src="data:image/png;base64,{img_traffic_light_sp_de}" style="max-width:80%;">
     """
 
-    html_traffic_light += f"""
-    <h1>Traffic light level QC for cells for the cells of the <u>Subcluster analysis</u> panel</h1>
-    """
+    if second_page_present:
 
-    description = """
-    **Summary:** Fraction of QC levels for each Leiden cluster. Large red or yellow fractions indicate a quality issue for this Leiden cluster.
-    """
-    img_traffic_light_l_c = image_to_base64(f"{figure_path}/analysis/cluster/fractions/fractions_traffic_light_leiden.png")
-    html_traffic_light += f"""
-    <h2>QC level fractions by Leiden cluster</h2>
-    {format_description(description)}
-    <img src="data:image/png;base64,{img_traffic_light_l_c}" style="max-width:80%;">
-    """
+        html_traffic_light += f"""
+        <h1>Traffic light level QC for cells for the cells of the <u>Subcluster analysis</u> panel</h1>
+        """
 
-    description = """
-    **Summary:** Fraction of QC levels for each celltype cluster. Large red or yellow fractions indicate a quality issue for this celltype cluster.
-    """
-    img_traffic_light_ct_c = image_to_base64(f"{figure_path}/analysis/cluster/fractions/fractions_traffic_light_celltype.png")
-    html_traffic_light += f"""
-    <h2>QC level fractions by cell type</h2>
-    {format_description(description)}
-    <img src="data:image/png;base64,{img_traffic_light_ct_c}" style="max-width:80%;">
-    """
+        description = """
+        **Summary:** Fraction of QC levels for each Leiden cluster. Large red or yellow fractions indicate a quality issue for this Leiden cluster.
+        """
+        img_traffic_light_l_c = image_to_base64(f"{figure_path}/analysis/cluster/fractions/fractions_traffic_light_leiden.png")
+        html_traffic_light += f"""
+        <h2>QC level fractions by Leiden cluster</h2>
+        {format_description(description)}
+        <img src="data:image/png;base64,{img_traffic_light_l_c}" style="max-width:80%;">
+        """
 
-    description = """
-    **Summary:** Spatial position of QC level cells.
-    """
-    img_traffic_light_sp_c = image_to_base64(f"{figure_path}/analysis/cluster/scatterplot/scatterplot_traffic_light_combined.png")
-    html_traffic_light += f"""
-    <h2>Spatial distribution of QC levels</h2>
-    {format_description(description)}
-    <img src="data:image/png;base64,{img_traffic_light_sp_c}" style="max-width:80%;">
-    """
+        description = """
+        **Summary:** Fraction of QC levels for each celltype cluster. Large red or yellow fractions indicate a quality issue for this celltype cluster.
+        """
+        img_traffic_light_ct_c = image_to_base64(f"{figure_path}/analysis/cluster/fractions/fractions_traffic_light_celltype.png")
+        html_traffic_light += f"""
+        <h2>QC level fractions by cell type</h2>
+        {format_description(description)}
+        <img src="data:image/png;base64,{img_traffic_light_ct_c}" style="max-width:80%;">
+        """
 
-    description = """
-    **Summary:** Spatial density of QC level cells. Large areas of yellow or red cells indicate a quality issue.
-    """
-    img_traffic_light_sp_de_c = image_to_base64(f"{figure_path}/analysis/cluster/scatterplot/scatterplot_densityplot_hqcr_traffic_light_1.png")
-    html_traffic_light += f"""
-    <h2>Spatial density of QC levels</h2>
-    {format_description(description)}
-    <img src="data:image/png;base64,{img_traffic_light_sp_de_c}" style="max-width:80%;">
-    """
+        description = """
+        **Summary:** Spatial position of QC level cells.
+        """
+        img_traffic_light_sp_c = image_to_base64(f"{figure_path}/analysis/cluster/scatterplot/scatterplot_traffic_light_combined.png")
+        html_traffic_light += f"""
+        <h2>Spatial distribution of QC levels</h2>
+        {format_description(description)}
+        <img src="data:image/png;base64,{img_traffic_light_sp_c}" style="max-width:80%;">
+        """
+
+        description = """
+        **Summary:** Spatial density of QC level cells. Large areas of yellow or red cells indicate a quality issue.
+        """
+        img_traffic_light_sp_de_c = image_to_base64(f"{figure_path}/analysis/cluster/scatterplot/scatterplot_densityplot_hqcr_traffic_light_1.png")
+        html_traffic_light += f"""
+        <h2>Spatial density of QC levels</h2>
+        {format_description(description)}
+        <img src="data:image/png;base64,{img_traffic_light_sp_de_c}" style="max-width:80%;">
+        """
 
     ####################################################################################################################
     # Seventh page
