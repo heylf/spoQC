@@ -8,6 +8,7 @@ import sys
 import os
 import gc
 import dask.dataframe as dd
+import dask.array as da
 import dask
 import time
 import pyarrow as pa
@@ -17,6 +18,7 @@ import scanpy as sc
 import matplotlib
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
+import concurrent.futures
 
 from typing import NamedTuple, Dict, List, Union, Tuple, Any, Optional, Sequence
 from anndata import AnnData
@@ -123,6 +125,31 @@ def create_fraction_df(adata: AnnData, group: str, category: str) -> Dict[str, U
          'fractions': np.concatenate(fractions, axis = None)}
 
     return(d)    
+
+
+def read_data_as_ddf(tmp_files, chunk_size):
+    # Preallocate a Dask Array with correct shape and chunks
+    col_series = [
+        dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
+        for file in tmp_files
+    ]
+
+    # Compute all per-file partition lengths together (in parallel) instead of
+    # letting to_dask_array(lengths=True) block on each file one at a time.
+    lengths_per_col = dask.compute(*[s.map_partitions(len) for s in col_series])
+
+    array_columns = []
+    for col_ddf, lengths in zip(col_series, lengths_per_col):
+        col_arr = col_ddf.to_dask_array(lengths=tuple(lengths)).rechunk((chunk_size,))
+        array_columns.append(col_arr[:, None])  # make 2D for stacking
+
+    # Stack columns into 2D Dask Array
+    dask_array = da.hstack(array_columns).astype(np.float32)  # Much cheaper than dd.concat
+    dask_array = dask_array.rechunk((chunk_size, -1))
+    # Optional but recommended to avoid re-reading Parquet each epoch:
+    # da.to_zarr(dask_array, "dask_array.zarr", overwrite=True); dask_array = da.from_zarr("dask_array.zarr")
+
+    return dask_array
 
 
 def deduplicate_dask_index(ddf: Any) -> Any:
@@ -402,9 +429,18 @@ def plot_scatter_by_category(df: pd.DataFrame, key: str, figure_path: str, suffi
     plt.close()
 
 
-def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path: Union[str, None], suffix: str,
-                                        palette: Union[str, dict, None],
-                                        title: Optional[str], pointsize=1.0, flip=False) -> None:
+def plot_scatter_density_by_category_df(
+        df: pd.DataFrame,
+        key: str, figure_path:
+        Union[str, None],
+        suffix: str,
+        palette: Union[str, dict, None],
+        title: Optional[str],
+        *,
+        pointsize=1.0,
+        flip=False,
+        plot_categories=None,
+    ) -> None:
     """
     Generate and save density plots for each category in a given column of a DataFrame.
 
@@ -418,7 +454,8 @@ def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path:
     """
 
     categories = df[key].unique()
-
+    if plot_categories:
+        categories = plot_categories
     fig, axes = plt.subplots(1, len(categories), figsize=(5 * len(categories), 5), squeeze=False)
     axes = axes.ravel()
 
@@ -426,33 +463,44 @@ def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path:
         ax = axes[i]
         subset = df[df[key] == category]
 
-        # Scatter
-        sns.scatterplot(
-            data=subset, x='x', y='y', s=pointsize,
-            palette=palette, legend=False, ax=ax
-        )
+        if len(subset) != 0:
 
-        # KDE
-        xc, yc, z, (xlim, ylim) = fast_kde2d(
-            subset['x'].values, subset['y'].values,
-            bins=1000, bw_adjust=0.5
-        )
-        xx, yy = np.meshgrid(xc, yc)
-        cf = ax.contourf(xx, yy, z, levels=20, cmap=_CMAP_DENSITY, alpha=0.7, zorder=2)
+            # Scatter
+            sns.scatterplot(
+                data=subset, x='x', y='y', s=pointsize,
+                palette=palette, legend=False, ax=ax
+            )
 
-        # Individual colorbar
-        cbar = plt.colorbar(cf, ax=ax, fraction=0.046, pad=0.04, shrink=get_cbar_shrink(df))
-        cbar.set_label('Density' if key is None else f'Density (weighted by {key})')
+            # KDE
+            try:
+                xc, yc, z, (xlim, ylim) = fast_kde2d(
+                    subset['x'].values, subset['y'].values,
+                    bins=1000, bw_adjust=0.5
+                )
+                xx, yy = np.meshgrid(xc, yc)
+                cf = ax.contourf(xx, yy, z, levels=20, cmap=_CMAP_DENSITY, alpha=0.7, zorder=2)
 
-        ax.set_title(category)
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_xlim(np.min(df['x']), np.max(df['x']))
-        ax.set_ylim(np.min(df['y']), np.max(df['y']))
-        ax.set_aspect('equal', adjustable='box')
+                # Individual colorbar
+                cbar = plt.colorbar(cf, ax=ax, fraction=0.046, pad=0.04, shrink=get_cbar_shrink(df))
+                cbar.set_label('Density' if key is None else f'Density (weighted by {key})')
+            except Exception as e:
+                print(f"[WARN] Probably because not enough data points for your chosen density category: {e}")
+                print("Just plotting scatter plot.")
+            
 
-        if flip:
-            ax.invert_yaxis()
+            ax.set_title(category)
+            ax.set_xlabel('x')
+            ax.set_ylabel('y')
+            ax.set_xlim(np.min(df['x']), np.max(df['x']))
+            ax.set_ylim(np.min(df['y']), np.max(df['y']))
+            ax.set_aspect('equal', adjustable='box')
+
+
+            if flip:
+                ax.invert_yaxis()
+
+        else:
+            print(f"[WARN] No data points for category {category}")
 
     plt.tight_layout()
     if figure_path is not None:
@@ -900,60 +948,118 @@ def apply_general_plotly_layout(fig, showlegend):
     )
 
 
-def leiden_silhouette(adata, resolution, rs, n_clusters):
+def leiden_silhouette(adata, resolution, res_index, ninits=5):
     '''
-    returns a silhouette score based on a given resolution and random state
+    Returns average silhouette score and average number of clusters based on a given resolution and random state 
+    with ninits=random initializations.
     '''
 
-    sc.tl.leiden(adata, resolution=resolution, key_added='temp_leiden', random_state=rs)
+    scores = []
+    num_clusters = []
+    adata_test = adata.copy()
 
-    score = silhouette_score(adata.obsm['X_umap'], adata.obs['temp_leiden'])
-    num_clusters = len(list(set(adata.obs['temp_leiden'])))
+    for rs in range(0, ninits): #since the random seed will change result - multiple samples per resolution
+        sc.tl.leiden(adata_test, resolution=resolution, key_added='temp_leiden', random_state=rs)
 
-    adata.obs.drop(columns=['temp_leiden'], inplace=True)
+        if ( len(set(adata_test.obs['temp_leiden'])) > 1 ):
+            scores.append(silhouette_score(adata_test.obsm['X_umap'], adata_test.obs['temp_leiden']))
+            num_clusters.append(len(set(adata_test.obs['temp_leiden'])))
+            adata_test.obs.drop(columns=['temp_leiden'], inplace=True)
+        else:
+            scores.append(0.0)
+            num_clusters.append(0.0)
+            adata_test.obs.drop(columns=['temp_leiden'], inplace=True)
 
-    return (score, num_clusters == n_clusters, num_clusters)
+    return [res_index, [resolution]*ninits, scores, list(range(0, ninits)), num_clusters]
+
 
 # This is for checking which leiden cluster resoltuion would work the best.
 # Pick the one with the highest silhouette score but not the one from the beginning.
-def test_resolutions_leiden(rna, figure_path, n_clusters):
-    resolutions = np.linspace(0, 2, num = 21)[1:]
+def test_resolutions_leiden(
+        rna, 
+        figure_path,
+        threads,
+        annotation_key=None,
+        k=None,
+        steps=None,
+        end=2.0,
+        start=0.0,
+        resolutions=None,
+    ):
+    
+    if ( resolutions == None ):
+        resolutions = np.linspace(0, 3, num = 21)[1:]
+        if ( steps ):
+            resolutions = np.linspace(start, end, num = steps)[1:]
 
-    resolutions
+    out = [-1] * len(resolutions)
+    win_res = 0.5
+    diff_clusters = 100
 
-    out = []
-    for res in tqdm(resolutions):
-        for rs in [0,1,2]: #since the random seed will change result - multiple samples per resolution
-            score, hit_n_clusters, num_clusters = leiden_silhouette(rna, res, rs, n_clusters)
-            out.append([res, score, rs, hit_n_clusters, num_clusters])
+    # Parallel testing for resolutions.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+        futures = [executor.submit(leiden_silhouette, rna, res, res_index) for res_index, res in enumerate(resolutions)]
+        for future in concurrent.futures.as_completed(futures):
+            results = future.result()
+            out[results[0]] = results[1:]
 
-    ss = pd.DataFrame(out, columns = ['res','ss', 'rs', 'hit_n_clusters', 'num_clusters'])
+    for res in range(0, len(resolutions)):
+        average_num_clusters = int(np.mean(out[res][-1]))
 
-    # Set up the plot grid
+        if ( annotation_key ):
+            diff_clusters_new = np.abs(average_num_clusters-( len(set(rna.obs[annotation_key])) + 3 ) )
+            if ( diff_clusters_new < diff_clusters ):
+                diff_clusters = diff_clusters_new
+                win_res = resolutions[res]
+        if ( k ):
+            diff_clusters_new = np.abs(average_num_clusters-k)
+            if ( diff_clusters_new < diff_clusters ):
+                diff_clusters = diff_clusters_new
+                win_res = resolutions[res]
+
+    # Unpack data into dataframe.    
+    rows = []
+    for block in out:
+        rows.extend(zip(*block))
+    ss = pd.DataFrame(rows, columns=['res','ss', 'rs', 'num_clusters'])
+
     plt.figure(figsize=(15, 5))
-
     ax = sns.lineplot(data = ss, x = 'res', y = 'ss')
-
-    # Set y-axis limit
-    plt.ylim(min(ss['ss']) * 0.9, max(ss['ss']) * 1.1)  # Adding a little padding (10%)
-
-    # Adding labels
     plt.xlabel('resolutions')
     plt.ylabel('silhouettescore')
-
-    # Adding vertical grey lines for each step in 'res'
     for res_value in ss['res'].unique():  # Assuming 'res' contains the breakpoints
         plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)  # Adding vertical lines
-
-    # Setting the breaks on the x-axis
     plt.xticks(ss['res'].unique())  # Ensure all 'res' values are shown on the x-axis
-
-    # Saving the figure
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering.png')
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering.pdf')
+    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.png')
+    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.pdf')
     plt.close()
 
-    return ss
+    if ( annotation_key or k):
+        title = ''
+        if ( annotation_key ):
+            title = len(set(rna.obs[annotation_key]))
+        else:
+            title = str(k)
+
+        plt.figure(figsize=(15, 5))
+        ax = sns.lineplot(data=ss, x='res', y='num_clusters')
+        plt.xlabel('resolutions')
+        plt.ylabel('number of clusters')
+        plt.ylim([0, 40])
+        for res_value in ss['res'].unique():
+            plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)
+        for y in [5, 10, 15, 20, 25, 30, 35, 40]:
+            plt.axhline(y=y, color='grey', linestyle='--', alpha=0.7)
+        plt.axvline(x=win_res, color='black', linestyle='-', alpha=0.7)
+        plt.title(f'Annotation had {title} celltypes')
+        plt.xticks(ss['res'].unique())  # ensure all 'res' values appear
+        plt.tight_layout()
+        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.png')
+        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.pdf')
+        plt.close()
+
+    return win_res
+
 
 def min_max_normalize(array):
     array = np.array(array)

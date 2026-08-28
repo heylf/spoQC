@@ -1,7 +1,7 @@
 import scanpy as sc
 import pandas as pd
 
-from . import additional_analysis
+from . import helperfuncs
 
 def process_sdata(dataset, sdata):
 
@@ -54,7 +54,7 @@ def unsupervised_celltype_annotation(sdata, CONST, seed):
 
     sc.pp.neighbors(rna, n_neighbors=nn, n_pcs=n_pcs, random_state=seed)
     sc.tl.umap(rna, min_dist=0.1, spread=1.2, random_state=seed)
-    win_res = additional_analysis.analysis_funcs.test_resolutions_leiden(
+    win_res = helperfuncs.test_resolutions_leiden(
         sdata['table'],
         figure_path,
         CONST.THREADS,
@@ -70,7 +70,7 @@ def unsupervised_celltype_annotation(sdata, CONST, seed):
     # What might help is then a thorough seach in the range of 0-0.1 resolution.
     if ( len(set(rna.obs['leiden'])) > 30 ):
         rna.obs.drop(columns=['leiden'], inplace=True)
-        win_res = additional_analysis.analysis_funcs.test_resolutions_leiden(
+        win_res = helperfuncs.test_resolutions_leiden(
             sdata['table'],
             figure_path,
             CONST.THREADS,

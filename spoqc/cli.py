@@ -143,6 +143,30 @@ def build_parser() -> argparse.ArgumentParser:
         required=False
     )
     parser.add_argument(
+        "--pixel_qc_chunk_size",
+        dest="pixel_qc_chunk_size",
+        type=int,
+        default=200_000,
+        help="Row-chunk size for the pixel-level QC dask arrays/dataframes (hqpr/hqtr clustering and scoring). Larger values reduce dask task-graph overhead but increase peak memory per chunk.",
+        required=False
+    )
+    parser.add_argument(
+        "--kmeans_sample_size",
+        dest="kmeans_sample_size",
+        type=int,
+        default=5_000_000,
+        help="Number of pixels randomly subsampled to fit the pixel-cluster MiniBatchKMeans model (hqpr/hqtr). The full dataset is then labeled in parallel using the fitted model.",
+        required=False
+    )
+    parser.add_argument(
+        "--doublet_prior_std",
+        dest="doublet_prior_std",
+        type=int,
+        default=100,
+        help="The std for the doublet prior estimation. If you increase it then the impact of doublet events increaes, that means doublets events will impact more cells and give them lower quality.",
+        required=False
+    )
+    parser.add_argument(
         "--cluster_celltype",
         dest="cluster_celltype",
         type=str,
@@ -171,6 +195,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="This is just for developing and testing the tool (report).",
         required=False
     )
+    
 
     return parser
 
@@ -287,8 +312,17 @@ def main(argv: list[str] | None = None) -> None:
         def STAINING():
             return args['staining']
         @constant
+        def PIXEL_QC_CHUNK_SIZE():
+            return args['pixel_qc_chunk_size']
+        @constant
+        def KMEANS_SAMPLE_SIZE():
+            return args['kmeans_sample_size']
+        @constant
         def THRESHOLD_PRIOR_PIXEL():
             return args['thresh_prior_pixel']
+        @constant
+        def DOULET_PRIOR_STD():
+            return args['doublet_prior_std']
         @constant
         def NSTDS_PRIOR_PIXEL():
             return args['nstds_prior_pixel']
@@ -600,7 +634,7 @@ def main(argv: list[str] | None = None) -> None:
     #####################
     if ( CONST.STEP in ['all', 'hqtr', 'unittest', 'ambientqc'] ):
         figure_path = f'{CONST.FIGURE_PATH}/ambientqc/'
-        _ = subworkflows.qc_ambient.start_qc_ambient(sdata, figure_path, CONST.TMP_PATH, CONST.THREADS)
+        _ = subworkflows.qc_ambient.start_qc_ambient(sdata, figure_path, CONST.TMP_PATH)
 
     # In[]
     ##################

@@ -460,9 +460,17 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
 
     df = pd.DataFrame({
         'hqcr_beliefs': average_cell_probability_image.flatten(),
-        'hqcr_mask': (average_cell_probability_image.flatten() > 0.5).astype(np.uint8)
+        'hqcr_mask': (average_cell_probability_image.flatten() > 0.5).astype(np.uint8),
     })
     df.to_parquet(f"{spoqc_tmp_folder}/hqcr_output_mask_{suffix}.parquet")
+
+    # This is in cell dimension.
+    if 'hqcr_traffic_light' in sdata['table'].obs.columns :
+        df = pd.DataFrame({
+            'hqcr_traffic_light': sdata['table'].obs['hqcr_traffic_light'],
+        })
+        df.index = sdata['table'].obs.index
+        df.to_parquet(f"{spoqc_tmp_folder}/traffic_light_output_hqcr.parquet")
 
 
 def load_data_for_hqcr(sdata, spoqc_tmp_folder, counts):
@@ -484,14 +492,14 @@ def load_data_for_hqcr(sdata, spoqc_tmp_folder, counts):
     return qc_domains_adata, cell_df, qc_metrices
 
 
-def clustering_for_hqcr(qc_domains_adata, figure_path, seed, test_res_n_clusters=10, test_res=False):
+def clustering_for_hqcr(qc_domains_adata, figure_path, CONST, seed, test_res_n_clusters=10, test_res=False):
     # leiden clustering
     print("[NOTE] Cell QC clustering")
     sc.pp.neighbors(qc_domains_adata, n_neighbors=20, random_state=seed)
     sc.tl.umap(qc_domains_adata, random_state=seed)
 
     if ( test_res ):
-        ss = helperfuncs.test_resolutions_leiden(qc_domains_adata, figure_path, test_res_n_clusters)
+        helperfuncs.test_resolutions_leiden(qc_domains_adata, figure_path, CONST.THREADS, k=test_res_n_clusters)
 
     sc.tl.leiden(qc_domains_adata, resolution=1.2)
 
@@ -521,10 +529,10 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
         counts = 'canorm_transcript_counts'
 
     qc_domains_adata, cell_df, qc_metrices = load_data_for_hqcr(sdata, spoqc_tmp_folder, counts)
-    clustering_for_hqcr(qc_domains_adata, figure_path, seed)
+    clustering_for_hqcr(qc_domains_adata, figure_path, CONST, seed)
     
     # Here we combine available priors
-    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts)
+    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts, CONST.DOULET_PRIOR_STD)
 
     # Cell quality probability refinement
     cell_quality_probability_refinement(
@@ -786,7 +794,7 @@ def refine_hqcr_with_celltype_thresholds(
     # Refine HQCR based on cell type thresholds.
     # Now I have to find out which of those multiplets and emtplets are true and which are real cells still.
     qc_metric = counts
-    good_quality_probs_celltype, cell_df = priors.hqcr.transcript_counts.calc_celltype_transcript_counts_probs(
+    good_quality_probs_celltype, cell_df = priors.hqcr.transcript_counts_celltype.calc_celltype_transcript_counts_probs(
         sdata, 
         cell_df, 
         threshold_left_dict, 

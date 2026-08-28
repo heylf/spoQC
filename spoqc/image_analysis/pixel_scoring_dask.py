@@ -7,40 +7,13 @@ import sys
 
 from scipy.stats import norm
 from dask_ml.preprocessing import MinMaxScaler
-from dask_ml.wrappers import Incremental
 from sklearn.cluster import MiniBatchKMeans
 
 from .. import helperfuncs
 from .. import metrics
 from .. import priors
 
-def read_data_as_ddf(tmp_files, chunk_size):
-
-    # Preallocate a Dask Array with correct shape and chunks
-    col_series = [
-        dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
-        for file in tmp_files
-    ]
-
-    # Compute all per-file partition lengths together (in parallel) instead of
-    # letting to_dask_array(lengths=True) block on each file one at a time.
-    lengths_per_col = dask.compute(*[s.map_partitions(len) for s in col_series])
-
-    array_columns = []
-    for col_ddf, lengths in zip(col_series, lengths_per_col):
-        col_arr = col_ddf.to_dask_array(lengths=tuple(lengths)).rechunk((chunk_size,))
-        array_columns.append(col_arr[:, None])  # make 2D for stacking
-
-    # Stack columns into 2D Dask Array
-    dask_array = da.hstack(array_columns).astype(np.float32)  # Much cheaper than dd.concat
-    dask_array = dask_array.rechunk((chunk_size, -1))
-    # Optional but recommended to avoid re-reading Parquet each epoch:
-    # da.to_zarr(dask_array, "dask_array.zarr", overwrite=True); dask_array = da.from_zarr("dask_array.zarr")
-
-    return dask_array
-
-
-def dask_clustering_mini_batches(spoqc_tmp_folder, suffix, n_clusters, seed, chunk_size, threads):
+def dask_clustering_mini_batches(spoqc_tmp_folder, suffix, n_clusters, seed, chunk_size, threads, sample_size=5_000_000):
     tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder)
              if file.endswith(f'{suffix}.parquet')]
 
@@ -48,19 +21,36 @@ def dask_clustering_mini_batches(spoqc_tmp_folder, suffix, n_clusters, seed, chu
 
     with dask.config.set(scheduler="threads", num_workers=threads):
         print("[NOTE] Read data")
-        dask_array = read_data_as_ddf(tmp_files, chunk_size)
+        dask_array = helperfuncs.read_data_as_ddf(tmp_files, chunk_size)
+        n_rows = dask_array.shape[0]
 
-        print("[NOTE] Clustering")
+        print("[NOTE] Clustering (fit on subsample, predict on full array in parallel)")
         timer.start()
+
+        # A streamed/incremental fit (dask_ml.wrappers.Incremental) is
+        # inherently sequential -- each chunk's partial_fit depends on the
+        # previous chunk's centroid state -- which turns into thousands of
+        # sequential Python-level calls at full-image pixel counts. Fitting
+        # once on a large i.i.d. subsample and then predicting the rest in
+        # parallel (map_blocks, no shared state) avoids that entirely.
+        frac = min(1.0, sample_size / n_rows)
+        sample_mask = da.random.default_rng(seed).random(n_rows, chunks=(chunk_size,)) < frac
+        sample_np = dask_array[sample_mask].compute()
+
         est = MiniBatchKMeans(
             n_clusters=n_clusters,
             random_state=seed,
-            batch_size=chunk_size,          # match your chunk size
-            reassignment_ratio=0.01
+            batch_size=min(chunk_size, len(sample_np)),
+            reassignment_ratio=0.01,
+            n_init=3,
         )
-        inc = Incremental(est)
-        inc.fit(dask_array)                 # streamed; low peak memory
-        labels = inc.predict(dask_array)    # dask.array[int32], chunked
+        est.fit(sample_np)
+
+        labels = dask_array.map_blocks(
+            lambda block: est.predict(block),
+            dtype=np.int32,
+            drop_axis=1,
+        )
         timer.stop()
     return labels
 
@@ -81,6 +71,7 @@ def start_pixel_qc(
         *,
         plot_all_pixel_clusters=False,
         chunk_size=10_000,
+        sample_size=5_000_000,
         staining=None,
         thresh_p=None,
         nstds_p=None,
@@ -120,15 +111,17 @@ def start_pixel_qc(
         n_clusters,
         seed,
         chunk_size,
-        threads
+        threads,
+        sample_size
     ))
     print("[NOTE] Time for the whole clustering process:")
-    timer.stop()
     image_ddf = image_ddf.persist()
+    timer.stop()
 
     #####################
     ###### Metrics ######
     #####################
+    # We calculate pixel scores for each pixel cluster.
     pixel_scores_ds, clusters_ids, image_ddf = metrics.image.pixel_score.calc_pixel_score(
         sdata,
         figure_path,
@@ -164,7 +157,7 @@ def start_pixel_qc(
     ###### Downstream ######
     ########################
 
-    # Map cluster probabilites to each pixel.
+    # Map cluster densities to each pixel.
     cluster_prob_map = dict(zip(clusters_ids, prob_densities))
     image_ddf = image_ddf.assign(p_informative_pixel=image_ddf['cluster'].map(cluster_prob_map))
 
@@ -179,7 +172,7 @@ def start_pixel_qc(
         belief_name = f"{modality}_{staining}_beliefs"
         mask_name = f"{modality}_{staining}_mask"
 
-    # I only normlize cluster probs and not all pixel probs.
+    # I only generate cluster probs and not all pixel probs.
     scaled_ddf = scaler.fit_transform(image_ddf[['p_informative_pixel']])
     image_ddf = image_ddf.assign(
         **{
@@ -187,8 +180,8 @@ def start_pixel_qc(
             'pixel_score_mask': (scaled_ddf.iloc[:, 0] > 0.5).astype(int),
         }
     )
-    timer.stop()
     image_ddf = image_ddf.persist()
+    timer.stop()
 
     helperfuncs.plot_pixels(
         figure_path,
@@ -207,8 +200,8 @@ def start_pixel_qc(
         image_ddf = priors.combine_priors.combine_priors_hqpr(spoqc_tmp_folder, image_ddf, belief_name, mask_name)
     if modality == 'hqtr':
         image_ddf = priors.combine_priors.combine_priors_hqtr(spoqc_tmp_folder, image_ddf, belief_name, mask_name)
-    timer.stop()
     image_ddf = image_ddf.persist()
+    timer.stop()
 
     helperfuncs.plot_pixels(
         figure_path,

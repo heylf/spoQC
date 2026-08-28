@@ -86,18 +86,3 @@ def estimate_background_intensity_dask(sdata, image_type, resolution, staining, 
     # center of the winning bin
     background = np.round((bin_edges[max_bin_idx] + bin_edges[max_bin_idx + 1]) * 0.5, 3)
     return background, hist, bin_edges
-
-
-def estimate_background_intensity(intensities):
-    nbins = 100
-
-    hist, bin_edges = np.histogram(intensities, bins=nbins)
-
-    # Find the bin with the highest count
-    max_count = np.max(hist)
-    max_bin_index = np.argmax(hist)
-    max_bin_range = (bin_edges[max_bin_index], bin_edges[max_bin_index + 1])
-
-    background_intensity = np.round(np.mean(max_bin_range), 3)
-
-    return (background_intensity, hist, bin_edges)

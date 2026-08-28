@@ -21,7 +21,7 @@ python3 -m spoqc -s "annotation" -i [input_spatial_data_bundle] -o [output_folde
 After the analysis finishes, spoQC will create an annotation file:
 
 ```text
-[spoqc_tmp_folder]/report/annotation/unsupervised_cell_annotation.tsv
+[output_folder]/report/annotation/unsupervised_cell_annotation.tsv
 ```
 
 You can use this file as the value for the `[annotation_file]` parameter in later steps.

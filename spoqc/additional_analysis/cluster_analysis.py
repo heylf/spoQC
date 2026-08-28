@@ -106,27 +106,14 @@ def celltype_cluster_analysis(
     win_res = -1
     if ( not os.path.exists(res_file_name) ):
         if ( subdir == 'overview' ):
-            win_res = analysis_funcs.test_resolutions_leiden(
-                rna, 
-                figure_path, 
-                CONST.THREADS,
-                annotation_key=CONST.ANNOTATION_KEY,
-                resolutions=[0.2, 0.5, 1.0, 1.5]
-                # steps=20
-            )
+            k = len(set(rna.obs[CONST.ANNOTATION_KEY])) + 3
         else:
             k=15
             if ( rna.n_obs < 50 ):
                 k = 3
 
-            win_res = analysis_funcs.test_resolutions_leiden(
-                rna, 
-                figure_path,
-                CONST.THREADS,
-                k=k,
-                resolutions=[0.2, 0.5, 1.0, 1.5]
-                # steps=20
-            )
+        res = [0.2, 0.5, 1.0, 1.5]
+        win_res = analysis_funcs.find_resolution_coarse_to_fine(rna, k, res)
 
         res_file = open(f"{figure_path}/res.txt", "w")
         res_file.write(f"{win_res}\nIs the winning leiden resolution\n")
@@ -143,15 +130,8 @@ def celltype_cluster_analysis(
         print("[NOTE] Resolution was too far off. Doing further optimization")
         timer.start()
         rna.obs.drop(columns=['leiden'], inplace=True)
-        win_res = analysis_funcs.test_resolutions_leiden(
-            rna,
-            figure_path,
-            CONST.THREADS,
-            resolutions=[0.001, 0.01, 0.1]
-            # steps=30,
-            # end=0.1,
-            # start=0.000001
-        )
+        res = [0.001, 0.01, 0.1]
+        win_res = analysis_funcs.find_resolution_coarse_to_fine(rna, k, res)
         sc.tl.leiden(rna, resolution=win_res, key_added='leiden', random_state=seed)
         timer.stop()
 
@@ -295,11 +275,17 @@ def celltype_cluster_analysis(
 
             if is_numeric_dtype(rna.obs[umap_cat]):
 
+                # Bullet proof for NaN values
+                if rna.obs[umap_cat].isnull().values.any():
+                    rna.obs[umap_cat] = rna.obs[umap_cat].fillna(0)
+
                 # --- general histograms ---
                 nbins = 50
 
-                if ( rna.n_obs < 50 ):
+                if rna.n_obs < 50:
                     nbins = 5
+                elif rna.n_obs < 30:
+                    nbins = 2
 
                 fig = None
                 fig, ax = plt.subplots(figsize=(8, 4))
@@ -512,7 +498,7 @@ def celltype_cluster_analysis(
         # --- cell composition plot -----
         print("[NOTE] Generate cell type composition plot")
         timer.start()
-        ctf_df = analysis_funcs.create_celltype_fraction_df('leiden', CONST.ANNOTATION_KEY, rna)
+        ctf_df = analysis_funcs.create_fraction_df('leiden', CONST.ANNOTATION_KEY, rna)
 
         leiden_order = sorted(ctf_df["x"].unique(), key=lambda x: int(x))  # if leiden labels are numeric strings
         label_order = sorted(ctf_df["label"].unique())
@@ -716,6 +702,112 @@ def celltype_cluster_analysis(
     timer.start()
     funkyheatmap.plot_funkyheatmap(rna, figure_path)
     timer.stop()
+
+    ####################################################################################################################
+    # Traffic Light system plots
+    ####################################################################################################################
+    if ( 'hqcr_traffic_light' in rna.obs.columns ):
+
+        print("[NOTE] Generate traffic light plots")
+        timer.start()
+
+        traffic_light_order = ['green', 'yellow', 'red']
+        traffic_light_colors = {'green': 'green', 'yellow': 'gold', 'red': 'red'}
+        present_categories = [c for c in traffic_light_order if c in set(rna.obs['hqcr_traffic_light'])]
+
+        # 3 Spatial plots for each traffic light system category (green, yellow, red), with those colors.
+        # Combined into one plot with 3 columns.
+        spatial = rna.obsm['spatial']
+        fig, axes = plt.subplots(1, len(present_categories), figsize=(5 * len(present_categories), 5), squeeze=False)
+        axes = axes.ravel()
+        for ax, category in zip(axes, present_categories):
+            mask = np.array(rna.obs['hqcr_traffic_light'] == category)
+            ax.scatter(spatial[~mask, 0], spatial[~mask, 1], s=1.0, c='lightblue', label='other')
+            ax.scatter(spatial[mask, 0], spatial[mask, 1], s=1.0, c=traffic_light_colors[category], label=category)
+            ax.set_title(category)
+            ax.set_xlabel('x')
+            ax.set_ylabel('y')
+            ax.set_aspect('equal', adjustable='box')
+
+        plt.tight_layout()
+        fig.savefig(f"{figure_path}/scatterplot_traffic_light_combined.png", bbox_inches='tight', dpi=300)
+        fig.savefig(f"{figure_path}/scatterplot_traffic_light_combined.pdf", bbox_inches='tight', dpi=300)
+        plt.close(fig)
+
+
+        hqcr_traffic_light_df = pd.DataFrame({
+            'x': rna.obsm['spatial'][:,0],
+            'y': rna.obsm['spatial'][:,1],
+            'hqcr_traffic_light': rna.obs['hqcr_traffic_light']
+        })
+
+        helperfuncs.plot_scatter_density_by_category_df(
+            hqcr_traffic_light_df,
+            'hqcr_traffic_light',
+            figure_path,
+            '1',
+            ['yellow'],
+            None,
+            plot_categories=['green', 'yellow', 'red']
+        )
+
+        # Then a fraction plot (like cell type fractions), x-axis = Leiden clusters, y=traffic light factions
+        ctf_leiden_tl = analysis_funcs.create_fraction_df(
+            'leiden',
+            'hqcr_traffic_light',
+            rna
+        )
+        leiden_order = sorted(ctf_leiden_tl['x'].unique(), key=int)
+
+        fig = px.bar(
+            ctf_leiden_tl,
+            x="x",
+            y="fractions",
+            labels={"x": "leiden"},
+            color="label",
+            color_discrete_map=traffic_light_colors,
+            category_orders={
+                "x": leiden_order,
+                "label": present_categories,
+            },
+        )
+        fig.update_xaxes(tickangle=-45)
+        fig.update_yaxes(range=[0, 1.0])
+
+        if ( html ):
+            fig.write_html(f"{figure_path}/fractions_traffic_light_leiden.html")
+        fig.write_image(f"{figure_path}/fractions_traffic_light_leiden.png", scale=3)
+        fig.write_image(f"{figure_path}/fractions_traffic_light_leiden.pdf", scale=3)
+
+        # Then a fraction plot (like cell type fractions), x-axis = cell type, y=traffic light factions
+        ctf_celltype_tl = analysis_funcs.create_fraction_df(
+            CONST.ANNOTATION_KEY, 
+            'hqcr_traffic_light', 
+            rna
+        )
+        celltype_order = sorted(ctf_celltype_tl['x'].unique())
+
+        fig = px.bar(
+            ctf_celltype_tl,
+            x="x",
+            y="fractions",
+            labels={"x": CONST.ANNOTATION_KEY},
+            color="label",
+            color_discrete_map=traffic_light_colors,
+            category_orders={
+                "x": celltype_order,
+                "label": present_categories,
+            },
+        )
+        fig.update_xaxes(tickangle=-45)
+        fig.update_yaxes(range=[0, 1.0])
+
+        if ( html ):
+            fig.write_html(f"{figure_path}/fractions_traffic_light_celltype.html")
+        fig.write_image(f"{figure_path}/fractions_traffic_light_celltype.png", scale=3)
+        fig.write_image(f"{figure_path}/fractions_traffic_light_celltype.pdf", scale=3)
+
+        timer.stop()
 
     ####################################################################################################################
     # Write out annotated .h5ad

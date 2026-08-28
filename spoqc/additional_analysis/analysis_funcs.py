@@ -12,7 +12,7 @@ from sklearn.metrics import silhouette_score
 from .. import helperfuncs
 from .. import subworkflows
 
-def create_celltype_fraction_df(x, label, rna):
+def create_fraction_df(x, label, rna):
         
     # adata: your AnnData object
     df = rna.obs[[label, x]].copy()
@@ -29,125 +29,78 @@ def create_celltype_fraction_df(x, label, rna):
         label: 'label'
     })
 
-    # Sort x numerically
-    fractions_df['x'] = fractions_df['x'].astype(int)
-    fractions_df = fractions_df.sort_values('x').reset_index(drop=True)
-    fractions_df['x'] = fractions_df['x'].astype(str)
+    # Sort x numerically if possible, otherwise fall back to string sort
+    try:
+        fractions_df['x'] = fractions_df['x'].astype(int)
+        fractions_df = fractions_df.sort_values('x').reset_index(drop=True)
+        fractions_df['x'] = fractions_df['x'].astype(str)
+    except (ValueError, TypeError):
+        fractions_df['x'] = fractions_df['x'].astype(str)
+        fractions_df = fractions_df.sort_values('x').reset_index(drop=True)
 
     return(fractions_df)
 
 
-def leiden_silhouette(adata, resolution, res_index, ninits=5):
-    '''
-    Returns average silhouette score and average number of clusters based on a given resolution and random state 
-    with ninits=random initializations.
-    '''
+def evaluate_res(adata, resolutions, seed):
+    results = []
 
-    scores = []
-    num_clusters = []
-    adata_test = adata.copy()
+    for res in resolutions:
+        sc.tl.leiden(
+            adata,
+            resolution=float(res),
+            key_added="_temp_leiden",
+            random_state=seed,
+            flavor="igraph",
+            n_iterations=2,
+            directed=False,
+        )
 
-    for rs in range(0, ninits): #since the random seed will change result - multiple samples per resolution
-        sc.tl.leiden(adata_test, resolution=resolution, key_added='temp_leiden', random_state=rs)
+        results.append(
+            (float(res), adata.obs["_temp_leiden"].nunique())
+        )
 
-        if ( len(set(adata_test.obs['temp_leiden'])) > 1 ):
-            scores.append(silhouette_score(adata_test.obsm['X_umap'], adata_test.obs['temp_leiden']))
-            num_clusters.append(len(set(adata_test.obs['temp_leiden'])))
-            adata_test.obs.drop(columns=['temp_leiden'], inplace=True)
-        else:
-            scores.append(0.0)
-            num_clusters.append(0.0)
-            adata_test.obs.drop(columns=['temp_leiden'], inplace=True)
-
-    return [res_index, [resolution]*ninits, scores, list(range(0, ninits)), num_clusters]
+    return results
 
 
-# This is for checking which leiden cluster resoltuion would work the best.
-# Pick the one with the highest silhouette score but not the one from the beginning.
-def test_resolutions_leiden(
-        rna, 
-        figure_path,
-        threads,
-        annotation_key=None,
-        k=None,
-        steps=None,
-        end=2.0,
-        start=0.0,
-        resolutions=None,
-    ):
-    
-    if ( resolutions == None ):
-        resolutions = np.linspace(0, 3, num = 21)[1:]
-        if ( steps ):
-            resolutions = np.linspace(start, end, num = steps)[1:]
+def find_resolution_coarse_to_fine(
+    adata,
+    target_clusters,
+    res,
+    seed=123,
+):
 
-    out = [-1] * len(resolutions)
-    win_res = 0.5
-    diff_clusters = 100
+    # Broad search
+    coarse = evaluate_res(adata, res, seed)
 
-    # Parallel testing for resolutions.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
-        futures = [executor.submit(leiden_silhouette, rna, res, res_index) for res_index, res in enumerate(resolutions)]
-        for future in concurrent.futures.as_completed(futures):
-            results = future.result()
-            out[results[0]] = results[1:]
+    best_res, _ = min(
+        coarse,
+        key=lambda x: abs(x[1] - target_clusters)
+    )
 
-    for res in range(0, len(resolutions)):
-        average_num_clusters = int(np.mean(out[res][-1]))
+    # Refine ±0.25 around best result
+    fine_resolutions = np.linspace(
+        max(0.01, best_res - 0.25),
+        best_res + 0.25,
+        5
+    )
 
-        if ( annotation_key ):
-            diff_clusters_new = np.abs(average_num_clusters-( len(set(rna.obs[annotation_key])) + 3 ) )
-            if ( diff_clusters_new < diff_clusters ):
-                diff_clusters = diff_clusters_new
-                win_res = resolutions[res]
-        if ( k ):
-            diff_clusters_new = np.abs(average_num_clusters-k)
-            if ( diff_clusters_new < diff_clusters ):
-                diff_clusters = diff_clusters_new
-                win_res = resolutions[res]
+    fine = evaluate_res(adata, fine_resolutions, seed)
 
-    # Unpack data into dataframe.    
-    rows = []
-    for block in out:
-        rows.extend(zip(*block))
-    ss = pd.DataFrame(rows, columns=['res','ss', 'rs', 'num_clusters'])
+    results = coarse + fine
 
-    plt.figure(figsize=(15, 5))
-    ax = sns.lineplot(data = ss, x = 'res', y = 'ss')
-    plt.xlabel('resolutions')
-    plt.ylabel('silhouettescore')
-    for res_value in ss['res'].unique():  # Assuming 'res' contains the breakpoints
-        plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)  # Adding vertical lines
-    plt.xticks(ss['res'].unique())  # Ensure all 'res' values are shown on the x-axis
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.png')
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.pdf')
-    plt.close()
+    adata.obs.drop(columns="_temp_leiden", inplace=True)
 
-    if ( annotation_key or k):
-        title = ''
-        if ( annotation_key ):
-            title = len(set(rna.obs[annotation_key]))
-        else:
-            title = str(k)
+    best = min(
+        results,
+        key=lambda x: abs(x[1] - target_clusters)
+    )
 
-        plt.figure(figsize=(15, 5))
-        ax = sns.lineplot(data=ss, x='res', y='num_clusters')
-        plt.xlabel('resolutions')
-        plt.ylabel('number of clusters')
-        plt.ylim([0, 40])
-        for res_value in ss['res'].unique():
-            plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)
-        for y in [5, 10, 15, 20, 25, 30, 35, 40]:
-            plt.axhline(y=y, color='grey', linestyle='--', alpha=0.7)
-        plt.axvline(x=win_res, color='black', linestyle='-', alpha=0.7)
-        plt.title(f'Annotation had {title} celltypes')
-        plt.xticks(ss['res'].unique())  # ensure all 'res' values appear
-        plt.tight_layout()
-        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.png')
-        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.pdf')
-        plt.close()
+    print("Target number of clsuters:", target_clusters)
+    print("Tested:", results)
+    print("Selected:", best[0])
 
-    return win_res
+    return best[0]
+
 
 
 def load_cell_metrices(sdata, spoqc_tmp_folder, CONST, *, include_nucleus_free=False):

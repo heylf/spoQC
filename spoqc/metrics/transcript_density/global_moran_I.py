@@ -1,48 +1,54 @@
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import concurrent.futures
 import geopandas as gpd
-import concurrent.futures
+import scipy.sparse as sp
 
-from esda.moran import Moran
 from libpysal.weights import Queen
 
 from ... import helperfuncs
 
-# Calculate Moran's I for each gene
-def compute_for_gene(gene, rna_adata):
-    data = pd.DataFrame({
-        'x': rna_adata.obsm['spatial'][:, 0],
-        'y': rna_adata.obsm['spatial'][:, 1]
-    })
-    
-    gdf = gpd.GeoDataFrame(data, geometry=gpd.points_from_xy(data.x, data.y))
-    
-    # Create spatial-neighbor weights using queen contiguity
-    w = Queen.from_dataframe(gdf)
+# Vectorized Moran's I for all genes at once, given a shared weights matrix.
+# Degenerate genes (zero variance) are filled with NaN, matching what
+# ac_image.py expects when it zeroes out bad genes via np.isnan(...).
+def moran_I_all_genes(X_dense: np.ndarray, weights) -> np.ndarray:
+    n = X_dense.shape[0]
+    S0 = weights.sum()
 
-    moran = Moran(rna_adata.X[:, list(rna_adata.var_names).index(gene)].todense(), w, permutations=999)
-    
-    return [gene, moran.VI_sim, moran.I]
+    z = X_dense - X_dense.mean(axis=0, keepdims=True)
+    z_weights = weights @ z
+
+    num = np.einsum("ij,ij->j", z, z_weights)
+    den = np.einsum("ij,ij->j", z, z)
+
+    morans_I = np.full(X_dense.shape[1], np.nan, dtype=np.float64)
+    ok = den > 0
+    morans_I[ok] = (n / S0) * (num[ok] / den[ok])
+    return morans_I
 
 
-def calculate_global_moran_I_values(sdata, figure_path, spoqc_tmp_folder, threads):
+def calculate_global_moran_I_values(sdata, figure_path, spoqc_tmp_folder):
 
     rna_adata = sdata['table']
 
-    gene_svariance_moransI_list = []
+    genes_list = np.array(rna_adata.var_names)
 
-    # Create Moran's I variances and values
-    genes_list = list(rna_adata.var_names)
+    coords = rna_adata.obsm['spatial']
+    gdf = gpd.GeoDataFrame({'x': coords[:, 0], 'y': coords[:, 1]},
+                            geometry=gpd.points_from_xy(coords[:, 0], coords[:, 1]))
 
-    # Be careful with the order because of threading the list is filled based on how fast the indidivudal thread is.
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
-        futures = [executor.submit(compute_for_gene, gene, rna_adata) for gene in genes_list]
-        for future in concurrent.futures.as_completed(futures):
-            gene_svariance_moransI_list.append(future.result())
+    # Create spatial-neighbor weights using queen contiguity, once for all genes
+    # (coordinates, and therefore the weights matrix, don't depend on the gene).
+    w = Queen.from_dataframe(gdf)
+    w.transform = "r"
+    weights = w.sparse
 
-    data = pd.DataFrame(gene_svariance_moransI_list)
-    data.columns = ['genes', 'spatial_variance', 'morans_I']
+    X = rna_adata.X
+    X_dense = X.toarray() if sp.issparse(X) else np.asarray(X)
+
+    morans_I = moran_I_all_genes(X_dense, weights)
+
+    data = pd.DataFrame({'genes': genes_list, 'morans_I': morans_I})
 
     # Sort the DataFrame by Moran's I in descending order and select the top x genes
     data_sorted = data.sort_values(by='morans_I', ascending=False)
@@ -59,6 +65,6 @@ def calculate_global_moran_I_values(sdata, figure_path, spoqc_tmp_folder, thread
     fig.write_html(f"{figure_path}/contamination_global_morans_I.html")
     fig.write_image(f"{figure_path}/contamination_global_morans_I.png", scale=3)
     fig.write_image(f"{figure_path}/contamination_global_morans_I.pdf", scale=3)
-    
+
     helperfuncs.df_to_parquet(data_sorted, 'ambient', spoqc_tmp_folder, [], 'genes')
     return data_sorted

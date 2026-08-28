@@ -471,7 +471,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
         <h2>Cell cycle QC</h2>
         {format_description(description)}
         <img src="data:image/png;base64,{img_cc_bar}" style="max-width:45%;">
-        <img src="data:image/png;base64,{img_cc_spatial}" style="max-width:45%;">
+        <img src="data:image/png;base64,{img_cc_spatial}" style="max-width:80%;">
         """
 
     description = """
@@ -605,6 +605,148 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     # Fifth page
     ####################################################################################################################
 
+    html_sp_leiden_subcluster = ""
+
+    html_sp_leiden_subcluster += f"""
+    <h1>Spatial plots of Leiden clusters</h1>
+    """
+
+    if second_page_present:
+        description = """
+        Spatial plots for the individual Leiden clusters identified in the <u>Subcluster analysis</u> panel.
+        """
+
+        folder_path = f"{figure_path}/analysis/cluster/scatterplot"
+        html_sp_leiden_subcluster += render_numbered_image_gallery(
+            "Leiden clusters", folder_path, "scatterplot_leiden_cluster",
+            description=description
+        )
+
+
+    ####################################################################################################################
+    # Sixth page
+    ####################################################################################################################
+
+    html_traffic_light = ""
+
+    description = """
+    **Summary:**
+    We also introduced a traffic light system for the cell layer (HQCR). Each cell is scored on 6 quality checks (transcript counts, gene counts, doublet distance, negative probe counts, cell geometry, and nucleus geometry) and assigned a color based on how many of these checks fail or are borderline:
+
+    - Green: no clearly failing checks, and at most one borderline result.
+    - Yellow: one clearly failing check, or two or more borderline results.
+    - Red: two or more clearly failing checks.
+
+    **Details:** Each of the 6 priors is a probability between 0 and 1, where higher values indicate better quality. A prior counts as "bad" if it is below 0.3, "borderline" if it is between 0.3 and 0.6, and "good" if it is 0.6 or above. Based on the number of bad and borderline priors out of the 6, a cell is classified as:
+
+    - Green: 0 bad priors and at most 1 borderline prior.
+    - Yellow: exactly 1 bad prior, or 2 or more borderline priors (with fewer than 2 bad priors).
+    - Red: 2 or more bad priors.
+
+    Currently the priors for the following metrics are checked:
+
+    - cell area normalized transcript counts
+    - cell area normalized gene counts
+    - doublet distance
+    - negative probe counts
+    - invalid cell geometry
+    - invalid nucelus geometry
+    """
+    html_traffic_light += f"""
+    <h1>Traffic light level QC for cells</h1>
+    {format_description(description)}
+    """
+
+    description = """
+    **Summary:** Fraction of QC levels for each Leiden cluster. Large red or yellow fractions indicate a quality issue for this Leiden cluster.
+    """
+    img_traffic_light_l = image_to_base64(f"{figure_path}/analysis/overview/fractions/fractions_traffic_light_leiden.png")
+    html_traffic_light += f"""
+    <h2>QC level fractions by Leiden cluster</h2>
+    {format_description(description)}
+    <img src="data:image/png;base64,{img_traffic_light_l}" style="max-width:80%;">
+    """
+
+    description = """
+    **Summary:** Fraction of QC levels for each celltype cluster. Large red or yellow fractions indicate a quality issue for this celltype cluster.
+    """
+    img_traffic_light_ct = image_to_base64(f"{figure_path}/analysis/overview/fractions/fractions_traffic_light_celltype.png")
+    html_traffic_light += f"""
+    <h2>QC level fractions by cell type</h2>
+    {format_description(description)}
+    <img src="data:image/png;base64,{img_traffic_light_ct}" style="max-width:80%;">
+    """
+
+    description = """
+    **Summary:** Spatial position of QC level cells.
+    """
+    img_traffic_light_sp = image_to_base64(f"{figure_path}/analysis/overview/scatterplot/scatterplot_traffic_light_combined.png")
+    html_traffic_light += f"""
+    <h2>Spatial distribution of QC levels</h2>
+    {format_description(description)}
+    <img src="data:image/png;base64,{img_traffic_light_sp}" style="max-width:80%;">
+    """
+
+    description = """
+    **Summary:** Spatial density of QC level cells. Large areas of yellow or red cells indicate a quality issue.
+    """
+    img_traffic_light_sp_de = image_to_base64(f"{figure_path}/analysis/overview/scatterplot/scatterplot_densityplot_hqcr_traffic_light_1.png")
+    html_traffic_light += f"""
+    <h2>Spatial density of QC levels</h2>
+    {format_description(description)}
+    <img src="data:image/png;base64,{img_traffic_light_sp_de}" style="max-width:80%;">
+    """
+
+    if second_page_present:
+
+        html_traffic_light += f"""
+        <h1>Traffic light level QC for cells for the cells of the <u>Subcluster analysis</u> panel</h1>
+        """
+
+        description = """
+        **Summary:** Fraction of QC levels for each Leiden cluster. Large red or yellow fractions indicate a quality issue for this Leiden cluster.
+        """
+        img_traffic_light_l_c = image_to_base64(f"{figure_path}/analysis/cluster/fractions/fractions_traffic_light_leiden.png")
+        html_traffic_light += f"""
+        <h2>QC level fractions by Leiden cluster</h2>
+        {format_description(description)}
+        <img src="data:image/png;base64,{img_traffic_light_l_c}" style="max-width:80%;">
+        """
+
+        description = """
+        **Summary:** Fraction of QC levels for each celltype cluster. Large red or yellow fractions indicate a quality issue for this celltype cluster.
+        """
+        img_traffic_light_ct_c = image_to_base64(f"{figure_path}/analysis/cluster/fractions/fractions_traffic_light_celltype.png")
+        html_traffic_light += f"""
+        <h2>QC level fractions by cell type</h2>
+        {format_description(description)}
+        <img src="data:image/png;base64,{img_traffic_light_ct_c}" style="max-width:80%;">
+        """
+
+        description = """
+        **Summary:** Spatial position of QC level cells.
+        """
+        img_traffic_light_sp_c = image_to_base64(f"{figure_path}/analysis/cluster/scatterplot/scatterplot_traffic_light_combined.png")
+        html_traffic_light += f"""
+        <h2>Spatial distribution of QC levels</h2>
+        {format_description(description)}
+        <img src="data:image/png;base64,{img_traffic_light_sp_c}" style="max-width:80%;">
+        """
+
+        description = """
+        **Summary:** Spatial density of QC level cells. Large areas of yellow or red cells indicate a quality issue.
+        """
+        img_traffic_light_sp_de_c = image_to_base64(f"{figure_path}/analysis/cluster/scatterplot/scatterplot_densityplot_hqcr_traffic_light_1.png")
+        html_traffic_light += f"""
+        <h2>Spatial density of QC levels</h2>
+        {format_description(description)}
+        <img src="data:image/png;base64,{img_traffic_light_sp_de_c}" style="max-width:80%;">
+        """
+
+    ####################################################################################################################
+    # Seventh page
+    ####################################################################################################################
+
     html_hqr = ""
 
     html_hqr += f"""
@@ -644,7 +786,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     """
 
     ####################################################################################################################
-    # Sixth page
+    # Eigth page
     ####################################################################################################################
 
     html_filters = ""
@@ -692,7 +834,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     """
 
     ####################################################################################################################
-    # Seventh page
+    # Nineth page
     ####################################################################################################################
 
     html_hqcr = ""
@@ -714,7 +856,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
             """
 
     ####################################################################################################################
-    # Eigth page
+    # Tenth page
     ####################################################################################################################
 
     html_hqpr = ""
@@ -735,7 +877,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
 
 
     ####################################################################################################################
-    # Nineth page
+    # Eleventh page
     ####################################################################################################################
 
     html_hqtr = ""
@@ -765,23 +907,42 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
         pages_first_half.append({"id": "subcluster", "title": "Subcluster analysis", "content": html_subcluster})
     pages_first_half.append({"id": "spatialplot_leiden", "title": "Spatial plots Leiden clusters", "content": html_sp_leiden})
     pages_first_half.append({"id": "spatialplot_annotation", "title": "Spatial plots annotation clusters", "content": html_sp_ann})
+    if second_page_present:
+        pages_first_half.append({"id": "spatialplot_subcluster", "title": "Spatial plots Leiden clusters of Subcluster analysis", "content": html_sp_leiden_subcluster})
+    pages_first_half.append({"id": "traffic_light", "title": "Traffic Light System HQCR", "content": html_traffic_light})
     pages_first_half.append({"id": "hqr", "title": "High quality regions (HQRs)", "content": html_hqr})
     pages_first_half.append({"id": "individual_filters", "title": "Individual HQR filters", "content": html_filters})
     pages_first_half.append({"id": "hqcr_boxplots", "title": "All HQCR metrics", "content": html_hqcr})
     pages_first_half.append({"id": "hqpr_boxplots", "title": "All HQPR metrics", "content": html_hqpr})
     pages_first_half.append({"id": "hqtr_boxplots", "title": "All HQTR metrics", "content": html_hqtr})
 
-    all_pages = [
-        html_overview,
-        html_subcluster,
-        html_sp_leiden,
-        html_sp_ann,
-        html_hqr,
-        html_filters,
-        html_hqcr,
-        html_hqpr,
-        html_hqtr,
-    ]
+    all_pages = []
+    if second_page_present:
+        all_pages = [
+            html_overview,
+            html_subcluster,
+            html_sp_leiden,
+            html_sp_ann,
+            html_sp_leiden_subcluster,
+            html_traffic_light,
+            html_hqr,
+            html_filters,
+            html_hqcr,
+            html_hqpr,
+            html_hqtr,
+        ]
+    else:
+        all_pages = [
+            html_overview,
+            html_sp_leiden,
+            html_sp_ann,
+            html_traffic_light,
+            html_hqr,
+            html_filters,
+            html_hqcr,
+            html_hqpr,
+            html_hqtr,
+        ]
 
     ### Second half ###
     # Fold the other Plotly-generated HTML fragments into the same document as

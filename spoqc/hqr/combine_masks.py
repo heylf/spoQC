@@ -102,6 +102,8 @@ def start_combining_masks(
             )
 
             # --- general histograms ---
+            # These will help later to figure out thresholds for filtering.
+            # These are on spatial observation (no cell agglomeration).
             fig = None
             fig, ax = plt.subplots(figsize=(8, 4))
             ax.hist(np.array(beliefs_df[f'{m}_beliefs']), bins=50)

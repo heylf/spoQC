@@ -39,7 +39,7 @@ def plot_funkyheatmap(rna, figure_path):
     
     for col in cols:
         funky_heatmap_df = funky_heatmap_df.join(rna.obs.groupby('leiden')[col].median(), how='left')
-        column_lists.append([col, "beliefs", col, "bar", {"width": 2, "legend": False}, "beliefs"])
+        column_lists.append([col, "beliefs", col, "bar", {"width": 2, "legend": False, "scale": False}, "beliefs"])
 
     # Add cell metrics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     counts = 'transcript_counts'
@@ -112,6 +112,34 @@ def plot_funkyheatmap(rna, figure_path):
         column_lists.append([col, "hqtr_others", col, "circle", {"width": 1, "legend": False}, "hqtr_others"])
 
     # Create column info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # funkyheatmappy min-max scales each column's value/size/color via. A metric that's identical across every leiden 
+    # cluster (e.g. all-NaN after groupby, or genuinely constant) makes that 0/0 = NaN, giving every circle/bar a NaN 
+    # size and crashing matplotlib's bbox_inches='tight' computation at savefig time. Keep such columns in the plot but
+    # disable their per-column min-max scaling and substitute a fixed neutral value, since the real (constant) value 
+    # carries no differentiating signal across clusters anyway.
+    CIRCLE_SIZE_FLOOR = 0.05
+
+    for row in column_lists[1:]:
+        col = row[0]
+        geom = row[3]
+        if col == "id":
+            continue
+        if funky_heatmap_df[col].nunique(dropna=True) <= 1:
+            funky_heatmap_df[col] = 0.5
+            row[4] = {**row[4], "scale": False}
+        # funkyheatmappy's min-max scaling always maps a column's minimum value to exactly 0. For
+        # "circle" geoms this becomes the circle radius (r = row_height / 2 * size_value), so the
+        # cluster with the lowest value for a metric always gets an invisible, zero-radius circle.
+        # Pre-scale those columns into [CIRCLE_SIZE_FLOOR, 1.0] ourselves and disable the library's
+        # own scaling so the smallest circle in each column stays visibly non-zero.
+        elif geom == "circle":
+            cmin = funky_heatmap_df[col].min()
+            cmax = funky_heatmap_df[col].max()
+            funky_heatmap_df[col] = CIRCLE_SIZE_FLOOR + (1 - CIRCLE_SIZE_FLOOR) * (
+                (funky_heatmap_df[col] - cmin) / (cmax - cmin)
+            )
+            row[4] = {**row[4], "scale": False}
 
     column_info = pd.DataFrame(column_lists[1:], columns=column_lists[0])
     column_info.index = column_info["id"]
