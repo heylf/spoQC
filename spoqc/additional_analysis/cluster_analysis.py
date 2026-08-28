@@ -74,7 +74,7 @@ def celltype_cluster_analysis(
         print(f"[NOTE] Picking cluster {largest_cluster}")
         rna = rna[rna.obs[CONST.ANNOTATION_KEY] == largest_cluster]
 
-    if ( rna.n_obs < 100 ):
+    if ( rna.n_obs < 10 ):
         print("[WARN] Too few cells. The cluster investigation has to be stopped.")
         analysis_funcs.write_out_anndata(sdata, rna, CONST, subdir)
         return 0
@@ -275,11 +275,17 @@ def celltype_cluster_analysis(
 
             if is_numeric_dtype(rna.obs[umap_cat]):
 
+                # Bullet proof for NaN values
+                if rna.obs[umap_cat].isnull().values.any():
+                    rna.obs[umap_cat] = rna.obs[umap_cat].fillna(0)
+
                 # --- general histograms ---
                 nbins = 50
 
-                if ( rna.n_obs < 50 ):
+                if rna.n_obs < 50:
                     nbins = 5
+                elif rna.n_obs < 30:
+                    nbins = 2
 
                 fig = None
                 fig, ax = plt.subplots(figsize=(8, 4))
