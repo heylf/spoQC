@@ -160,8 +160,6 @@ def plot_funkyheatmap(rna, figure_path):
     # Plot
     ####################################################################################################################
 
-    print(funky_heatmap_df)
-
     funky_heatmap(
         funky_heatmap_df, 
         column_info = column_info, 
