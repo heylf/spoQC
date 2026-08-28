@@ -471,7 +471,7 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
         <h2>Cell cycle QC</h2>
         {format_description(description)}
         <img src="data:image/png;base64,{img_cc_bar}" style="max-width:45%;">
-        <img src="data:image/png;base64,{img_cc_spatial}" style="max-width:45%;">
+        <img src="data:image/png;base64,{img_cc_spatial}" style="max-width:80%;">
         """
 
     description = """
