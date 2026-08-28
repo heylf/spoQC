@@ -463,33 +463,44 @@ def plot_scatter_density_by_category_df(
         ax = axes[i]
         subset = df[df[key] == category]
 
-        # Scatter
-        sns.scatterplot(
-            data=subset, x='x', y='y', s=pointsize,
-            palette=palette, legend=False, ax=ax
-        )
+        if len(subset) != 0:
 
-        # KDE
-        xc, yc, z, (xlim, ylim) = fast_kde2d(
-            subset['x'].values, subset['y'].values,
-            bins=1000, bw_adjust=0.5
-        )
-        xx, yy = np.meshgrid(xc, yc)
-        cf = ax.contourf(xx, yy, z, levels=20, cmap=_CMAP_DENSITY, alpha=0.7, zorder=2)
+            # Scatter
+            sns.scatterplot(
+                data=subset, x='x', y='y', s=pointsize,
+                palette=palette, legend=False, ax=ax
+            )
 
-        # Individual colorbar
-        cbar = plt.colorbar(cf, ax=ax, fraction=0.046, pad=0.04, shrink=get_cbar_shrink(df))
-        cbar.set_label('Density' if key is None else f'Density (weighted by {key})')
+            # KDE
+            try:
+                xc, yc, z, (xlim, ylim) = fast_kde2d(
+                    subset['x'].values, subset['y'].values,
+                    bins=1000, bw_adjust=0.5
+                )
+                xx, yy = np.meshgrid(xc, yc)
+                cf = ax.contourf(xx, yy, z, levels=20, cmap=_CMAP_DENSITY, alpha=0.7, zorder=2)
 
-        ax.set_title(category)
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_xlim(np.min(df['x']), np.max(df['x']))
-        ax.set_ylim(np.min(df['y']), np.max(df['y']))
-        ax.set_aspect('equal', adjustable='box')
+                # Individual colorbar
+                cbar = plt.colorbar(cf, ax=ax, fraction=0.046, pad=0.04, shrink=get_cbar_shrink(df))
+                cbar.set_label('Density' if key is None else f'Density (weighted by {key})')
+            except Exception as e:
+                print(f"[WARN] Probably because not enough data points for your chosen density category: {e}")
+                print("Just plotting scatter plot.")
+            
 
-        if flip:
-            ax.invert_yaxis()
+            ax.set_title(category)
+            ax.set_xlabel('x')
+            ax.set_ylabel('y')
+            ax.set_xlim(np.min(df['x']), np.max(df['x']))
+            ax.set_ylim(np.min(df['y']), np.max(df['y']))
+            ax.set_aspect('equal', adjustable='box')
+
+
+            if flip:
+                ax.invert_yaxis()
+
+        else:
+            print(f"[WARN] No data points for category {category}")
 
     plt.tight_layout()
     if figure_path is not None:
