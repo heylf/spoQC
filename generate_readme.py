@@ -8,9 +8,9 @@ def transform(text: str) -> str:
     # Convert ```{note} ... ``` blocks to GitHub admonitions
     text = re.sub(
         r"```{note}\n(.*?)\n```",
-        r"> [!NOTE]\n\1",
+        r"> [!NOTE]\n\1", # --> group 1 is fully taken over
         text,
-        flags=re.DOTALL,
+        flags=re.DOTALL, # --> matches everything even when a newline is in the text (i.e., \n). Else it would stop.
     )
 
     text = re.sub(
