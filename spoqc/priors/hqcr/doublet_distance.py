@@ -6,7 +6,7 @@ import numpy as np
 from scipy.stats import norm
 from ... import helperfuncs
 
-def calc_probs_doublet_distance(sdata, figure_path, nstds=3):
+def calc_probs_doublet_distance(sdata, figure_path, nstds):
     distances = sdata['table'].obs['doublet_distance']
     max_std = 1.0
     prob_densities = norm.pdf(distances, loc=0.0, scale=nstds*max_std)
