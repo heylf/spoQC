@@ -22,11 +22,9 @@ def transform(text: str) -> str:
 
     return text.replace("_static", f"{docs_dir}/_static")
 
-
-content = "\n\n".join(
-    transform(Path(f"{docs_dir}/{p}").read_text())
-    for p in parts
-)
-
-
-Path("README.md").write_text(content)
+if __name__ == "__main__":
+    content = "\n\n".join(
+        transform(Path(f"{docs_dir}/{p}").read_text())
+        for p in parts
+    )
+    Path("README.md").write_text(content)
