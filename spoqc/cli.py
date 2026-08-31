@@ -461,20 +461,37 @@ def main(argv: list[str] | None = None) -> None:
     if ( CONST.ANNOTATION_FILE ):
         print(f"[NOTE] Adding annotation {CONST.ANNOTATION_FILE}")
         df_labels = pd.read_csv(f'{CONST.ANNOTATION_FILE}', sep=None, engine='python')
+        df_labels = df_labels[['Barcode', 'Cluster']]
         df_labels.index = df_labels['Barcode']
         df_labels = df_labels.drop(columns='Barcode')
+        df_labels.columns = [CONST.ANNOTATION_KEY]
 
+        # Check if annotation and anndata have the same number of cells
+        if rna_adata.n_obs != len(df_labels):
+            warn_text = f"[WARN]: The annotation has a different number of cells {len(df_labels)} than your sdata "
+            warn_text += f"{rna_adata.n_obs}. Please Check your annotation."
+            print(warn_text)
+        
+        # I have to map here if that is the case.
+        if 'cell_id' in rna_adata.obs.columns:
+            if df_labels.index[0] in list(rna_adata.obs['cell_id']) and df_labels.index[0] not in list(rna_adata.obs.index):
+                df_labels.index = df_labels.index.map(mapping)
+        
         if ( type(rna_adata.obs.index[0]) == str ):
-            rna_adata.obs[CONST.ANNOTATION_KEY] = list(df_labels.iloc[rna_adata.obs.index]['Cluster'])
-        else:
-            rna_adata.obs[CONST.ANNOTATION_KEY] = list(df_labels.loc[rna_adata.obs.index]['Cluster'])
+            df_labels.index = df_labels.index.map(str)
 
+        # Sometimes annoation does not contain all cells.
+        rna_adata.obs = rna_adata.obs.join(df_labels[CONST.ANNOTATION_KEY], how='left')
+        rna_adata.obs[CONST.ANNOTATION_KEY] = rna_adata.obs[CONST.ANNOTATION_KEY].fillna('unkown')
+
+        
         # Clean up celltype names, else you will always run in potential code breaks.
         rna_adata.obs[CONST.ANNOTATION_KEY] = [re.sub(r'[^A-Za-z0-9]', '', x) for x in rna_adata.obs[CONST.ANNOTATION_KEY]]
 
         # Save number of celltypes and the celltypes names.
         annotation = helperfuncs.AnnotationStruct(len(set(rna_adata.obs[CONST.ANNOTATION_KEY])),
                                                 list(set(rna_adata.obs[CONST.ANNOTATION_KEY])))
+
 
     # General variables from data
     obs_columns = list(sdata['table'].obs.columns)
