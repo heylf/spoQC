@@ -10,6 +10,7 @@ import numba
 import os
 import random
 import argparse
+import rich_click as click
 import numpy as np
 import pandas as pd
 import re
@@ -64,6 +65,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to the tmp directory where spoQC saves tmp files.",
         required=True
     )
+    parser.add_argument(    
+        "-s", "--step",
+        dest="step",
+        type=str,
+        default="all",
+        help="Steps to run for QC.",
+        required=True
+    )
 
     # optional
     parser.add_argument(
@@ -94,14 +103,6 @@ def build_parser() -> argparse.ArgumentParser:
         type=str,
         default='',
         help='Path to a JSON file with "S" and "G2M" keys listing S-phase and G2M-phase gene names.',
-        required=False
-    )
-    parser.add_argument(    
-        "-s", "--step",
-        dest="step",
-        type=str,
-        default="all",
-        help="Steps to run for QC.",
         required=False
     )
     parser.add_argument(
@@ -200,17 +201,17 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 # In[]
-def main(argv: list[str] | None = None) -> None:
+def main(**kwargs) -> None:
     print("[START]")
 
 # In[]
 
-    # Setting matplot styles
-    plot_config.set_pub_style()
+    args = Args(kwargs)
 
-    parser = build_parser()
-    args_ns = parser.parse_args(argv)
-    args = vars(args_ns)
+
+
+
+# In[]
 
     print(f"[NOTE] Turn on mode testing: {args['dev_test']}")
 
@@ -369,6 +370,9 @@ def main(argv: list[str] | None = None) -> None:
 
     # ---------------- Folder Structure ------------
     folder_structure.create_folder_structure(CONST)
+
+    # ---------------- Setting matplot styles ------------
+    plot_config.set_pub_style()
 
     # In[]
     #######################
