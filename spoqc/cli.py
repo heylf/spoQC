@@ -162,7 +162,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--doublet_prior_std",
         dest="doublet_prior_std",
         type=int,
-        default=100,
+        default=40,
         help="The std for the doublet prior estimation. If you increase it then the impact of doublet events increaes, that means doublets events will impact more cells and give them lower quality.",
         required=False
     )
