@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import functools
 
 from typing import List, Tuple, Any
 from concurrent.futures import ProcessPoolExecutor

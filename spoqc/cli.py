@@ -18,15 +18,12 @@ import importlib
 # Tool imports
 import spatialdata as sd
 import spatialdata_plot
-from spatialdata.models import PointsModel
 
 # Own scripts
 from spoqc import general
 from spoqc import hqr
 from spoqc import helperfuncs
 from spoqc import process_datasets
-from spoqc import folder_structure
-from spoqc import plot_config
 from spoqc import subworkflows
 from spoqc import _core
 
@@ -49,6 +46,12 @@ from spoqc import _core
               help="""Path to the tmp directory where spoQC saves tmp files.""")
 @click.option("-s", "--step", type=str, required=True, default="all",
               help="""Steps to run for QC.""")
+@click.option("-d", "--datatype", type=str, required=True, default="xenium",
+              help="""
+              The type of data you are providing.
+              Please check spoQC's documentation to know which datatypes are covered.
+              """
+              )
 
 # Optional parameters
 @click.option("-a", "--annotation_file", type=str, required=False,
@@ -112,129 +115,25 @@ def main(**kwargs) -> None:
 
 
 # In[]
-    importlib.reload(_core.config)
-    args =  _core.config.Args(kwargs)
-    args.print_args()
 
-# In[]
+    importlib.reload(_core.spaceship)
+    enterprise = _core.spaceship.Enterpise(kwargs)
 
-    # Seeds (!!! DO NOT CHANGE THIS SEED !!!)
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    print(f"[NOTE] seed {args.seed}")
-
-    # ---------------- Environment ----------------
-    # Numba threads
-    print(f"[NOTE] Setting numba threads to {args.nthreads}")
-    requested_threads = args.nthreads
-    maximum_threads = numba.config.NUMBA_NUM_THREADS
-    active_threads = min(requested_threads, maximum_threads)
-    print(
-        f"[NOTE] Numba thread pool maximum: {maximum_threads}; "
-        f"using: {active_threads}"
-    )
-    numba.set_num_threads(active_threads)
-
-    # Blosc threads (for the Zarr datasets we still write)
-    os.environ["BLOSC_NTHREADS"] = str(args.nthreads)
-    # Timer
+    # Timer class
     timer = helperfuncs.Timer()
 
+    # In[]
+    # Load data
+    importlib.reload(_core._data)
+    importlib.reload(_core.dataloaders.xenium)
+    enterprise.load_cargo_data(enterprise.args.input_file, enterprise.args.datatype, enterprise.args.dataset)
+
+
 
 # In[]
 
-    # ---------------- Folder Structure ------------
-    folder_structure.create_folder_structure(CONST)
-
-    # ---------------- Setting matplot styles ------------
-    plot_config.set_pub_style()
-
     # In[]
-    #######################
-    ###### LOAD DATA ######
-    #######################
-    input_path = f'{CONST.INPUT_PATH}'
-    print(f'[NOTE] Load data {input_path}')
-    sdata = sd.read_zarr(f"{input_path}")
-    sdata['table'].obs['sample'] = ['sampleone'] * sdata['table'].n_obs
-    if ( CONST.DATASET ):
-        process_datasets.process_sdata(CONST.DATASET, sdata)
-    print(sdata)
-
-    # Ensure transcripts have a globally unique, monotonic index (required by
-    # spatialdata>=0.7's get_centroids/transform). The Xenium zarr reader can
-    # produce a points dataframe whose partitions each restart their own local
-    # index, and plain ddf.reset_index(drop=True) does not fix this since dask
-    # resets per-partition; deduplicate_dask_index() offsets each partition by
-    # the cumulative length of the partitions before it instead. The existing
-    # 'global' transform lives in .attrs, which map_partitions carries over,
-    # so PointsModel.parse() picks it up without passing transformations=.
-    sdata.points['transcripts'] = PointsModel.parse(
-        helperfuncs.deduplicate_dask_index(sdata.points['transcripts'])
-    )
-
-    # In[]
-    # Cropping for testing
-    if ( CONST.TESTING > 0 ):
-        print('[NOTE] Cropping for testing')
-        start = 10500
-        end = CONST.TESTING
-        cropped_sdata, _, _ = helperfuncs.image_crop(sdata, start, start, start+end, start+end+500, 'global')
-        sdata = cropped_sdata
-
-    # In[]
-    # Apply Integer indexing
-    sdata['table'].obs.index = [int(i) for i in range(len(sdata['table'].obs.index))]
-    mapping = sdata['table'].obs.index.to_series().set_axis(sdata['table'].obs["cell_id"].values)
-    sdata.shapes['cell_boundaries'].index = sdata.shapes['cell_boundaries'].index.map(mapping)
-    sdata.shapes['cell_circles'].index = sdata.shapes['cell_circles'].index.map(mapping)
-    sdata.shapes['nucleus_boundaries'].index = sdata.shapes['nucleus_boundaries'].index.map(mapping)
-
-    # Mapping of transcript table
-    mapping = dict(zip(sdata['table'].obs["cell_id"], sdata['table'].obs.index))
-    sdata.points['transcripts']['cell_id'] = (
-        sdata.points['transcripts']['cell_id']
-            .map(mapping, meta=('cell_id', int))
-            .fillna(-1)
-            .astype(int)
-    )
-
-    # In[]
-    # Check for nan's in transcripts feature names
-    sdata.points['transcripts']['feature_name'] = (
-        sdata.points['transcripts']['feature_name']
-        .astype('string')
-        .fillna('NaN')
-        .astype('category')
-    )
-
-    # In[]
-    # Mapping of nucleus gemoetires
-    if 'cell_id' in list(sdata.shapes['nucleus_boundaries'].columns):
-        sdata.shapes['nucleus_boundaries']['cell_id'] = (
-            sdata.shapes['nucleus_boundaries']['cell_id']
-                .map(mapping)
-                .fillna(-1)
-                .astype(int)
-        )
-
-        # Check for nan's in sdata.shapes['nucleus_boundaries'].index
-        if sdata.shapes['nucleus_boundaries'].index.hasnans:
-            sdata.shapes['nucleus_boundaries'].index = sdata.shapes['nucleus_boundaries']['cell_id']
-        
-    # make index unqiue for multinulcei cells
-    sdata.shapes["nucleus_boundaries"].index = pd.RangeIndex(len(sdata.shapes["nucleus_boundaries"]))
-
-    # In[]
-    # I need string indexes for anndata else code breaks
-    sdata['table'].obs.index = sdata['table'].obs.index.astype(str)
-    sdata['table'].obs.index.name = 'index'
-
-    # In[]
-    # Get RNA data and set raw data layer
-    rna_adata = sdata['table']
-    rna_adata.layers['raw'] = rna_adata.X
-
+    
     # Add annotation
     annotation = helperfuncs.AnnotationStruct(0, [""])
     if ( CONST.ANNOTATION_FILE ):
