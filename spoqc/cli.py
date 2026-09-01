@@ -9,7 +9,6 @@ import numba
 # Utility imports
 import os
 import random
-import argparse
 import rich_click as click
 import numpy as np
 import pandas as pd
@@ -29,332 +28,105 @@ from spoqc import process_datasets
 from spoqc import folder_structure
 from spoqc import plot_config
 from spoqc import subworkflows
+from spoqc import _core
 
-def build_parser() -> argparse.ArgumentParser:
-
-    print("[NOTE] Use arguments")
-
-    tool_description = """
+@click.command(
+    help="""
+    spoQC is a modular framework for multimodal quality control (QC) of imaging-based
+    spatially resolved transcriptomics (SRT).
     """
+)
+@click.version_option(version="0.0.1")
 
-    # parse command line arguments
-    parser = argparse.ArgumentParser(description=tool_description, formatter_class=argparse.RawDescriptionHelpFormatter)
+# Required options
+@click.option("-i", "--input_file", type=str, required=True, 
+              help="""Path to the input directory containing Xenium data.""")
+@click.option("-o", "--output_dir", type=str, required=True, 
+              help="""Path to the output directory containing the report.""")
+@click.option("-t", "--tmp_dir", type=str, required=True, 
+              help="""Path to the tmp directory where spoQC saves tmp files.""")
+@click.option("-t", "--tmp_dir", type=str, required=True, 
+              help="""Path to the tmp directory where spoQC saves tmp files.""")
+@click.option("-s", "--step", type=str, required=True, default="all",
+              help="""Steps to run for QC.""")
 
-    # version
-    parser.add_argument("-v", "--version", action="version", version="%(prog)s 0.1.0")
+# Optional parameters
+@click.option("-a", "--annotation_file", type=str, required=False,
+              help="""Path to the annotation file.""")
+@click.option("--cellcycle_gene_file", type=str, required=False,
+              help="""Path to a JSON file with "S" and "G2M" keys listing S-phase and G2M-phase gene names.""")
+@click.option("--cluster_celltype", type=str, required=False,
+              help="""Name of the cluster cell type you want to specifically analyse.""")
+@click.option("--dataset", type=str, required=False,
+              help="""
+              This is used for to apply standardization to spatial data for the data used in the publication.
+              """
+              )
+@click.option("--doublet_prior_std", type=int, required=False, default=100,
+              help="""
+              The std for the doublet prior estimation. If you increase it then the impact of doublet events increaes,
+              that means doublets events will impact more cells and give them lower quality.
+              """
+              )
+@click.option("--kmeans_sample_size", type=int, required=False, default=5_000_000,
+              help="""
+              Number of pixels randomly subsampled to fit the pixel-cluster MiniBatchKMeans model (hqpr/hqtr).
+              The full dataset is then labeled in parallel using the fitted model.
+              """
+              )
+@click.option("-n", "--nthreads", type=int, required=False, default=1,
+              help="""Number of cores to be used.""")
+@click.option("--overwrite", required=False, is_flag=True,
+              help="""Overwriting temporary files.""")
+@click.option("--pixel_qc_chunk_size", type=int, required=False, default=200_000,
+              help="""
+              Row-chunk size for the pixel-level QC dask arrays/dataframes (hqpr/hqtr clustering and scoring).
+              Larger values reduce dask task-graph overhead but increase peak memory per chunk.
+              """
+              )
+@click.option("--reference_file", type=str, required=False,
+              help="""Path to a transcript reference file for the transcript QC.""")
+@click.option("--staining", type=str, required=False, default="0",
+              help="""Staining to be used. You have to provide the integer of the staining in the spatial data.""")
+@click.option("--thresh_prior_pixel", type=float, required=False, default=None,
+              help="""
+              You can set a prior threshold for the pixel prior distribution. 
+              Please read the documentation to understand what this threshold does before you set it.
+              """
+              )
+@click.option("--nstds_prior_pixel", type=int, required=False, default=6,
+              help="""
+              You can set the number of stds for the pixel prior distribution. 
+              Please read the documentation to understand what this does before you set it.
+              """
+              )
 
-    # mandatory
-    parser.add_argument(
-        "-i", "--input",
-        dest="input",
-        type=str, 
-        help="Path to the input directory containing Xenium data.",
-        required=True
-    )
-    parser.add_argument(
-        "-o", "--output",
-        dest="output",
-        type=str, 
-        help="Path to the output directory containing the report.",
-        required=True
-    )
-    parser.add_argument(
-        "-t",
-        dest="tmp",
-        type=str, 
-        help="Path to the tmp directory where spoQC saves tmp files.",
-        required=True
-    )
-    parser.add_argument(    
-        "-s", "--step",
-        dest="step",
-        type=str,
-        default="all",
-        help="Steps to run for QC.",
-        required=True
-    )
+# Testing options
+@click.option("--dev_test", required=False, is_flag=True,
+              help="""This is just for developing and testing the tool.""")
+@click.option("--dev_report", required=False, is_flag=True,
+              help="""This is just for developing and testing the tool (report).""")
 
-    # optional
-    parser.add_argument(
-        "-n", "--threads",
-        dest="threads",
-        type=int,
-        default=1, 
-        help="Number of cores to be used.",
-        required=False
-    )
-    parser.add_argument(
-        "-a", "--annotation",
-        dest="annotation",
-        type=str,
-        help="Path to the annotation file.",
-        required=False
-    )
-    parser.add_argument(
-        "--reference",
-        dest="reference",
-        type=str,
-        help="Path to a transcript reference file for the transcript QC.",
-        required=False
-    )
-    parser.add_argument(
-        "--cellcycle_gene_file",
-        dest="cellcycle_gene_file",
-        type=str,
-        default='',
-        help='Path to a JSON file with "S" and "G2M" keys listing S-phase and G2M-phase gene names.',
-        required=False
-    )
-    parser.add_argument(
-        "--overwrite",
-        dest="overwrite",
-        action='store_true',
-        help="Overwriting temporary files.",
-        required=False
-    )
-    parser.add_argument(
-        "--dataset",
-        dest="dataset",
-        type=str,
-        help="This is used for to apply standardization to spatial data for the data used in the publication.",
-        required=False
-    )
-    parser.add_argument(
-        "--staining",
-        dest="staining",
-        type=str,
-        help="Number of cores to be used.",
-        default='0',
-        required=False
-    )
-    parser.add_argument(
-        "--thresh_prior_pixel",
-        dest="thresh_prior_pixel",
-        type=float,
-        default=None,
-        help="You can set a prior threshold for the pixel prior distribution. Please read the documentation to understand what this threshold does before you set it.",
-        required=False
-    )
-    parser.add_argument(
-        "--nstds_prior_pixel",
-        dest="nstds_prior_pixel",
-        type=float,
-        default=6,
-        help="You can set the number of stds for the pixel prior distribution. Please read the documentation to understand what this does before you set it.",
-        required=False
-    )
-    parser.add_argument(
-        "--pixel_qc_chunk_size",
-        dest="pixel_qc_chunk_size",
-        type=int,
-        default=200_000,
-        help="Row-chunk size for the pixel-level QC dask arrays/dataframes (hqpr/hqtr clustering and scoring). Larger values reduce dask task-graph overhead but increase peak memory per chunk.",
-        required=False
-    )
-    parser.add_argument(
-        "--kmeans_sample_size",
-        dest="kmeans_sample_size",
-        type=int,
-        default=5_000_000,
-        help="Number of pixels randomly subsampled to fit the pixel-cluster MiniBatchKMeans model (hqpr/hqtr). The full dataset is then labeled in parallel using the fitted model.",
-        required=False
-    )
-    parser.add_argument(
-        "--doublet_prior_std",
-        dest="doublet_prior_std",
-        type=int,
-        default=100,
-        help="The std for the doublet prior estimation. If you increase it then the impact of doublet events increaes, that means doublets events will impact more cells and give them lower quality.",
-        required=False
-    )
-    parser.add_argument(
-        "--cluster_celltype",
-        dest="cluster_celltype",
-        type=str,
-        default=None,
-        help="Name of the cluster cell type you want to specifically analyse.",
-        required=False
-    )
-    parser.add_argument(
-        "--spatial_smoothing",
-        dest="spatial_smoothing",
-        action="store_true",
-        help="Turn on spatial smoothing for prior beliefs.",
-        required=False
-    )
-    parser.add_argument(
-        "--dev_test",
-        dest="dev_test",
-        action="store_true",
-        help="This is just for developing and testing the tool.",
-        required=False
-    )
-    parser.add_argument(
-        "--dev_report",
-        dest="dev_report",
-        action="store_true",
-        help="This is just for developing and testing the tool (report).",
-        required=False
-    )
-    
-
-    return parser
-
-# In[]
 def main(**kwargs) -> None:
     print("[START]")
 
-# In[]
-
-    args = Args(kwargs)
-
-
-
 
 # In[]
+    importlib.reload(_core.config)
+    args =  _core.config.Args(kwargs)
+    args.print_args()
 
-    print(f"[NOTE] Turn on mode testing: {args['dev_test']}")
-
-    def constant(f):
-        def fset(self, value):
-            raise TypeError('your are not allowed to change constant values')
-        def fget(self):
-            return f()
-        return property(fget, fset)
-
-    class _Const(object):
-        @constant
-        def TESTING(): # set to > 100 to turn on testing case
-            if args['dev_test'] or args['step'] == 'unittest' :
-                return 2000
-            else:
-                return 0
-        @constant
-        def THREADS():
-            if args['dev_test'] or args['step'] == 'unittest':
-                return 8
-            else:
-                return int(args['threads'])
-        @constant
-        def OVERWRITE():
-            return args['overwrite']
-        @constant
-        def INPUT_PATH():
-            return args['input']
-        @constant
-        def FIGURE_PATH():
-            return f"{args['output']}/report/"
-        @constant
-        def TMP_PATH():
-            return f"{args['tmp']}"
-        @constant
-        def DATASET():
-            return args['dataset']
-        @constant
-        def TRANSCRIPT_REFERENCE():
-            return f"{args['reference']}"
-        @constant
-        def CELLCYCLE_GENE_FILE():
-            return f"{args['cellcycle_gene_file']}"
-        @constant
-        def ANNOTATION_FILE():
-            return args['annotation']
-        @constant
-        def VARIABLE_GENES():
-            return 5000
-        @constant
-        def nPCs():
-            return 60
-        @constant
-        def SPAN():
-            # scanpy.pp.highly_variable_genes
-            # span : Optional[float] (default: 0.3)
-            # Increase if you run into error like ValueError: b'There are other near singularities as well. 0.031008'
-            # The fraction of the data (cells) used when estimating the variance in the loess model fit if 
-            # flavor='seurat_v3'.
-            return 1.0
-        @constant
-        def ANNOTATION_KEY():
-            return 'celltype'
-        @constant
-        def RADI():
-            return [20, 30, 40, 80, 100]
-        @constant    # threshold for total UMIs
-        def THRESH_UMI():   
-            return 100
-        @constant    # threshold number of genes 
-        def THRESH_N_GENES():   
-            return 20
-        @constant   # threshold p-value for unimodality of the UMI count and number of genes
-        def THESH_UNIMODALITY():
-            return 0.01
-        @constant
-        def STEP():
-            return args['step']
-        @constant   # threshold p-value for unimodality of the UMI count and number of genes
-        def CANORM(): # turn on to select cell area normlaized counts for HQCR
-            return True
-        @constant
-        def N_CELLTYPES():
-            if CONST.TESTING == 0:
-                return None
-            else:
-                return 20
-        @constant
-        def POINT_SIZE():       
-            return 1
-        @constant
-        def IMAGE_TYPE():
-            return 'morphology_focus'
-        @constant
-        def RESOLUTION():
-            return 'scale0'
-        @constant
-        def STAINING():
-            return args['staining']
-        @constant
-        def PIXEL_QC_CHUNK_SIZE():
-            return args['pixel_qc_chunk_size']
-        @constant
-        def KMEANS_SAMPLE_SIZE():
-            return args['kmeans_sample_size']
-        @constant
-        def THRESHOLD_PRIOR_PIXEL():
-            return args['thresh_prior_pixel']
-        @constant
-        def DOULET_PRIOR_STD():
-            return args['doublet_prior_std']
-        @constant
-        def NSTDS_PRIOR_PIXEL():
-            return args['nstds_prior_pixel']
-        @constant
-        def CLUSTER_CELLTYPE():
-            return args['cluster_celltype']
-        @constant
-        def GENERATE_REPORT_DOC():
-            if args['dev_report']:
-                return True
-            else:
-                return False
-
-    # Initialize constant variables
-    CONST = _Const()
-    constant_members = [attr_name for attr_name in vars(_Const) if isinstance(getattr(_Const, attr_name), property)]
-    for attr_name in constant_members:
-        attr_value = getattr(_Const, attr_name).fget(_Const)
-        print(f'Attribute Name: {attr_name}')
-        print(f'Attribute Value: {attr_value}')
+# In[]
 
     # Seeds (!!! DO NOT CHANGE THIS SEED !!!)
-    seed=123
-    random.seed(seed)
-    np.random.seed(seed)
-    print(f"[NOTE] seed {seed}")
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    print(f"[NOTE] seed {args.seed}")
 
     # ---------------- Environment ----------------
     # Numba threads
-    print(f"[NOTE] Setting numba threads to {CONST.THREADS}")
-    requested_threads = CONST.THREADS
+    print(f"[NOTE] Setting numba threads to {args.nthreads}")
+    requested_threads = args.nthreads
     maximum_threads = numba.config.NUMBA_NUM_THREADS
     active_threads = min(requested_threads, maximum_threads)
     print(
@@ -364,9 +136,12 @@ def main(**kwargs) -> None:
     numba.set_num_threads(active_threads)
 
     # Blosc threads (for the Zarr datasets we still write)
-    os.environ["BLOSC_NTHREADS"] = str(CONST.THREADS)
+    os.environ["BLOSC_NTHREADS"] = str(args.nthreads)
     # Timer
     timer = helperfuncs.Timer()
+
+
+# In[]
 
     # ---------------- Folder Structure ------------
     folder_structure.create_folder_structure(CONST)
@@ -465,20 +240,39 @@ def main(**kwargs) -> None:
     if ( CONST.ANNOTATION_FILE ):
         print(f"[NOTE] Adding annotation {CONST.ANNOTATION_FILE}")
         df_labels = pd.read_csv(f'{CONST.ANNOTATION_FILE}', sep=None, engine='python')
+        df_labels = df_labels[['Barcode', 'Cluster']]
         df_labels.index = df_labels['Barcode']
         df_labels = df_labels.drop(columns='Barcode')
+        df_labels.columns = [CONST.ANNOTATION_KEY]
 
+        # Check if annotation and anndata have the same number of cells
+        if rna_adata.n_obs != len(df_labels):
+            warn_text = f"[WARN]: The annotation has a different number of cells {len(df_labels)} than your sdata "
+            warn_text += f"{rna_adata.n_obs}. Please Check your annotation."
+            print(warn_text)
+        
+        # I have to map here if that is the case.
+        if 'cell_id' in rna_adata.obs.columns:
+            if df_labels.index[0] in list(rna_adata.obs['cell_id']) and df_labels.index[0] not in list(rna_adata.obs.index):
+                df_labels.index = df_labels.index.map(mapping)
+        
         if ( type(rna_adata.obs.index[0]) == str ):
-            rna_adata.obs[CONST.ANNOTATION_KEY] = list(df_labels.iloc[rna_adata.obs.index]['Cluster'])
-        else:
-            rna_adata.obs[CONST.ANNOTATION_KEY] = list(df_labels.loc[rna_adata.obs.index]['Cluster'])
+            df_labels.index = df_labels.index.map(str)
 
+
+
+        # Sometimes annoation does not contain all cells.
+        rna_adata.obs = rna_adata.obs.join(df_labels[CONST.ANNOTATION_KEY], how='left')
+        rna_adata.obs[CONST.ANNOTATION_KEY] = rna_adata.obs[CONST.ANNOTATION_KEY].fillna('unkown')
+
+        
         # Clean up celltype names, else you will always run in potential code breaks.
         rna_adata.obs[CONST.ANNOTATION_KEY] = [re.sub(r'[^A-Za-z0-9]', '', x) for x in rna_adata.obs[CONST.ANNOTATION_KEY]]
 
         # Save number of celltypes and the celltypes names.
         annotation = helperfuncs.AnnotationStruct(len(set(rna_adata.obs[CONST.ANNOTATION_KEY])),
                                                 list(set(rna_adata.obs[CONST.ANNOTATION_KEY])))
+
 
     # General variables from data
     obs_columns = list(sdata['table'].obs.columns)
