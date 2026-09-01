@@ -289,12 +289,18 @@ def get_cbar_shrink(df_shrink):
 
 
 def fast_kde2d(
-    x, y,
+    x,
+    y,
+    *,
     weights=None,
     bins=300,                 # grid resolution (increase for smoother look)
     bw_adjust=0.5,            # <1 sharper, >1 smoother
-    xlim=None, ylim=None
-):
+    xlim=None,
+    ylim=None,
+) -> Tuple[np.ndarray[tuple[int], np.dtype[np.floating]],
+           np.ndarray[tuple[int], np.dtype[np.floating]],
+           np.ndarray[tuple[int], np.dtype[np.floating]],
+           Tuple[Tuple[float, float], Tuple[float, float]]]:
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     n = x.size
@@ -706,10 +712,20 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
     plt.close()
 
 
-def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
-                         scattercat: Optional[str], densitycat: Optional[str],
-                         palette: Union[str, dict, None], title: Optional[str],
-                         pointsize=1.0, flip=False) -> None:
+def plot_scatter_density_df(
+    df: pd.DataFrame,
+    figure_path: str,
+    suffix: str,
+    scattercat: Optional[str],
+    densitycat: Optional[str],
+    palette: Union[str, dict, None],
+    title: Optional[str],
+    *,
+    pointsize=1.0,
+    flip=False
+) -> Tuple[np.ndarray[tuple[int], np.dtype[np.floating]],
+           np.ndarray[tuple[int], np.dtype[np.floating]],
+           np.ndarray[tuple[int], np.dtype[np.floating]]]:
     
     plt.figure(figsize=(13, 10))
     ax = plt.gca()
@@ -718,6 +734,9 @@ def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
     scatter = sns.scatterplot(data=df, x='x', y='y', s=pointsize, hue=scattercat, palette=palette)
 
     # Create a kernel density estimate (KDE) plot
+    xc = np.array([])
+    yc = np.array([])
+    z = np.array([])
     try:
         xc, yc, z, (xlim, ylim) = fast_kde2d(
             df['x'].values, df['y'].values,
@@ -758,6 +777,8 @@ def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
     plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.png', bbox_inches='tight', dpi=300)
     plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
+
+    return xc, yc, z
 
 
 def plot_original_image_cell_circles(sdata, figure_path, suffix):
