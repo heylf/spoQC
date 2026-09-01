@@ -30,3 +30,30 @@ def calc_probs_doublet_distance(sdata, figure_path, nstds):
 
     probs_good_quality = 1 - probs
     return probs_good_quality
+
+# ddd = density divided by distance (relative density)
+# The closer ddd is to 0 the better the quality.
+def calc_probs_ddd(sdata, figure_path, nstds):
+    ddds = sdata['table'].obs['doublet_ddd']
+    max_std = 1.0
+    prob_densities = norm.pdf(ddds, loc=0.0, scale=nstds*max_std)
+    probs = np.array([0.0] * len(prob_densities))
+
+    # If you have no doublets then min_max normalization does not matter.
+    if ( len(ddds[ddds == 100_000]) != len(ddds) ):
+        print("[NOTE] Doublets are in data, thus normalize probs.")
+        probs = helperfuncs.min_max_normalize(prob_densities)
+
+    helperfuncs.plot_histogram_for_array(
+        ddds,
+        100,
+        figure_path,
+        f"Doublet density divided by distance: t=0.0 with {nstds} x {np.round(max_std, 3)} std",
+        "doublet_ddd_prior",
+        t=0.0,
+        std=max_std,
+        nstds=nstds,
+    )
+
+    probs_good_quality = probs
+    return probs_good_quality

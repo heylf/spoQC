@@ -1,8 +1,12 @@
+
+# In[]
 import ovrlpy
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
+
+from scipy.spatial.distance import cdist
 
 from ... import helperfuncs
 
@@ -173,7 +177,8 @@ def calc_doublet_score(
     cell_dobulet_df['doublet_distance'] = final_distances
 
     # Plot doublet density
-    helperfuncs.plot_scatter_density_df(
+    # helperfuncs.plot_scatter_density_df(
+    kde_xc, kde_yc, kde_z = helperfuncs.plot_scatter_density_df(
         cell_dobulet_df,
         figure_path,
         'doublet',
@@ -183,10 +188,28 @@ def calc_doublet_score(
         'Cells close to doublet events'
     )
 
+    density_to_cell = np.array([100_000.0] * sdata['table'].n_obs)
+    if len(kde_z) != 0:
+        cells_coords = cell_dobulet_df[['x', 'y']].values
+        kde_xx, kde_yy = np.meshgrid(kde_xc, kde_yc) # Full grid of bin centroids, shape matches kde_z
+        kde_bin_centroids = np.column_stack([kde_xx.ravel(), kde_yy.ravel()])
+        dists = cdist(cells_coords, kde_bin_centroids) # Calculate all distances between two sets of points
+        clostes_kde_bin = dists.argmin(axis=1) # Get index of smallest distanced kde bin
+        matrix_indices = np.unravel_index(clostes_kde_bin, kde_z.shape)
+        density_to_cell = kde_z[matrix_indices[0], matrix_indices[1]]
+
     # Write into sdata
     sdata['table'].obs['doublet'] = np.array(cell_dobulet_df['doublet'])
     sdata['table'].obs['wdoublet'] = np.array(cell_dobulet_df['wdoublet'])
     sdata['table'].obs['doublet_distance'] = np.array(cell_dobulet_df['doublet_distance'])
+    sdata['table'].obs['doublet_density'] = density_to_cell
+    
+    # ddd = density divided by distance (relative density)
+    if len(kde_z) != 0:
+        sdata['table'].obs['doublet_ddd'] = density_to_cell / ( np.array(cell_dobulet_df['doublet_distance']) + 1e-8 )
+    else:
+        sdata['table'].obs['doublet_ddd'] = np.array([100_000.0] * sdata['table'].n_obs)
+
 
     # Have to call this again because overlpy corrects also the transcript coordinates
     transcript_coordinates_df = sdata.points[key_transcripts].compute()
@@ -208,3 +231,4 @@ def calc_doublet_score(
     transcript_doublet_df.index = transcript_coordinates_df.index
 
     helperfuncs.df_to_parquet(transcript_doublet_df, 'doublet', spoqc_tmp_folder, [], 'transcripts')
+# %%
