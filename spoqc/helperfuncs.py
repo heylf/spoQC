@@ -30,16 +30,6 @@ from matplotlib.lines import Line2D
 from scipy.ndimage import gaussian_filter
 from scipy.stats import norm
 
-class ImageDimStruct(NamedTuple):
-    bb_xmin: int
-    bb_ymin: int
-    bb_xmax: int
-    bb_ymax: int
-
-class AnnotationStruct(NamedTuple):
-    ncelltypes: int
-    celltypes: int
-
 class Timer:
     def __init__(self):
         self._start_time = None

@@ -6,14 +6,23 @@ from typing import Dict, Any, Tuple
 from . import _output_structure
 from . import _config
 from . import _data
+from .. import process_datasets
 
 class Enterpise:
     def __init__(self, kwargs):
         self.args = _config.Args(kwargs)
         _output_structure.create_output_structure(self.args)
 
-    def load_cargo_data(self, input_path, datatype, dataset):
-        self.cargo = _data.CargoSpatialData(input_path, datatype, dataset)
+    def load_cargo_data(self):
+        self.cargo = _data.CargoSpatialData(
+            self.args.input_file,
+            self.args.datatype,
+            self.args.dataset,
+            self.args.annotation_file,
+            self.args.annotation_key,
+            self.args.image_type,
+            self.args.resoltion,
+        )
         print(self.cargo.sdata)
 
         # Crop data
@@ -24,17 +33,20 @@ class Enterpise:
             self.cargo.sdata = self._crop_data(self.cargo.sdata, start, start, start+end, start+end+500, 'global')
 
         # Correct indexing
-        _data.CargoSpatialData._correct_indexing(self.cargo.sdata, self.args.datatype)
+        self.cargo.correct_indexing(self.args.datatype)
 
         # Get RNA data and set raw data layer
         adata = self.cargo.sdata['table']
         adata.layers['raw'] = adata.X
 
+        # Apply standard data processing to cargo
+        self.cargo.perform_standard_data_processing(
+            self.args.step,
+            self.args.num_variable_genes,
+            self.args.span
+        )
+
         
-
-
-
-
     def _crop_data(
             self: Any,
             sdata: Any,
@@ -97,4 +109,11 @@ class Enterpise:
             return cropped_sdata
         else:
             sys.exit("[NOTE] No table in sdata so returning None")
+
+
+    def generate_unsupervised_annotation(self):
+        if self.args.step in ['annotation']:
+            print(f'[NOTE] Perform unsuperivsed cell annotation')
+            self.cargo.celltype_annotation.perform_unsupervised_celltype_annotation(self.cargo.sdata, self.args)
+        print("[finish]")
 

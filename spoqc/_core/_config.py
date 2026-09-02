@@ -15,7 +15,7 @@ class Args:
         self.input_file = kwargs['input_file']
         self.output_dir = f"{kwargs['output_dir']}/report/"
         self.tmp_dir = kwargs['tmp_dir']
-        self.annotation_file = kwargs['annotation_file']
+        self.annotation_file = kwargs['annotation_file'] if 'annotation_file' in kwargs else None
         self.reference_file = kwargs['reference_file'] if 'reference_file' in kwargs else None
         self.cellcycle_gene_file = kwargs['cellcycle_gene_file'] if 'cellcycle_gene_file' in kwargs else None
 
@@ -43,7 +43,7 @@ class Args:
         self.thresh_prior_pixel = kwargs['thresh_prior_pixel'] if 'thresh_prior_pixel' in kwargs else None
         self.nstds_prior_pixel = kwargs['nstds_prior_pixel']
         self.doublet_prior_std = kwargs['doublet_prior_std']
-        self.variable_genes = 5000
+        self.num_variable_genes = 5000
         self.npcs = 60
         self.span = 1.0 # Increase if you run into error like ValueError: b'There are other near singularities as well.
         self.radi = [20, 30, 40, 80, 100]
