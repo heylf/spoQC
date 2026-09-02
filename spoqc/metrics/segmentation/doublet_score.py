@@ -6,8 +6,6 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 
-from scipy.spatial.distance import cdist
-
 from ... import helperfuncs
 
 # window_sizes = for plotting. You can selected more windowsizes. This is just to zoom in or out for double plots.
@@ -188,15 +186,23 @@ def calc_doublet_score(
         'Cells close to doublet events'
     )
 
+    # Map the kernel density bin value to a cell.
+    # Do that for all cells.
     density_to_cell = np.array([100_000.0] * sdata['table'].n_obs)
     if len(kde_z) != 0:
-        cells_coords = cell_dobulet_df[['x', 'y']].values
-        kde_xx, kde_yy = np.meshgrid(kde_xc, kde_yc) # Full grid of bin centroids, shape matches kde_z
-        kde_bin_centroids = np.column_stack([kde_xx.ravel(), kde_yy.ravel()])
-        dists = cdist(cells_coords, kde_bin_centroids) # Calculate all distances between two sets of points
-        clostes_kde_bin = dists.argmin(axis=1) # Get index of smallest distanced kde bin
-        matrix_indices = np.unravel_index(clostes_kde_bin, kde_z.shape)
-        density_to_cell = kde_z[matrix_indices[0], matrix_indices[1]]
+        cells_x = cell_dobulet_df['x'].values
+        cells_y = cell_dobulet_df['y'].values
+
+        # kde_xc/kde_yc are uniformly spaced bin centroids, so the nearest bin along each axis can be found by 
+        # arithmetic instead of an all-pairs distance search (avoids an O(n_cells * n_bins) distance matrix).
+        # So first get the bin size for x and y direction.
+        dx = kde_xc[1] - kde_xc[0] if len(kde_xc) > 1 else 1.0
+        dy = kde_yc[1] - kde_yc[0] if len(kde_yc) > 1 else 1.0
+
+        x_idx = np.clip(np.round((cells_x - kde_xc[0]) / dx).astype(int), 0, len(kde_xc) - 1)
+        y_idx = np.clip(np.round((cells_y - kde_yc[0]) / dy).astype(int), 0, len(kde_yc) - 1)
+
+        density_to_cell = kde_z[y_idx, x_idx]
 
     # Write into sdata
     sdata['table'].obs['doublet'] = np.array(cell_dobulet_df['doublet'])
