@@ -20,8 +20,6 @@ def start_combining_masks(
         celltype_refined=False
 ):
 
-    figure_path = f"{figure_path}/combine_masks/{staining}"
-
     suffix = 'raw'
     if ( celltype_refined ):
         suffix = 'celltype_refined'

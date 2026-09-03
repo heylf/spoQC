@@ -2,20 +2,27 @@
 from .. import helperfuncs
 from .. import metrics
 
-def run_qc_void(sdata, figure_path, CONST, obs_columns):
+def run_qc_void(enterprise):
+    if enterprise.args.step in ['all', 'unittest', 'voidqc']:
+        figure_path = f'{enterprise.args.output_dir}/voidqc/'
 
-    print("[NOTE] Void QC")
-    # You can also provide contaminants with:
-    # void.qc_void.voidqc(sdata, figure_path, CONST.TMP_PATH, 30, ['CD3D', 'CD14', 'CD68'], CONST.THREADS)
-    metrics.segmentation.void.calc_void(sdata, figure_path, CONST.TMP_PATH, 30, [])
+        print("[NOTE] Void QC")
+        # You can also provide contaminants with contaminant_list=['CD3D', 'CD14', 'CD68']:
+        metrics.segmentation.void.calc_void(
+            enterprise.cargo.sdata,
+            figure_path,
+            enterprise.args.tmp_dir,
+        )
 
-    print("[NOTE] Write results")
-    obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
-    print("[finish]")
+        print("[NOTE] Write results")
+        helperfuncs.sdata_obs_to_parquet(
+            enterprise,
+            figure_path,
+            'hqcr'
+        )
+        print("[finish]")
 
-    # helperfuncs.plot_scatter_density(
-    #     sdata['table'], figure_path, None, 
-    #     1, None, 'convexhull_all_transcripts', None, 'Density of convexhull'
-    # )
-
-    return obs_columns
+        # helperfuncs.plot_scatter_density(
+        #     sdata['table'], figure_path, None, 
+        #     1, None, 'convexhull_all_transcripts', None, 'Density of convexhull'
+        # )

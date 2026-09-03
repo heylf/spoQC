@@ -53,6 +53,29 @@ _CMAP_DENSITY = mcolors.LinearSegmentedColormap.from_list(
     "white_blue_yellow", ["white", "blue", "yellow"]
 )
 
+
+def load_cell_df(counts, sdata):
+
+    cell_df = pd.DataFrame({
+        counts: sdata['table'].obs[counts],
+        'control_probe_counts': sdata['table'].obs['control_probe_counts'],
+        'n_genes_by_counts': sdata['table'].obs['canorm_n_genes_by_counts'],
+        'convexity_metric_cell': sdata['table'].obs['convexity_metric_cell'],
+        'convexity_min_nuceli': sdata['table'].obs['convexity_min_nuceli'],
+        'nuceli_count': sdata['table'].obs['nuceli_count'],
+        'border_scores': sdata['table'].obs['border_scores'],
+        'thinness_score': sdata['table'].obs['thinness_score'],
+        'island_score': sdata['table'].obs['island_score'],
+        'doublet': sdata['table'].obs['wdoublet'],
+        'cell_overlap_area': sdata['table'].obs['cell_overlap_area'],
+        'convexhull_outside_trnascripts': sdata['table'].obs['convexhull_outside_trnascripts'],
+        #'convexhull_all_trnascripts': sdata['table'].obs['convexhull_all_trnascripts'],
+        'num_low_qc_transcript': sdata['table'].obs['num_low_qc_transcript']
+    })
+
+    return cell_df
+
+
 # The list remove_from_moving are files which should not be sorted.
 # The parameter prefix_or_suffix sets if you want to sort by prefix or suffix.
 def sort_files(data_path, prefix_or_suffix, remove_from_moving):
@@ -171,6 +194,8 @@ def generate_distinct_colors(num_colors: int) -> List[str]:
         colors.append(color)
 
     return colors
+
+
 
 def generate_distinct_colors_with_jitter(num_colors: int) -> List[str]:
     colors = []
@@ -1072,12 +1097,14 @@ def values_to_hex_gradient(values, cmap_name='hot', reverse=False):
     return hex_colors
 
 
-def sdata_obs_to_parquet(sdata, figure_path, spoqc_tmp_folder, suffix, obs_columns):
-    new_columns = [x for x in sdata['table'].obs.columns if x not in obs_columns]
-    write_df = sdata['table'].obs.loc[:,new_columns]
-    write_df.index = sdata['table'].obs.index
-    write_df.to_parquet(f"{spoqc_tmp_folder}/{figure_path.split('/')[-2]}_output_{suffix}.parquet")
-    return(obs_columns + new_columns)
+def sdata_obs_to_parquet(enterprise, figure_path, suffix):
+    adata = enterprise.cargo.sdata["table"]
+    new_columns = [x for x in adata.obs.columns if x not in enterprise.cargo.cols_already_written]
+    write_df = adata.obs.loc[:,new_columns]
+    write_df.index = adata.obs.index
+    write_df.to_parquet(f"{enterprise.args.tmp_dir}/{figure_path.split('/')[-2]}_output_{suffix}.parquet")
+    enterprise.cargo.cols_already_written += new_columns
+
 
 def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
     try:

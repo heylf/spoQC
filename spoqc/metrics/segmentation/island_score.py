@@ -57,7 +57,13 @@ def find_connected_groups_iterative(points: List[Tuple[float, float]], distance_
     return connected_groups
 
 
-def calc_island_score(sdata, figure_path, distance_threshold, min_group_count):
+def calc_island_score(
+        sdata,
+        figure_path,
+        *,
+        distance_threshold = 15,
+        min_group_count = 10,
+    ):
 
     # coordinated of the cells
     adata_x = sdata['table'].obsm['spatial'][:,0]

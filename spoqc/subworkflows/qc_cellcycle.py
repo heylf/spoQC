@@ -234,42 +234,48 @@ def spatial_cellcycle_qc(figure_path: str, sdata: Any) -> None:
     helperfuncs.plot_scatter_density_by_category_df(df, 'phase', figure_path, '1', ['yellow'], None)
 
 
-def run_qc_cellcycle(sdata, figure_path, CONST):
-    rna_adata = sdata['table']
+def run_qc_cellcycle(enterprise):
+    if ( enterprise.args.step in ['all', 'cellcycleqc'] ):
+        print("[TASK] Cell cycle check")
+        figure_path = f'{enterprise.args.output_dir}/cellcycleqc/'
 
-    # Get cell cylce genes
-    cellcycle_gene_dict = dict()
-    if ( CONST.CELLCYCLE_GENE_FILE != '' ):
-        print(f"[NOTE] Read cell cycling genes from file {CONST.CELLCYCLE_GENE_FILE}")
-        with open(CONST.CELLCYCLE_GENE_FILE) as f:
-            cellcycle_gene_dict = json.load(f)
-    else:
-       print(f"[NOTE] Using default cell cycling genes")
-       cellcycle_gene_dict = _cell_cycle_genes
+        rna_adata = enterprise.cargo.sdata['table']
 
-    s_genes = list(set(cellcycle_gene_dict["S"]))
-    g2m_genes = list(set(cellcycle_gene_dict["G2M"]))
-    cell_cycle_genes = list(set(s_genes + g2m_genes))
+        # Get cell cylce genes
+        cellcycle_gene_dict = dict()
+        if enterprise.args.cellcycle_gene_file:
+            print(f"[NOTE] Read cell cycling genes from file {enterprise.args.cellcycle_gene_file}")
+            with open(enterprise.args.cellcycle_gene_file) as f:
+                cellcycle_gene_dict = json.load(f)
+        else:
+            print(f"[NOTE] Using default cell cycling genes")
+            cellcycle_gene_dict = _cell_cycle_genes
 
-    # Filter for genes that are in the sdata
-    cell_cycle_genes = list(set(cell_cycle_genes) & set(rna_adata.var_names))
-    s_genes = list(set(s_genes) & set(rna_adata.var_names))
-    g2m_genes = list(set(g2m_genes) & set(rna_adata.var_names))
+        s_genes = list(set(cellcycle_gene_dict["S"]))
+        g2m_genes = list(set(cellcycle_gene_dict["G2M"]))
+        cell_cycle_genes = list(set(s_genes + g2m_genes))
 
-    # Just do cellcycle QC if genes are available
-    if ( len(s_genes) == 0 ):
-        print("[WARN] Sorry it seems your data has no S phase genes")
-    elif ( len(g2m_genes) == 0 ):
-        print("[WARN] Sorry it seems your data has no G2M phase genes")
-    elif ( len(cell_cycle_genes) > 0 ):
-        rna_adata = cellcycle_qc(
-            rna_adata,
-            figure_path,
-            cell_cycle_genes,
-            s_genes,
-            g2m_genes,
-            ['red', 'blue', 'yellow']
-        )
-        spatial_cellcycle_qc(figure_path, sdata)
-    else:
-        print("[WARN] Something else went wrong")
+        # Filter for genes that are in the sdata
+        cell_cycle_genes = list(set(cell_cycle_genes) & set(rna_adata.var_names))
+        s_genes = list(set(s_genes) & set(rna_adata.var_names))
+        g2m_genes = list(set(g2m_genes) & set(rna_adata.var_names))
+
+        # Just do cellcycle QC if genes are available
+        if ( len(s_genes) == 0 ):
+            print("[WARN] Sorry it seems your data has no S phase genes")
+        elif ( len(g2m_genes) == 0 ):
+            print("[WARN] Sorry it seems your data has no G2M phase genes")
+        elif ( len(cell_cycle_genes) > 0 ):
+            rna_adata = cellcycle_qc(
+                rna_adata,
+                figure_path,
+                cell_cycle_genes,
+                s_genes,
+                g2m_genes,
+                ['red', 'blue', 'yellow']
+            )
+            spatial_cellcycle_qc(figure_path, enterprise.cargo.sdata)
+        else:
+            print("[WARN] Something else went wrong")
+
+    print("[finish]")

@@ -3,64 +3,68 @@ import os
 from .. import additional_analysis
 from .. import helperfuncs
 
-def run_qc_additional_analysis(
-        sdata,
-        CONST,
-        annotation,
-        seed,
-        imagedim,
-        dim_x,
-        dim_y,
-    ):
+def run_qc_additional_analysis(enterprise):
     
-    # In[]
-    performed_stainings = [int(x) for x in os.listdir(f'{CONST.TMP_PATH}/metrices/hqpr')]
+    if 'analysis' in enterprise.args.step or enterprise.args.step == 'all':
 
-    # In[]
-    if ( CONST.STEP in ['all', 'analysis_overview'] and CONST.ANNOTATION_FILE):
-        additional_analysis.cluster_analysis.celltype_cluster_analysis(
-                sdata,
-                'overview',
-                CONST,
-                seed,
-                'raw',
-                dim_x,
-                dim_y,
-                imagedim,
-                performed_stainings,
-                annotation
-        )
-        helperfuncs.sort_files(f'{CONST.FIGURE_PATH}/analysis/overview', 'prefix', ['res.txt', 'done.txt'])
-        print(f"[finish] {CONST.STEP}")
+        performed_stainings = [int(x) for x in os.listdir(f'{enterprise.args.tmp_dir}/metrices/hqpr')]
 
-    # In[]
-    if ( CONST.STEP in ['all', 'analysis_cluster'] and CONST.ANNOTATION_FILE):
-        additional_analysis.cluster_analysis.celltype_cluster_analysis(
-                sdata,
-                'cluster',
-                CONST,
-                seed,
-                'raw',
-                dim_x,
-                dim_y,
-                imagedim,
-                performed_stainings,
-                annotation,
-        )
-        helperfuncs.sort_files(f'{CONST.FIGURE_PATH}/analysis/cluster', 'prefix', ['res.txt', 'done.txt'])
-        print(f"[finish] {CONST.STEP}")
+        if enterprise.args.step in ['all', 'analysis_overview'] and enterprise.args.annotation_file:
+            additional_analysis.cluster_analysis.celltype_cluster_analysis(
+                    enterprise.cargo.sdata,
+                    enterprise.args.output_dir,
+                    enterprise.args.tmp_dir,
+                    'overview',
+                    enterprise.args.seed,
+                    'raw',
+                    enterprise.cargo.dim_x,
+                    enterprise.cargo.dim_y,
+                    enterprise.cargo.imagedim,
+                    performed_stainings,
+                    enterprise.cargo.celltype_annotation,
+                    enterprise.args.image_type,
+                    enterprise.args.resolution,
+                    enterprise.args.canorm,
+                    enterprise.args.cluster_celltype,
+            )
+            helperfuncs.sort_files(f'{enterprise.args.output_dir}/analysis/overview', 'prefix', ['res.txt', 'done.txt'])
+            print(f"[finish] {enterprise.args.step}")
 
-    # In[]
-    if ( CONST.STEP in ['all', 'analysis_category'] and CONST.ANNOTATION_FILE):
-        additional_analysis.category_analysis.cell_category_analysis(
-                sdata,
-                'category',
-                CONST,
-                seed,
-                'raw',
-                dim_x,
-                dim_y,
-                imagedim,
-                performed_stainings,
-        )
-        print(f"[finish] {CONST.STEP}")
+        if enterprise.args.step in ['all', 'analysis_cluster'] and enterprise.args.annotation_file:
+            additional_analysis.cluster_analysis.celltype_cluster_analysis(
+                    enterprise.cargo.sdata,
+                    enterprise.args.output_dir,
+                    enterprise.args.tmp_dir,
+                    'cluster',
+                    enterprise.args.seed,
+                    'raw',
+                    enterprise.cargo.dim_x,
+                    enterprise.cargo.dim_y,
+                    enterprise.cargo.imagedim,
+                    performed_stainings,
+                    enterprise.cargo.celltype_annotation,
+                    enterprise.args.image_type,
+                    enterprise.args.resolution,
+                    enterprise.args.canorm,
+                    enterprise.args.cluster_celltype,
+            )
+            helperfuncs.sort_files(f'{enterprise.args.output_dir}/analysis/cluster', 'prefix', ['res.txt', 'done.txt'])
+            print(f"[finish] {enterprise.args.step}")
+
+        if enterprise.args.step in ['all', 'analysis_category'] and enterprise.args.annotation_file:
+            additional_analysis.category_analysis.cell_category_analysis(
+                    enterprise.cargo.sdata,
+                    enterprise.args.output_dir,
+                    enterprise.args.tmp_dir,
+                    'category',
+                    'raw',
+                    enterprise.cargo.dim_x,
+                    enterprise.cargo.dim_y,
+                    enterprise.cargo.imagedim,
+                    performed_stainings,
+                    enterprise.cargo.celltype_annotation,
+                    enterprise.args.image_type,
+                    enterprise.args.resolution,
+                    enterprise.args.canorm,
+            )
+            print(f"[finish] {enterprise.args.step}")

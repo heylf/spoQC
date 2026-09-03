@@ -13,36 +13,12 @@ def start_pixel_mask_refinement(
         modality,
         dim_x,
         dim_y,
-        beta,
-        max_iter,
         *,
+        beta=1.5,
+        max_iter=15,
         chunk_size=10000,
         staining=None
     ):
-
-# # In[]
-
-# import dask.dataframe as dd
-# import pandas as pd
-# import numpy as np
-
-# from spoqc import helperfuncs
-# from spoqc import hqr
-
-
-# figure_path = CONST.FIGURE_PATH
-# spoqc_tmp_folder = CONST.TMP_PATH
-# modality = 'hqpr'
-# beta = 1.5
-# max_iter = 15
-# chunk_size=10000
-# staining=CONST.STAINING
-
-
-
-
-
-# In[]
 
     prefix = modality
     suffix = 'raw'
@@ -52,7 +28,12 @@ def start_pixel_mask_refinement(
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_refinement/'
 
-    image_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_raw', columns=[f"{prefix}_beliefs"], engine="pyarrow")
+    image_ddf = dd.read_parquet(
+        f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
+        columns=[f"{prefix}_beliefs"],
+        engine="pyarrow"
+    )
+    
     beliefs_raw = image_ddf[f"{prefix}_beliefs"].compute().to_numpy()
 
     # Start the refinement of the proability for the pixel score.
@@ -74,11 +55,10 @@ def start_pixel_mask_refinement(
     #  Write out masks.
     print(f"[NOTE] Write out {prefix} masks")
 
-    # Build the output from fully in-memory arrays and hand it to dask via
-    # from_pandas so the resulting ddf has known, sorted divisions. Pairing a
-    # freshly chunked dask.array against image_ddf.index (unknown divisions,
-    # from a parquet read) preserves index-to-value association but not the
-    # physical row order returned by .compute()/round-tripped through parquet.
+    # Build the output from fully in-memory arrays and hand it to dask via from_pandas so the resulting ddf has known,
+    # sorted divisions. Pairing a freshly chunked dask.array against image_ddf.index (unknown divisions, from a parquet
+    # read) preserves index-to-value association but not the physical row order returned by .compute()/round-tripped 
+    # through parquet.
     out_df = pd.DataFrame({
         f"{prefix}_beliefs": beliefs_raw,
         f"{prefix}_beliefs_smoothed": beliefs[:].flatten(),
@@ -89,17 +69,3 @@ def start_pixel_mask_refinement(
 
     helperfuncs.ddf_to_parquet(image_ddf, prefix, spoqc_tmp_folder, [], 'mask_smoothed_raw')
 
-
-# # In[]
-# direct = beliefs[:].flatten()
-
-# back = dd.read_parquet(
-#     f"{spoqc_tmp_folder}/{prefix}_output_mask_smoothed_raw", 
-#     columns=[f"{prefix}_beliefs_smoothed"], 
-#     engine="pyarrow"
-# )
-# back = back[f"{prefix}_beliefs_smoothed"].compute().to_numpy()
-
-# print(np.nanmax(np.abs(direct - back)))
-
-# %%

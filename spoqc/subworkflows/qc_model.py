@@ -174,33 +174,40 @@ def plot_spatial_vs_exression_variance(sdata, figure_path, df, nPCs):
     fig.write_image(f"{figure_path}/pca_evaluation_moransi.pdf", scale=3)
 
 
-def run_qc_model(sdata, figure_path, CONST):
-    # For model QC we need to get the normalized data
-    sdata['table'].X = sdata['table'].layers['normlogscale']
-    rna_adata = sdata['table']
+def run_qc_model(enterprise):
 
-    n_comps = 100
-    npcs = CONST.nPCs
-    if ( sdata['table'].n_obs < 100 ):
-        n_comps = 10
-        npcs = 10
+    if ( enterprise.args.step in ['all', 'modelqc'] ):
+        figure_path = f'{enterprise.args.output_dir}/modelqc/'
+    
+        # For model QC we need to get the normalized data
+        adata = enterprise.cargo.sdata['table']
+        adata.X = adata.layers['normlogscale']
 
-    sc.tl.pca(rna_adata, n_comps=n_comps)
+        n_comps = 100
+        npcs = enterprise.args.npcs
+        if ( adata.n_obs < 100 ):
+            n_comps = 10
+            npcs = 10
 
-    df = pd.DataFrame({
-            'x': rna_adata.obsm['spatial'][:,0],
-            'y': rna_adata.obsm['spatial'][:,1]
-        })
+        sc.tl.pca(adata, n_comps=n_comps)
 
-    X_pca = rna_adata.obsm['X_pca']
+        df = pd.DataFrame({
+                'x': adata.obsm['spatial'][:,0],
+                'y': adata.obsm['spatial'][:,1]
+            })
 
-    for i in range(0, npcs):
-        df[f'PC{i}'] = X_pca[:,i]
+        X_pca = adata.obsm['X_pca']
 
-    sc.pl.pca_variance_ratio(rna_adata, n_pcs=n_comps, log=True, save='.png')
-    shutil.move("figures/pca_variance_ratio.png", f"{figure_path}/pca_variance_ratio.png")
-    sc.pl.pca_variance_ratio(rna_adata, n_pcs=n_comps, log=True, save='.pdf')
-    shutil.move("figures/pca_variance_ratio.pdf", f"{figure_path}/pca_variance_ratio.pdf")
+        for i in range(0, npcs):
+            df[f'PC{i}'] = X_pca[:,i]
 
-    plot_pca_scatter(df, figure_path, npcs)
-    plot_spatial_vs_exression_variance(sdata, figure_path, df, npcs)
+        sc.pl.pca_variance_ratio(adata, n_pcs=n_comps, log=True, save='.png')
+        shutil.move("figures/pca_variance_ratio.png", f"{figure_path}/pca_variance_ratio.png")
+        sc.pl.pca_variance_ratio(adata, n_pcs=n_comps, log=True, save='.pdf')
+        shutil.move("figures/pca_variance_ratio.pdf", f"{figure_path}/pca_variance_ratio.pdf")
+
+        plot_pca_scatter(df, figure_path, npcs)
+        plot_spatial_vs_exression_variance(enterprise.cargo.sdata, figure_path, df, npcs)
+
+        adata.X = adata.layers['raw']
+        print("[finish]")

@@ -983,3 +983,10 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
                 f.write(html)
 
 # %%
+def run_final_report(enterprise):
+    if enterprise.args.step in ['all', 'final_report']:
+        create_final_report(
+            enterprise.args.output_dir,
+            enterprise.cargo.stainings,
+            enterprise.args.dev_report,
+        )

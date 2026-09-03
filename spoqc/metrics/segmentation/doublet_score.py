@@ -17,12 +17,13 @@ def calc_doublet_score(
         key_transcripts, 
         n_expected_celltypes,
         cell_diameter,
-        minimum_signal_strength,
-        integrity_sigma,
-        signal_threshold,
-        window_sizes,
-        num_doublet,
-        distance_thresh,
+        *,
+        minimum_signal_strength = 3,
+        integrity_sigma = 2,
+        signal_threshold = 3,
+        window_sizes = [10, 60],
+        num_doublet = 1,
+        distance_thresh = 10,
 ):
 
     transcript_coordinates_df = sdata.points[key_transcripts].compute()

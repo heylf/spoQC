@@ -46,8 +46,8 @@ def start_image_struc_analyis(
             sdata,
             figure_path,
             imagedim,
-            image_type,
-            resolution
+            dim_x,
+            dim_y,
         )
         xy_intensities = intensities.reshape(dim_x, dim_y)
 

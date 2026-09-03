@@ -6,7 +6,6 @@ from typing import Dict, Any, Tuple
 from . import _output_structure
 from . import _config
 from . import _data
-from .. import process_datasets
 
 class Enterpise:
     def __init__(self, kwargs):
@@ -21,7 +20,7 @@ class Enterpise:
             self.args.annotation_file,
             self.args.annotation_key,
             self.args.image_type,
-            self.args.resoltion,
+            self.args.resolution,
         )
         print(self.cargo.sdata)
 
@@ -31,7 +30,8 @@ class Enterpise:
             start = 10500
             end = self.args.crop_size
             self.cargo.sdata = self._crop_data(self.cargo.sdata, start, start, start+end, start+end+500, 'global')
-
+            self.cargo.set_sdata_dimentsion_attributes(self.args.image_type, self.args.resolution)
+            
         # Correct indexing
         self.cargo.correct_indexing(self.args.datatype)
 

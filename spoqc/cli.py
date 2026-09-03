@@ -23,7 +23,6 @@ import spatialdata_plot
 from spoqc import general
 from spoqc import hqr
 from spoqc import helperfuncs
-from spoqc import process_datasets
 from spoqc import subworkflows
 from spoqc import _core
 
@@ -116,10 +115,6 @@ def main(**kwargs) -> None:
 
 # In[]
 
-    importlib.reload(_core.starship)
-    importlib.reload(_core._config)
-    importlib.reload(_core._data)
-    importlib.reload(_core.dataloaders.xenium)
     enterprise = _core.starship.Enterpise(kwargs)
 
     # Timer class
@@ -143,247 +138,60 @@ def main(**kwargs) -> None:
     # In[]
     enterprise.generate_unsupervised_annotation()
 
+    # In[]
+    subworkflows.qc_sc.run_qc_sc(enterprise)
 
     # In[]
-    # Low resources and quick
-    ########################
-    ###### GENERAL QC ######
-    ########################
-    if ( enterprise.args.step in ['all', 'unittest', 'generalqc'] ):
-        print('[NOTE] General QC')
-        figure_path = f'{enterprise.args.output_dir}/generalqc/'
-        obs_columns = subworkflows.qc_sc.run_qc_sc(enterprise.cargo.sdata, figure_path, CONST, obs_columns)
+    subworkflows.qc_wsi.run_qc_wsi(enterprise)
 
     # In[]
-    # Low resources and quick
-    ############################
-    ###### WHOLE SLIDE QC ######
-    ############################
-    if ( enterprise.args.step in ['all', 'whole_slide_qc'] ):
-        print('[NOTE] Domain QC')
-        figure_path = f'{enterprise.args.output_dir}/whole_slide_qc/'
-        subworkflows.qc_wsi.generate_input(enterprise.cargo.sdata, figure_path, CONST)
-        subworkflows.qc_wsi.measure_stripe_thickness_and_black_area(
-            f'{figure_path}/input_domain_thickness_analysis.png',
-            np.array([68,1,84]),
-            f'{figure_path}'
-        )
-        print("[finish]")
+    subworkflows.qc_bubble.run_qc_bubble(enterprise)
 
     # In[]
-    # Low resources and quick
-    #######################
-    ###### BUBBLE QC ######
-    #######################
-    if ( enterprise.args.step in ['all', 'unittest', 'bubbleqc'] ):
-        figure_path = f'{enterprise.args.output_dir}/bubbleqc/'
-        obs_columns = subworkflows.qc_bubble.run_qc_bubble(enterprise.cargo.sdata, figure_path, CONST, obs_columns)
+    subworkflows.qc_doublets.run_qc_doublets(enterprise)
 
     # In[]
-    ########################
-    ###### DOUBLET QC ######
-    ########################
-    # High resources and slow (takes 18-19 hours for a full dataset)
-    if ( enterprise.args.step in ['all', 'unittest', 'doubletqc'] ):
-        figure_path = f'{enterprise.args.output_dir}/doubletqc/'
-        obs_columns = subworkflows.qc_doublets.run_qc_doublets(enterprise.cargo.sdata, figure_path, CONST, annotation, obs_columns)
+    subworkflows.qc_void.run_qc_void(enterprise)
 
     # In[]
-    # Low resource but long (takes 4-5 hours)
-    #####################
-    ###### VOID QC ######
-    #####################
-    if ( enterprise.args.step in ['all', 'unittest', 'voidqc'] ):
-        figure_path = f'{enterprise.args.output_dir}/voidqc/'
-        obs_columns = subworkflows.qc_void.run_qc_void(enterprise.cargo.sdata, figure_path, CONST, obs_columns)
+    subworkflows.qc_cell.run_qc_cell(enterprise)
 
     # In[]
-    #####################
-    ###### CELL QC ######
-    #####################
-    # Low resources and quicks for full dataset (40-50 min)
-    if ( enterprise.args.step in ['all', 'unittest', 'cellqc'] ):
-        figure_path = f'{enterprise.args.output_dir}/cellqc/'
-        obs_columns = subworkflows.qc_cell.run_qc_cell(enterprise.cargo.sdata, figure_path, CONST, obs_columns)
+    subworkflows.hqcr.start_hqcr(enterprise)
 
     # In[]
-    ##################
-    ###### HQCR ######
-    ##################
-    # Low resources and for a full dataset it takes 30 - 40 min.
-    if ( enterprise.args.step in ['all', 'unittest', 'hqcr_ident'] ):
-        subworkflows.hqcr.start_hqcr(enterprise.cargo.sdata, CONST.TMP_PATH, imagedim, CONST, seed)
-        print("[finish]")
+    subworkflows.hqcr.start_hqcr_celltype(enterprise)
 
     # In[]
-    # Low resources and quick.
-    if ( enterprise.args.step in ['all', 'hqcr_celltype'] ):
-        if ( CONST.ANNOTATION_FILE ):
-            subworkflows.hqcr.start_hqcr_celltype(enterprise.cargo.sdata, CONST.TMP_PATH, imagedim, CONST)
-            print("[finish]")
-        else:
-            print("[NOTE] No annotation file provided so I will not perform start_hqcr_celltype")
+    subworkflows.hqpr.get_hqpr(enterprise)
 
     # In[]
-    ##################
-    ###### HQPR ######
-    ##################
-    subworkflows.hqpr.get_hqpr(
-        enterprise.cargo.sdata,
-        CONST.TMP_PATH,
-        imagedim,
-        dim_x,
-        dim_y,
-        CONST,
-        seed,
-        thresh_p=CONST.THRESHOLD_PRIOR_PIXEL,
-        nstds_p=CONST.NSTDS_PRIOR_PIXEL,
-    )
+    subworkflows.qc_ambient.start_qc_ambient(enterprise)
 
     # In[]
-    if ( CONST.ANNOTATION_FILE ):
-        subworkflows.hqpr.celltype_refinement_of_hqpr(enterprise.cargo.sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST)
-    else:
-        print("[NOTE] No annotation file provided so I will not perform celltype_refinement_of_hqpr")
+    subworkflows.hqtr.get_hqtr(enterprise)
 
     # In[]
-    #####################
-    ###### AMBIENT ######
-    #####################
-    if ( enterprise.args.step in ['all', 'hqtr', 'unittest', 'ambientqc'] ):
-        figure_path = f'{enterprise.args.output_dir}/ambientqc/'
-        _ = subworkflows.qc_ambient.start_qc_ambient(enterprise.cargo.sdata, figure_path, CONST.TMP_PATH)
+    subworkflows.combine_masks.run_combine_masks(enterprise)
 
     # In[]
-    ##################
-    ###### HQTR ######
-    ##################
-    subworkflows.hqtr.get_hqtr(
-        enterprise.cargo.sdata, 
-        CONST.TMP_PATH, 
-        imagedim, 
-        dim_x, 
-        dim_y, 
-        CONST, 
-        seed,
-        thresh_p=CONST.THRESHOLD_PRIOR_PIXEL,
-        nstds_p=CONST.NSTDS_PRIOR_PIXEL,
-    )
+    subworkflows.qc_transcript.run_qc_transcript(enterprise)
 
     # In[]
-    if ( CONST.ANNOTATION_FILE ):
-        subworkflows.hqtr.celltype_refinement_of_hqtr(enterprise.cargo.sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST)
-    else:
-        print("[NOTE] No annotation file provided so I will not perform celltype_refinement_of_hqtr")
-
+    subworkflows.qc_cellcycle.run_qc_cellcycle(enterprise)
 
     # In[]
-    #############################
-    ###### COMBINE ALL HQR ######
-    #############################
-    if ( enterprise.args.step in ['all', 'combine_masks'] ):
-
-        hqr.combine_masks.start_combining_masks(
-            enterprise.args.output_dir,
-            CONST.TMP_PATH,
-            imagedim,
-            dim_x,
-            dim_y,
-            CONST.STAINING,
-            celltype_refined=False
-        )
-
-        print('[finish]')
+    subworkflows.qc_model.run_qc_model(enterprise)
 
     # In[]
-    if ( enterprise.args.step in ['combine_masks_zoom'] ):
-
-        hqr.combine_masks_zoom.start_combining_masks(
-            enterprise.cargo.sdata,
-            enterprise.args.output_dir,
-            CONST.TMP_PATH,
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            imagedim,
-            dim_x,
-            dim_y,
-            CONST.STAINING,
-            celltype_refined=False
-        )
-
-        print('[finish]')
+    subworkflows.qc_marker.run_qc_marker(enterprise)
 
     # In[]
-    ###########################
-    ###### TRANSCRIPT QC ######
-    ###########################
-    if ( enterprise.args.step in ['all', 'transcriptqc'] ):
-        print('[NOTE] Transcript QC')
-        figure_path = f'{enterprise.args.output_dir}/transcriptqc/'
-        # subworkflows.qc_transcript.transcriptqc(
-        #     enterprise.cargo.sdata,
-        #     figure_path,
-        #     f'{CONST.TRANSCRIPT_REFERENCE}',
-        #     'transcripts'
-        # )
-        subworkflows.qc_transcript.negativeprobeqc(enterprise.cargo.sdata, figure_path, 'transcripts')
-        print("[finish]")
+    subworkflows.qc_additional_analysis.run_qc_additional_analysis(enterprise)
 
     # In[]
-    ##########################
-    ###### CELLCYCLE QC ######
-    ##########################
-    # Low resources and quick
-    if ( enterprise.args.step in ['all', 'cellcycleqc'] ):
-        print("[TASK] Cell cycle check")
-        figure_path = f'{enterprise.args.output_dir}/cellcycleqc/'
-        subworkflows.qc_cellcycle.run_qc_cellcycle(enterprise.cargo.sdata, figure_path, CONST)
-        print("[finish]")
+    subworkflows.final_report.run_final_report(enterprise)
 
-    # In[]
-    ###############################
-    ###### MODEL PREPARATION ######
-    ###############################
-    # Low resources and quick
-    if ( enterprise.args.step in ['all', 'modelqc'] ):
-        figure_path = f'{enterprise.args.output_dir}/modelqc/'
-        subworkflows.qc_model.run_qc_model(enterprise.cargo.sdata, figure_path, CONST)
-        print("[finish]")
-
-    # In[]
-    #######################
-    ###### MARKER QC ######
-    #######################
-    # Low resources, fast
-    if ( enterprise.args.step in ['markerqc'] ):
-        if ( CONST.ANNOTATION_FILE ):
-            figure_path = f'{enterprise.args.output_dir}/markerqc'
-            subworkflows.qc_marker.run_qc_marker(enterprise.cargo.sdata, figure_path, CONST)
-            print("[finish]")
-        else:
-            print("[NOTE] Marker QC will not be performmed because no annotation was provided.")
-
-    # In[]
-    #################################
-    ###### ADDITIONAL ANALYSIS ######
-    #################################
-    if ( 'analysis' in enterprise.args.step or enterprise.args.step == 'all' ):
-        subworkflows.qc_additional_analysis.run_qc_additional_analysis(
-            enterprise.cargo.sdata,
-            CONST,
-            annotation,
-            seed,
-            imagedim,
-            dim_x,
-            dim_y,
-        )
-
-    # In[]
-    ##########################
-    ###### FINAL REPORT ######
-    ##########################
-    # Low resources, fast
-    if ( enterprise.args.step in ['all', 'final_report'] ):
-        subworkflows.final_report.create_final_report(enterprise.args.output_dir, stainings, CONST.GENERATE_REPORT_DOC)
+    timer.stop()
     print("[FINISH]")
     # %%

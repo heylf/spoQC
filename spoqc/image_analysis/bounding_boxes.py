@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from skimage.measure import label, regionprops
 from skimage.morphology import dilation, disk
 
+from .. import _core
 from .. import helperfuncs
 from .. import hqr
 from .. import metrics
@@ -95,9 +96,9 @@ def define_bounding_boxes(
         modality,
         image_type,
         resolution,
+        imagedim,
         dim_x,
         dim_y, 
-        imagedim,
         suffix,
         *,
         dilation_radius=10,
@@ -127,8 +128,8 @@ def define_bounding_boxes(
             sdata,
             figure_path,
             imagedim,
-            image_type,
-            resolution
+            dim_x,
+            dim_y,
         )
         image = intensities.reshape(dim_x, dim_y)
 
@@ -182,7 +183,7 @@ def define_bounding_boxes(
             subfigure = image[min_row:max_row, min_col:max_col]
             subfigures.append(subfigure)
             bounding_boxes.append([min_row, min_col, max_row, max_col])
-            subfigure_imagedim = helperfuncs.ImageDimStruct(min_row, min_col, max_row, max_col)
+            subfigure_imagedim = _core._data.ImageDimStruct(min_row, min_col, max_row, max_col)
             helperfuncs.plot_pixels(
                 f'{figure_path}/subfigures/',
                 subfigure,

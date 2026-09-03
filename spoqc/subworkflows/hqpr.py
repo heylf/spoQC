@@ -1,114 +1,103 @@
 from .. import image_analysis
 
-def get_hqpr(
-        sdata,
-        spoqc_tmp_folder,
-        imagedim,
-        dim_x,
-        dim_y,
-        CONST,
-        seed,
-        *,
-        thresh_p=None,
-        nstds_p=None,
-    ):
+def get_hqpr(enterprise):
 
     # Memory depends on threads. The more threads you choose the more memory you need.
-    if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_metrices'] ):
+    if enterprise.args.step in ['all', 'unittest', 'hqpr', 'hqpr_metrices'] :
         
         image_analysis.structure_analysis.start_image_struc_analyis(
-            sdata,
-            CONST.FIGURE_PATH,
-            spoqc_tmp_folder,
+            enterprise.cargo.sdata,
+            enterprise.args.output_dir,
+            enterprise.args.tmp_dir,
             'hqpr',
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            imagedim,
-            dim_x,
-            dim_y,
-            CONST.OVERWRITE,
-            staining=CONST.STAINING,
+            enterprise.args.image_type,
+            enterprise.args.resolution,
+            enterprise.cargo.imagedim,
+            enterprise.cargo.dim_x,
+            enterprise.cargo.dim_y,
+            enterprise.args.overwrite,
+            staining=enterprise.args.staining,
         )
 
         print('[finish]')
 
 
-    if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_clustering'] ):
+    if enterprise.args.step in ['all', 'unittest', 'hqpr', 'hqpr_clustering']:
 
         image_analysis.pixel_scoring_dask.start_pixel_qc(
-            sdata,
-            CONST.FIGURE_PATH,
-            spoqc_tmp_folder,
+            enterprise.cargo.sdata,
+            enterprise.args.output_dir,
+            enterprise.args.tmp_dir,
             'hqpr',
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            dim_x,
-            dim_y,
-            imagedim,
-            seed,
-            CONST.THREADS,
-            chunk_size=CONST.PIXEL_QC_CHUNK_SIZE,
-            sample_size=CONST.KMEANS_SAMPLE_SIZE,
-            staining=CONST.STAINING,
-            thresh_p=thresh_p,
-            nstds_p=nstds_p,
+            enterprise.args.image_type,
+            enterprise.args.resolution,
+            enterprise.cargo.imagedim,
+            enterprise.cargo.dim_x,
+            enterprise.cargo.dim_y,
+            enterprise.args.seed,
+            enterprise.args.nthreads,
+            chunk_size=enterprise.args.pixel_qc_chunk_size,
+            sample_size=enterprise.args.kmeans_sample_size,
+            staining=enterprise.args.staining,
+            thresh_p=enterprise.args.thresh_prior_pixel,
+            nstds_p=enterprise.args.nstds_prior_pixel,
         )
 
         print('[finish]')   
 
-    if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_refinement'] ):
+    if enterprise.args.step in ['all', 'unittest', 'hqpr', 'hqpr_refinement']:
 
         image_analysis.pixel_scoring_refinement.start_pixel_mask_refinement (
-                CONST.FIGURE_PATH,
-                spoqc_tmp_folder,
+                enterprise.args.output_dir,
+                enterprise.args.tmp_dir,
                 'hqpr',
-                dim_x,
-                dim_y,
-                1.5,
-                15,
-                staining=CONST.STAINING,
+                enterprise.cargo.dim_x,
+                enterprise.cargo.dim_y,
+                staining=enterprise.args.staining,
         )
 
         print('[finish]')
 
 
-    if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_bounding_box'] ):
+    if enterprise.args.step in ['all', 'unittest', 'hqpr', 'hqpr_bounding_box']:
 
         image_analysis.bounding_boxes.define_bounding_boxes(
-            sdata,
-            CONST.FIGURE_PATH,
-            spoqc_tmp_folder,
+            enterprise.cargo.sdata,
+            enterprise.args.output_dir,
+            enterprise.args.tmp_dir,
             'hqpr',
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            dim_x,
-            dim_y,
-            imagedim,
+            enterprise.args.image_type,
+            enterprise.args.resolution,
+            enterprise.cargo.imagedim,
+            enterprise.cargo.dim_x,
+            enterprise.cargo.dim_y,
             'raw',
-            staining=CONST.STAINING,
+            staining=enterprise.args.staining,
         )
 
         print('[finish]')
 
-# In[]
 
-def celltype_refinement_of_hqpr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST):
+    if enterprise.args.step in ['all', 'hqpr_celltype']:
 
-    if ( CONST.STEP in ['all', 'hqpr_celltype'] ):
-        
-        image_analysis.celltype_analysis.start_image_celltype_analysis(
-            sdata,
-            CONST.FIGURE_PATH,
-            spoqc_tmp_folder,
-            'hqpr',
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            imagedim,
-            dim_x,
-            dim_y,
-            CONST.ANNOTATION_KEY,
-            CONST.CANORM,
-            staining=CONST.STAINING,
-        )
+        if enterprise.args.annotation_file:
 
-        print("[finish]")
+            image_analysis.celltype_analysis.start_image_celltype_analysis(
+                enterprise.cargo.sdata,
+                enterprise.args.output_dir,
+                enterprise.args.tmp_dir,
+                'hqpr',
+                enterprise.args.image_type,
+                enterprise.args.resolution,
+                enterprise.cargo.imagedim,
+                enterprise.cargo.dim_x,
+                enterprise.cargo.dim_y,
+                enterprise.cargo.celltype_annotation.annotation_key,
+                enterprise.args.canorm,
+                staining=enterprise.args.staining,
+            )
+
+            print("[finish]")
+
+        else:
+            print("[NOTE] No annotation file provided so I will not perform celltype_refinement_of_hqpr")

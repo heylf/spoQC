@@ -64,9 +64,9 @@ def calc_void(
         sdata,
         figure_path,
         spoqc_tmp_folder,
-        min_n_triangles_in_cluster,
-        contaminant_list,
         *,
+        min_n_triangles_in_cluster=30,
+        contaminant_list=[],
         debug=False,
         flip=False
     ):

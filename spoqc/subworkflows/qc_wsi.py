@@ -10,7 +10,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 from .. import helperfuncs
 
-def measure_stripe_thickness_and_black_area(image_path: str, 
+def _measure_stripe_thickness_and_black_area(image_path: str, 
                                             background_color: np.ndarray[3, np.dtype[np.int_]],
                                             output_path: str) -> float:
     """
@@ -122,21 +122,8 @@ def measure_stripe_thickness_and_black_area(image_path: str,
     return norm_adjusted_black_area
 
 
-def min_distance(coords: Tuple[float, float], compare_coords: List[Tuple[float, float]]) -> float:
-    """
-    Calculate the minimum Euclidean distance between a given coordinate and a list of coordinates.
-
-    Args:
-        coords (Tuple[float, float]): The reference coordinate as a tuple (x, y).
-        compare_coords (List[Tuple[float, float]]): A list of coordinates to compare against.
-
-    Returns:
-        float: The minimum Euclidean distance between `coords` and the coordinates in `compare_coords`.
-    """
-    return np.min([helperfuncs.euclidean_distance(x, coords) for x in compare_coords])
-
-def generate_input(sdata, figure_path, CONST):
-    ax = sdata.pl.render_images(CONST.IMAGE_TYPE).pl.show(
+def _generate_input(sdata, figure_path, image_type):
+    ax = sdata.pl.render_images(image_type).pl.show(
         title='',
         frameon=False,
         return_ax=True,
@@ -149,3 +136,16 @@ def generate_input(sdata, figure_path, CONST):
     plt.savefig(f'{figure_path}/input_domain_thickness_analysis.png', bbox_inches='tight')
     plt.savefig(f'{figure_path}/input_domain_thickness_analysis.pdf', bbox_inches='tight')
     plt.close()
+
+
+def run_qc_wsi(enterprise):
+    if enterprise.args.step in ['all', 'whole_slide_qc']:
+        print('[NOTE] Domain QC')
+        figure_path = f'{enterprise.args.output_dir}/whole_slide_qc/'
+        _generate_input(enterprise.cargo.sdata, figure_path, enterprise.args.image_type)
+        _measure_stripe_thickness_and_black_area(
+            f'{figure_path}/input_domain_thickness_analysis.png',
+            np.array([68,1,84]),
+            f'{figure_path}'
+        )
+        print("[finish]")

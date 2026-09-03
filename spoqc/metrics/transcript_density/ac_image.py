@@ -15,20 +15,16 @@ def generate_transcript_ambient_density_image(
         sdata,
         figure_path,
         threads,
-        imagedim,
         global_ambient,
-        image_type,
-        resolution,
+        imagedim,
+        dim_x,
+        dim_y,
         *, 
         kernel_radius=3,
         flip=False
 ):
 
     timer = helperfuncs.Timer()
-
-    # Get general stuff
-    dim_x = len(sdata[image_type][resolution].image.y.values)
-    dim_y = len(sdata[image_type][resolution].image.x.values)
 
     transcript_coords_df = sd.get_centroids(sdata['transcripts'], coordinate_system='global').compute()
     transcript_coords_df = transcript_coords_df.astype(int)
@@ -73,11 +69,6 @@ def generate_transcript_ambient_density_image(
     timer.stop()
 
     xy_transcript_density = np.array(transcript_density_list).reshape(dim_x, dim_y)
-
-    img_extent = sd.get_extent(sdata[image_type], coordinate_system='global')
-    imagedim = helperfuncs.ImageDimStruct(img_extent['x'][0], img_extent['y'][0],
-                                        img_extent['x'][1], img_extent['y'][1])
-    nuclei_centroid_coords = sd.get_centroids(sdata['nucleus_boundaries'], coordinate_system='global').compute()
 
     # Create circular kernel (disk mask)
     y, x = np.ogrid[-kernel_radius:kernel_radius+1, -kernel_radius:kernel_radius+1]
@@ -163,11 +154,9 @@ def transcript_ac_image(
         spoqc_tmp_folder,
         modality,
         threads,
-        image_type,
-        resolution,
+        imagedim,
         dim_x,
         dim_y,
-        imagedim,
         *,
         chunk_size=10000
     ):
@@ -182,8 +171,8 @@ def transcript_ac_image(
     # I have now for every pixel the density of the max autocorrelation.
     # That means I know now which pixels have high global gene correlation patterns.
     timer.start()
-    np_arr = generate_transcript_ambient_density_image(sdata, figure_path, threads, imagedim, global_ambient, image_type, 
-                                                       resolution)
+    np_arr = generate_transcript_ambient_density_image(sdata, figure_path, threads, global_ambient, 
+                                                       imagedim, dim_x, dim_y)
     image_ddf = dd.from_dask_array(da.from_array(np_arr, chunks=chunk_size), columns=["ac_density"])
     timer.stop()
 

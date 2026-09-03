@@ -64,9 +64,15 @@ def get_border_scores_optimized(df, radius, step, threads):
     return np.array(results)
 
 
-def define_border_cells(sdata: dict, figure_path: str, thresh: float,
-                        radius: float, stepsize: float, threads: int) -> None:
-    
+def define_border_cells(
+        sdata: dict,
+        figure_path: str,
+        threads: int,
+        *,
+        thresh: float = 1.0,
+        radius: float = 50,
+        stepsize: float = 10, 
+    ) -> None:
     """
     Identifies and annotates border cells in spatial transcriptomics data.
     

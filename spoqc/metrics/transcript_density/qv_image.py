@@ -13,18 +13,14 @@ def generate_transcript_quality_density_image(
         sdata,
         figure_path,
         imagedim,
-        image_type,
-        resolution,
+        dim_x,
+        dim_y,
         *,
         kernel_radius=3,
         flip=False
 ):
 
     timer = helperfuncs.Timer()
-
-    # Get general stuff
-    dim_x = len(sdata[image_type][resolution].image.y.values)
-    dim_y = len(sdata[image_type][resolution].image.x.values)
 
     transcript_coords_df = sd.get_centroids(sdata['transcripts'], coordinate_system='global').compute()
     transcript_coords_df = transcript_coords_df.astype(int)
@@ -56,11 +52,6 @@ def generate_transcript_quality_density_image(
 
     xy_transcript_density = np.array(transcript_density_list).reshape(dim_x, dim_y)
 
-    img_extent = sd.get_extent(sdata[image_type], coordinate_system='global')
-    imagedim = helperfuncs.ImageDimStruct(img_extent['x'][0], img_extent['y'][0],
-                                        img_extent['x'][1], img_extent['y'][1])
-    nuclei_centroid_coords = sd.get_centroids(sdata['nucleus_boundaries'], coordinate_system='global').compute()
-
     # Create circular kernel (disk mask)
     y, x = np.ogrid[-kernel_radius:kernel_radius+1, -kernel_radius:kernel_radius+1]
     mask = (x**2 + y**2) <= kernel_radius**2
@@ -84,7 +75,6 @@ def generate_transcript_quality_density_image(
                 'gray',
                 True,
                 True,
-                points=nuclei_centroid_coords
             )
         else:
             helperfuncs.plot_pixels(
@@ -96,7 +86,6 @@ def generate_transcript_quality_density_image(
                 'gray',
                 True,
                 True,
-                points=nuclei_centroid_coords
             )
 
     return xy_kernel_transcript_density.flatten()
@@ -107,11 +96,9 @@ def transcript_qv_image(
         figure_path,
         spoqc_tmp_folder,
         modality,
-        image_type,
-        resolution,
+        imagedim,
         dim_x,
         dim_y,
-        imagedim,
         *,
         chunk_size=10000
     ):
@@ -120,7 +107,7 @@ def transcript_qv_image(
 
     print("[NOTE] Generate qv image")
     timer.start()
-    np_arr = generate_transcript_quality_density_image(sdata, figure_path, imagedim, image_type, resolution)
+    np_arr = generate_transcript_quality_density_image(sdata, figure_path, imagedim, dim_x, dim_y)
     image_ddf = dd.from_dask_array(da.from_array(np_arr, chunks=chunk_size), columns=["qv_density"])
     timer.stop()
 

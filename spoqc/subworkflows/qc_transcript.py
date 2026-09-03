@@ -278,8 +278,13 @@ def transcriptz(sdata: Any, figure_path: str, key_transcripts: str) -> None:
     timer.stop()
 
 
-
-def get_low_qc_transcript_count(transcript_df, sdata, qv_tresh, figure_path):
+def get_low_qc_transcript_count(
+        transcript_df,
+        sdata,
+        figure_path,
+        *,
+        qv_tresh=20 # at 10x Genomics they use a threshold of qv < 20 (see 10x Baysor tutorial)
+    ):
 
     transcript_df = transcript_df.loc[transcript_df['qv'] < qv_tresh]
     cell_id_counts = transcript_df['cell_id'].value_counts()
@@ -305,3 +310,16 @@ def get_low_qc_transcript_count(transcript_df, sdata, qv_tresh, figure_path):
         'Density low quality transcripts',
     )
 
+
+def run_qc_transcript(enterprise):
+    if enterprise.args.step in ['all', 'transcriptqc']:
+        print('[NOTE] Transcript QC')
+        figure_path = f'{enterprise.args.output_dir}/transcriptqc/'
+        # subworkflows.qc_transcript.transcriptqc(
+        #     enterprise.cargo.sdata,
+        #     figure_path,
+        #     f'{CONST.TRANSCRIPT_REFERENCE}',
+        #     'transcripts'
+        # )
+        negativeprobeqc(enterprise.cargo.sdata, figure_path, 'transcripts')
+        print("[finish]")

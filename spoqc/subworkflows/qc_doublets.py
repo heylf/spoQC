@@ -3,45 +3,44 @@ import numpy as np
 from .. import helperfuncs
 from .. import metrics
 
-def run_qc_doublets(sdata, figure_path, CONST, annotation, obs_columns):
-    timer = helperfuncs.Timer()
+def run_qc_doublets(enterprise):
+    if enterprise.args.step in ['all', 'unittest', 'doubletqc']:
+        figure_path = f'{enterprise.args.output_dir}/doubletqc/'
+        timer = helperfuncs.Timer()
 
-    mean_diameter = np.mean(sdata['cell_circles']['radius'])*2
 
-    print(f"[NOTE] Estimated cell diameter is {mean_diameter}")
+        ncelltypes = -1
 
-    ncelltypes = -1
-    if ( CONST.ANNOTATION_FILE and CONST.N_CELLTYPES == None ):
-        ncelltypes = annotation.ncelltypes
-    else:
-        ncelltypes = CONST.N_CELLTYPES
+        if ( enterprise.args.annotation_file and enterprise.cargo.celltype_annotation.ncelltypes == None ):
+            ncelltypes = enterprise.cargo.celltype_annotation.ncelltypes
+        else:
+            ncelltypes = enterprise.args.ncelltypes
+        
+        mean_diameter = np.mean(enterprise.cargo.sdata['cell_circles']['radius'])*2
+        print(f"[NOTE] Estimated cell diameter is {mean_diameter}")
 
-    timer.start()
-    print(f"[NOTE] Doublet QC with {annotation.ncelltypes} estimated celltypes")
-    metrics.segmentation.doublet_score.calc_doublet_score(
-        sdata,
-        figure_path,
-        CONST.TMP_PATH,
-        CONST.THREADS,
-        'transcripts',
-        ncelltypes,
-        mean_diameter,
-        3,
-        2,
-        3,
-        [10, 60],
-        1,
-        10,
-    )
-    timer.stop()
+        print(f"[NOTE] Doublet QC with {ncelltypes} estimated celltypes")
+        timer.start()
+        metrics.segmentation.doublet_score.calc_doublet_score(
+            enterprise.cargo.sdata,
+            figure_path,
+            enterprise.args.tmp_dir,
+            enterprise.args.nthreads,
+            'transcripts',
+            ncelltypes,
+            mean_diameter,
+        )
+        timer.stop()
 
-    print("[NOTE] Calculate overlap areas")
-    timer.start()
-    metrics.segmentation.overlap_area.calculate_overlap_areas(sdata)
-    timer.stop()
+        print("[NOTE] Calculate overlap areas")
+        timer.start()
+        metrics.segmentation.overlap_area.calculate_overlap_areas(enterprise.cargo.sdata)
+        timer.stop()
 
-    print("[NOTE] Write results")
-    obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
-    print("[finish]")
-
-    return obs_columns
+        print("[NOTE] Write results")
+        helperfuncs.sdata_obs_to_parquet(
+            enterprise,
+            figure_path,
+            'hqcr'
+        )
+        print("[finish]")

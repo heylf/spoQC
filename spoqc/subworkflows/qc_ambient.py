@@ -1,15 +1,19 @@
 
 from .. import metrics
 
-def start_qc_ambient(sdata, figure_path, spoqc_tmp_folder):
-    sdata['table'].X = sdata['table'].layers['normlog']
+def start_qc_ambient(enterprise):
 
-    print("[Note] Investigate global ambient contamination")
-    global_ambient = metrics.transcript_density.global_moran_I.calculate_global_moran_I_values(
-        sdata,
-        figure_path,
-        spoqc_tmp_folder
-    )
+    if ( enterprise.args.step in ['all', 'hqtr', 'unittest', 'ambientqc'] ):
+        figure_path = f'{enterprise.args.output_dir}/ambientqc/'
 
-    print("[finish]")
-    return global_ambient
+        enterprise.cargo.sdata['table'].X = enterprise.cargo.sdata['table'].layers['normlog']
+
+        print("[Note] Investigate global ambient contamination")
+        metrics.transcript_density.global_moran_I.calculate_global_moran_I_values(
+            enterprise.cargo.sdata,
+            figure_path,
+            enterprise.args.tmp_dir,
+        )
+
+        enterprise.cargo.sdata['table'].X = enterprise.cargo.sdata['table'].layers['raw']
+        print("[finish]")

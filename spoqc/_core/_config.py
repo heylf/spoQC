@@ -31,8 +31,8 @@ class Args:
         self.annotation_key = "celltype"
         self.canorm = True
         self.image_type = 'morphology_focus'
-        self.resoltion = 'scale0'
-        self.n_celltypes = 20 if kwargs['dev_test'] else None
+        self.resolution = 'scale0'
+        self.ncelltypes = 20 if kwargs['dev_test'] else None
 
         if kwargs['dev_test'] or kwargs['step'] == 'unittest':
             self.nthreads = 8

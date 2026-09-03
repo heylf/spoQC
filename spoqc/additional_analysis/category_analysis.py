@@ -17,26 +17,30 @@ from . import analysis_funcs
 
 def cell_category_analysis(
         sdata,
+        base_figure_path,
+        spoqc_tmp_folder,
         subdir,
-        CONST,
-        seed,
         suffix,
         dim_x,
         dim_y,
         imagedim,
         stainings,
+        annotation,
+        image_type,
+        resolution,
+        canorm,
     ):
-
-    spoqc_tmp_folder = CONST.TMP_PATH
-    image_type = CONST.IMAGE_TYPE
-    resolution = CONST.RESOLUTION
 
     umap_cats = []
 
-    cell_metrices = analysis_funcs.load_cell_metrices(sdata, spoqc_tmp_folder, CONST)
+    cell_metrices = analysis_funcs.load_cell_metrices(
+        sdata,
+        spoqc_tmp_folder,
+        canorm
+    )
     umap_cats.extend(cell_metrices)
 
-    figure_path = f'{CONST.FIGURE_PATH}/analysis/{subdir}'
+    figure_path = f'{base_figure_path}/analysis/{subdir}'
     rna = sdata['table']
     rna.X = rna.layers['normlog']
 
@@ -61,9 +65,9 @@ def cell_category_analysis(
         n_points = 20
 
         filtered_indices = []
-        for c in list(set(df[CONST.ANNOTATION_KEY])):
+        for c in list(set(df[annotation.annotation_key])):
             for b in [False, True]:
-                rows_celltype = df[CONST.ANNOTATION_KEY] == c
+                rows_celltype = df[annotation.annotation_key] == c
                 rows_cat = df[cat] == b
                 subset = df[rows_celltype & rows_cat]
                 if ( len(subset) > n_points ):
@@ -85,7 +89,7 @@ def cell_category_analysis(
                 fig.add_trace(
                     go.Violin(
                         x=df_false[umap_cat],                      # numeric axis
-                        y=df_false[CONST.ANNOTATION_KEY],          # categorical axis
+                        y=df_false[annotation.annotation_key],          # categorical axis
                         name=str(False),
                         legendgroup=str(False),
                         scalegroup=str(False),
@@ -103,7 +107,7 @@ def cell_category_analysis(
                 fig.add_trace(
                     go.Violin(
                         x=df_true[umap_cat],
-                        y=df_true[CONST.ANNOTATION_KEY],
+                        y=df_true[annotation.annotation_key],
                         name=str(True),
                         legendgroup=str(True),
                         scalegroup=str(True),
@@ -123,7 +127,7 @@ def cell_category_analysis(
                     height=2500,
                     violinmode="overlay",  # needed for split
                     xaxis_title=umap_cat,
-                    yaxis_title=CONST.ANNOTATION_KEY,
+                    yaxis_title=annotation.annotation_key,
                     legend_title=cat
                 )
 
@@ -148,7 +152,7 @@ def cell_category_analysis(
                 fig.add_trace(
                     go.Box(
                         x=df_false[umap_cat],
-                        y=df_false[CONST.ANNOTATION_KEY],
+                        y=df_false[annotation.annotation_key],
                         name=str(False),
                         legendgroup=str(False),
                         orientation="h",
@@ -163,7 +167,7 @@ def cell_category_analysis(
                 fig.add_trace(
                     go.Box(
                         x=df_true[umap_cat],
-                        y=df_true[CONST.ANNOTATION_KEY],
+                        y=df_true[annotation.annotation_key],
                         name=str(True),
                         legendgroup=str(True),
                         orientation="h",
@@ -179,7 +183,7 @@ def cell_category_analysis(
                     height=2500,
                     boxmode="group",  # group False/True per category
                     xaxis_title=umap_cat,
-                    yaxis_title=CONST.ANNOTATION_KEY,
+                    yaxis_title=annotation.annotation_key,
                     legend_title=cat,
                     legend=dict(traceorder="normal")
                 )

@@ -403,77 +403,85 @@ def plot_sanpy_score_genes(sdata, figure_path, markers, name):
     fig.write_image(f"{figure_path}/boxplot_{name}_scanpy_gene_scores_plot.pdf", scale=3)
 
 
-def run_qc_marker(sdata, figure_path, CONST):
+def run_qc_marker(enterprise):
 
-    sdata['table'].X = sdata['table'].layers['normlog']
-    rna_adata = sdata['table']
+    if ( enterprise.args.step in ['markerqc'] ):
+        if enterprise.args.annotation_file:
+            figure_path = f'{enterprise.args.output_dir}/markerqc'
 
-    # TODO for testing - remove later
-    negative_markers = dict({'Invasive_Tumor': ['KRT14', 'MMP1', 'FOXC2'],
-                            'CD8+_T_Cells': ['CD19', 'CD14', 'ITGAM'],
-                            'B_Cells': ['CD3D', 'CD4', 'ITGAM'],
-                            'Stromal': ['CD3D', 'CD14', 'CD68']
-                            })
+            adata = enterprise.cargo.sdata['table']
+            adata.X = adata.layers['normlog']
 
-    positive_markers = dict({'Invasive_Tumor': ['GATA3', 'ERBB2', 'EPCAM'],
-                            'CD8+_T_Cells': ['CD8A', 'CD3D', 'CD247'],
-                            'B_Cells': ['CD19', 'CD79B', 'CD1C'],
-                            'Stromal': ['ACTA2']
-                            })
+            # TODO for testing - remove later
+            negative_markers = dict({'Invasive_Tumor': ['KRT14', 'MMP1', 'FOXC2'],
+                                    'CD8+_T_Cells': ['CD19', 'CD14', 'ITGAM'],
+                                    'B_Cells': ['CD3D', 'CD4', 'ITGAM'],
+                                    'Stromal': ['CD3D', 'CD14', 'CD68']
+                                    })
 
-    # sanity check
-    negative_maker_list = [item for sublist in negative_markers.values() for item in sublist]
-    for m in negative_maker_list:
-        if m not in list(rna_adata.var.index):
-            print(f'[ERROR] I could not find negative marker {m} in rna_adata.var')
-        
-    positive_maker_list = [item for sublist in positive_markers.values() for item in sublist]
-    for m in positive_maker_list:
-        if m not in list(rna_adata.var.index):
-            print(f'[ERROR] I could not find postive marker {m} in rna_adata.var')
+            positive_markers = dict({'Invasive_Tumor': ['GATA3', 'ERBB2', 'EPCAM'],
+                                    'CD8+_T_Cells': ['CD8A', 'CD3D', 'CD247'],
+                                    'B_Cells': ['CD19', 'CD79B', 'CD1C'],
+                                    'Stromal': ['ACTA2']
+                                    })
 
-    all_markers = positive_maker_list + negative_maker_list
-    if ( len( list(set(all_markers) & set(list(rna_adata.var.index))) ) == 0 ):
-        print(f'[ERROR] Sorry your rna_adata.var does not contain any markers you have provided.')
-        return 0
+            # sanity check
+            negative_maker_list = [item for sublist in negative_markers.values() for item in sublist]
+            for m in negative_maker_list:
+                if m not in list(adata.var.index):
+                    print(f'[ERROR] I could not find negative marker {m} in rna_adata.var')
+                
+            positive_maker_list = [item for sublist in positive_markers.values() for item in sublist]
+            for m in positive_maker_list:
+                if m not in list(adata.var.index):
+                    print(f'[ERROR] I could not find postive marker {m} in rna_adata.var')
 
-    plot_marker_density_and_scatter(sdata, figure_path, negative_markers, 'negative_markers')
-    plot_marker_density_and_scatter(sdata, figure_path, negative_markers, 'positive_markers')
+            all_markers = positive_maker_list + negative_maker_list
+            if ( len( list(set(all_markers) & set(list(adata.var.index))) ) == 0 ):
+                print(f'[ERROR] Sorry your rna_adata.var does not contain any markers you have provided.')
+                return 0
 
-    plot_marker_boxplot(
-        sdata,
-        figure_path,
-        negative_markers,
-        CONST.ANNOTATION_KEY,
-        'negative_markers'
-    )
+            plot_marker_density_and_scatter(enterprise.cargo.sdata, figure_path, negative_markers, 'negative_markers')
+            plot_marker_density_and_scatter(enterprise.cargo.sdata, figure_path, negative_markers, 'positive_markers')
 
-    plot_marker_boxplot(
-        sdata,
-        figure_path,
-        positive_markers, 
-        CONST.ANNOTATION_KEY,
-        'positive_markers'
-    )
+            plot_marker_boxplot(
+                enterprise.cargo.sdata,
+                figure_path,
+                negative_markers,
+                enterprise.cargo.celltype_annotation.annotation_key,
+                'negative_markers',
+            )
 
-    plot_marker_radius_line(
-        sdata,
-        figure_path,
-        negative_markers,
-        'negative_markers',
-        CONST.THREADS,
-        CONST.ANNOTATION_KEY,
-        CONST.RADI
-    )
-    plot_marker_radius_line(
-        sdata,
-        figure_path,
-        positive_markers,
-        'positive_markers',
-        CONST.THREADS,
-        CONST.ANNOTATION_KEY,
-        CONST.RADI
-    )
+            plot_marker_boxplot(
+                enterprise.cargo.sdata,
+                figure_path,
+                positive_markers, 
+                enterprise.cargo.celltype_annotation.annotation_key,
+                'positive_markers',
+            )
 
-    plot_sanpy_score_genes(sdata, figure_path, negative_markers, 'negative_markers')
-    plot_sanpy_score_genes(sdata, figure_path, positive_markers, 'positive_markers')
+            plot_marker_radius_line(
+                enterprise.cargo.sdata,
+                figure_path,
+                negative_markers,
+                'negative_markers',
+                enterprise.args.nthreads,
+                enterprise.cargo.celltype_annotation.annotation_key,
+                enterprise.args.radi,
+            )
+            plot_marker_radius_line(
+                enterprise.cargo.sdata,
+                figure_path,
+                positive_markers,
+                'positive_markers',
+                enterprise.args.nthreads,
+                enterprise.cargo.celltype_annotation.annotation_key,
+                enterprise.args.radi,
+            )
+
+            plot_sanpy_score_genes(enterprise.cargo.sdata, figure_path, negative_markers, 'negative_markers')
+            plot_sanpy_score_genes(enterprise.cargo.sdata, figure_path, positive_markers, 'positive_markers')
+
+            print("[finish]")
+        else:
+            print("[NOTE] Marker QC will not be performmed because no annotation was provided.")

@@ -20,7 +20,7 @@ class CargoSpatialData:
             dataset,
             annotation,
             annotation_key,
-            imagetype,
+            image_type,
             resolution,
     ):
 
@@ -33,13 +33,21 @@ class CargoSpatialData:
             self.celltype_annotation = CelltypeAnnotation(self.sdata, annotation, annotation_key)
         else:
             self.celltype_annotation = CelltypeAnnotation(self.sdata, None, annotation_key)
-        self.coltowrite = list(self.sdata['table'].obs.columns)
+        self.cols_already_written = list(self.sdata['table'].obs.columns)
 
-        img_extent = sd.get_extent(self.sdata[imagetype], coordinate_system='global')
+        self.stainings = list(self.sdata[image_type][resolution].image.c.values)
+        self.imagedim = None
+        self.dim_x = None
+        self.dim_y = None
+
+        self.set_sdata_dimentsion_attributes(image_type, resolution)
+
+
+    def set_sdata_dimentsion_attributes(self, image_type, resolution):
+        img_extent = sd.get_extent(self.sdata[image_type], coordinate_system='global')
         self.imagedim = ImageDimStruct(img_extent['x'][0], img_extent['y'][0], img_extent['x'][1], img_extent['y'][1])
-        self.dim_x = len(self.sdata[imagetype][resolution].image.y.values)
-        self.dim_y = len(self.sdata[imagetype][resolution].image.x.values)
-        self.stainings = list(self.sdata[imagetype][resolution].image.c.values)
+        self.dim_x = len(self.sdata[image_type][resolution].image.y.values)
+        self.dim_y = len(self.sdata[image_type][resolution].image.x.values)
 
 
     # Return a copy of a dask DataFrame with a globally unique, monotonically increasing RangeIndex.
@@ -129,11 +137,11 @@ class CelltypeAnnotation:
 
             # Assign attributes
             self.ncelltypes = len(set(adata.obs[annotation_key]))
-            self.annotationkey = annotation_key
+            self.annotation_key = annotation_key
             self.celltypes = celltypes
             self.colors = helperfuncs.generate_distinct_colors(self.ncelltypes)
         else:
-            self.annotationkey = annotation_key
+            self.annotation_key = annotation_key
             self.ncelltypes = None
             self.celltypes = None
             self.colors = None

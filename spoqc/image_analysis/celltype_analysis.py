@@ -72,7 +72,7 @@ def start_image_celltype_analysis(
 
     # Cell df
     helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
-    cell_df = subworkflows.hqcr.load_cell_df(counts, sdata)
+    cell_df = helperfuncs.load_cell_df(counts, sdata)
     cell_df[annotation_key] = sdata['table'].obs[annotation_key]
     cell_df['nucleus_free'] = sdata['table'].obs['wnucleus_free']
     subworkflows.hqcr.cell_artefact_assignment(cell_df, sdata)

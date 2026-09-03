@@ -103,9 +103,16 @@ def find_resolution_coarse_to_fine(
 
 
 
-def load_cell_metrices(sdata, spoqc_tmp_folder, CONST, *, include_nucleus_free=False):
+def load_cell_metrices(
+        sdata,
+        spoqc_tmp_folder,
+        canorm,
+        *,
+        include_nucleus_free=False
+    ):
+
     counts = 'transcript_counts'
-    if ( CONST.CANORM ):
+    if canorm:
         counts = 'canorm_transcript_counts'
     helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
     cell_metrices = [
@@ -250,7 +257,7 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
 
     return umap_cats
 
-def write_out_anndata(sdata, rna, CONST, subdir):
+def write_out_anndata(sdata, rna, figure_path, subdir):
 
     if ( subdir == 'overview' ):
         # Remove columns that are not useful for inspection.
@@ -258,7 +265,7 @@ def write_out_anndata(sdata, rna, CONST, subdir):
             sdata['table'].obs.drop(columns=['nuclei_idxs'], inplace=True)
 
         sdata['table'].write_h5ad(
-            f"{CONST.FIGURE_PATH}/analysis/rna_qc_annotated.h5ad", 
+            f"{figure_path}/analysis/rna_qc_annotated.h5ad", 
             compression="gzip", 
             compression_opts=9
         )
@@ -267,7 +274,7 @@ def write_out_anndata(sdata, rna, CONST, subdir):
         if ( 'nuclei_idxs' in rna.obs.columns ):
             rna.obs.drop(columns=['nuclei_idxs'], inplace=True)
         rna.write_h5ad(
-            f"{CONST.FIGURE_PATH}/analysis/rna_cluster.h5ad", 
+            f"{figure_path}/analysis/rna_cluster.h5ad", 
             compression="gzip", 
             compression_opts=9
         )

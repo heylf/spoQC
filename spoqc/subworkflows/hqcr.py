@@ -143,28 +143,6 @@ def generate_hqcr_html(figure_path, df_plot, cat, ncat, catnames, qc_metrics):
             f.write(fig.to_html(full_html=False, include_plotlyjs='cdn'))
 
 
-def load_cell_df(counts, sdata):
-
-    cell_df = pd.DataFrame({
-        counts: sdata['table'].obs[counts],
-        'control_probe_counts': sdata['table'].obs['control_probe_counts'],
-        'n_genes_by_counts': sdata['table'].obs['canorm_n_genes_by_counts'],
-        'convexity_metric_cell': sdata['table'].obs['convexity_metric_cell'],
-        'convexity_min_nuceli': sdata['table'].obs['convexity_min_nuceli'],
-        'nuceli_count': sdata['table'].obs['nuceli_count'],
-        'border_scores': sdata['table'].obs['border_scores'],
-        'thinness_score': sdata['table'].obs['thinness_score'],
-        'island_score': sdata['table'].obs['island_score'],
-        'doublet': sdata['table'].obs['wdoublet'],
-        'cell_overlap_area': sdata['table'].obs['cell_overlap_area'],
-        'convexhull_outside_trnascripts': sdata['table'].obs['convexhull_outside_trnascripts'],
-        #'convexhull_all_trnascripts': sdata['table'].obs['convexhull_all_trnascripts'],
-        'num_low_qc_transcript': sdata['table'].obs['num_low_qc_transcript']
-    })
-
-    return cell_df
-
-
 def cell_artefact_assignment(cell_df, sdata):
     cell_df['artefact'] = 'cell'
 
@@ -478,7 +456,7 @@ def load_data_for_hqcr(sdata, spoqc_tmp_folder, counts):
     helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
     qc_domains_adata = sdata['table']
 
-    cell_df = load_cell_df(counts, sdata)
+    cell_df = helperfuncs.load_cell_df(counts, sdata)
 
     # Check for NaNs
     print("[DEBUG] Number of NaNs in each column:")
@@ -492,95 +470,112 @@ def load_data_for_hqcr(sdata, spoqc_tmp_folder, counts):
     return qc_domains_adata, cell_df, qc_metrices
 
 
-def clustering_for_hqcr(qc_domains_adata, figure_path, CONST, seed, test_res_n_clusters=10, test_res=False):
+def clustering_for_hqcr(qc_domains_adata, figure_path, nthreads, seed, test_res_n_clusters=10, test_res=False):
     # leiden clustering
     print("[NOTE] Cell QC clustering")
     sc.pp.neighbors(qc_domains_adata, n_neighbors=20, random_state=seed)
     sc.tl.umap(qc_domains_adata, random_state=seed)
 
     if ( test_res ):
-        helperfuncs.test_resolutions_leiden(qc_domains_adata, figure_path, CONST.THREADS, k=test_res_n_clusters)
+        helperfuncs.test_resolutions_leiden(qc_domains_adata, figure_path, nthreads, k=test_res_n_clusters)
 
     sc.tl.leiden(qc_domains_adata, resolution=1.2)
 
 
-def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
-    figure_path = f'{CONST.FIGURE_PATH}/hqcr/hqcr_ident/'
+def start_hqcr(enterprise):
 
-    # Generate first the input cell and nucleus segmentation figures
-    for seg in ['cell_labels', 'nucleus_labels']:
-        values = sdata.labels[seg][CONST.RESOLUTION].image.values
-        values = (values > 0.0).astype(np.uint8)
-        helperfuncs.plot_pixels(
-            figure_path,
-            values,
-            imagedim,
-            f'input_segmentation_{seg}',
-            f'input_segmentation_{seg}',
-            'gray',
-            False,
-            True,
-            legend_dict={"mask": "#FFFFFF", "empty": "#000000"},
-            flip=True
+    if enterprise.args.step in ['all', 'unittest', 'hqcr_ident']:
+
+        figure_path = f'{enterprise.args.output_dir}/hqcr/hqcr_ident/'
+
+        # Generate first the input cell and nucleus segmentation figures
+        for seg in ['cell_labels', 'nucleus_labels']:
+            values = enterprise.cargo.sdata.labels[seg][enterprise.args.resolution].image.values
+            values = (values > 0.0).astype(np.uint8)
+            helperfuncs.plot_pixels(
+                figure_path,
+                values,
+                enterprise.cargo.imagedim,
+                f'input_segmentation_{seg}',
+                f'input_segmentation_{seg}',
+                'gray',
+                False,
+                True,
+                legend_dict={"mask": "#FFFFFF", "empty": "#000000"},
+                flip=True
+            )
+
+        counts = 'transcript_counts'
+        if enterprise.args.canorm:
+            counts = 'canorm_transcript_counts'
+
+        qc_domains_adata, cell_df, qc_metrices = load_data_for_hqcr(
+            enterprise.cargo.sdata,
+            enterprise.args.tmp_dir,
+            counts
         )
 
-    counts = 'transcript_counts'
-    if ( CONST.CANORM ):
-        counts = 'canorm_transcript_counts'
+        clustering_for_hqcr(qc_domains_adata, figure_path, enterprise.args.nthreads, enterprise.args.seed)
+        
+        # Here we combine available priors
+        priors.combine_priors.combine_priors_hqcr(
+            enterprise.cargo.sdata,
+            figure_path,
+            cell_df,
+            qc_domains_adata,
+            counts,
+            enterprise.args.doublet_prior_std,
+        )
 
-    qc_domains_adata, cell_df, qc_metrices = load_data_for_hqcr(sdata, spoqc_tmp_folder, counts)
-    clustering_for_hqcr(qc_domains_adata, figure_path, CONST, seed)
-    
-    # Here we combine available priors
-    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts, CONST.DOULET_PRIOR_STD)
+        # Cell quality probability refinement
+        cell_quality_probability_refinement(
+            enterprise.cargo.sdata,
+            enterprise.cargo.imagedim,
+            enterprise.args.image_type,
+            enterprise.args.resolution,
+            figure_path,
+            'good_quality_probabilities',
+            'refined_qc_class',
+            enterprise.args.tmp_dir,
+            'raw'
+        )
 
-    # Cell quality probability refinement
-    cell_quality_probability_refinement(
-        sdata,
-        imagedim,
-        CONST.IMAGE_TYPE,
-        CONST.RESOLUTION,
-        figure_path,
-        'good_quality_probabilities',
-        'refined_qc_class',
-        spoqc_tmp_folder,
-        'raw'
-    )
+        ###################
+        ###### Plots ######
+        ###################
+        print("[NOTE] Generate plots for HQCRs")
+        plot_hqcr(enterprise.cargo.sdata, figure_path, 50, 20)
 
-    ###################
-    ###### Plots ######
-    ###################
-    print("[NOTE] Generate plots for HQCRs")
-    plot_hqcr(sdata, figure_path, 50, 20)
+        # HTML report for qc metrices
+        cell_df['cell_area'] = enterprise.cargo.sdata['table'].obs['cell_area']
+        cell_df['cell_region'] = enterprise.cargo.sdata['table'].obs['cell_region']
 
-    # HTML report for qc metrices
-    cell_df['cell_area'] = sdata['table'].obs['cell_area']
-    cell_df['cell_region'] = sdata['table'].obs['cell_region']
+        # Add for a better visualiation all of the data again as an all data cluster
+        cell_df_all = cell_df.copy()
+        cell_df_all['qc_cluster_str'] = ['all'] * len(cell_df_all)
+        cell_df_combined_with_all = pd.concat([cell_df, cell_df_all])
 
-    # Add for a better visualiation all of the data again as an all data cluster
-    cell_df_all = cell_df.copy()
-    cell_df_all['qc_cluster_str'] = ['all'] * len(cell_df_all)
-    cell_df_combined_with_all = pd.concat([cell_df, cell_df_all])
+        print("[NOTE] Generate plots for HTMLs")
+        # Generate html for qc metrices
+        ncat = len(set(cell_df_combined_with_all['qc_cluster_str']))
+        catnames = list(set(cell_df_combined_with_all['qc_cluster_str']))
+        catnames.sort()
+        generate_hqcr_html(figure_path, cell_df_combined_with_all, 'qc_cluster_str', ncat, catnames, qc_metrices)
 
-    print("[NOTE] Generate plots for HTMLs")
-    # Generate html for qc metrices
-    ncat = len(set(cell_df_combined_with_all['qc_cluster_str']))
-    catnames = list(set(cell_df_combined_with_all['qc_cluster_str']))
-    catnames.sort()
-    generate_hqcr_html(figure_path, cell_df_combined_with_all, 'qc_cluster_str', ncat, catnames, qc_metrices)
+        # Generate html for quality cell regions (bad, small and hqcrs)
+        ncat = len(set(cell_df['cell_region']))
+        catnames = list(set(cell_df['cell_region']))
+        catnames.sort()
+        generate_hqcr_html(figure_path, cell_df, 'cell_region', ncat, catnames, qc_metrices)
 
-    # Generate html for quality cell regions (bad, small and hqcrs)
-    ncat = len(set(cell_df['cell_region']))
-    catnames = list(set(cell_df['cell_region']))
-    catnames.sort()
-    generate_hqcr_html(figure_path, cell_df, 'cell_region', ncat, catnames, qc_metrices)
+        # Generate html for just all the data
+        cell_df_all['data'] = list(cell_df_all['qc_cluster_str'])
+        ncat = len(set(cell_df_all['data']))
+        catnames = list(set(cell_df_all['data']))
+        catnames.sort()
+        generate_hqcr_html(figure_path, cell_df_all, 'data', ncat, catnames, qc_metrices)
 
-    # Generate html for just all the data
-    cell_df_all['data'] = list(cell_df_all['qc_cluster_str'])
-    ncat = len(set(cell_df_all['data']))
-    catnames = list(set(cell_df_all['data']))
-    catnames.sort()
-    generate_hqcr_html(figure_path, cell_df_all, 'data', ncat, catnames, qc_metrices)
+        print("[finish]")
 
 
 def load_data_for_hqcr_celltype(sdata, spoqc_tmp_folder, counts, annotation_key):
@@ -588,7 +583,7 @@ def load_data_for_hqcr_celltype(sdata, spoqc_tmp_folder, counts, annotation_key)
     # Load data
     helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
 
-    cell_df = load_cell_df(counts, sdata)
+    cell_df = helperfuncs.load_cell_df(counts, sdata)
     cell_df[annotation_key] = sdata['table'].obs[annotation_key]
     cell_df['cell_area'] = sdata['table'].obs['cell_area']
     cell_df['nulleus_area'] = sdata['table'].obs['nucleus_area']
@@ -830,35 +825,48 @@ def refine_hqcr_with_celltype_thresholds(
         'artefact', 'bad_quality_probs_celltype', ['lightblue', 'red', 'black'], 'Density of Bad Cell Quality Informed by Celltype'
     )
 
-def start_hqcr_celltype(sdata, spoqc_tmp_folder, imagedim, CONST):
+def start_hqcr_celltype(enterprise):
 
-    figure_path = f'{CONST.FIGURE_PATH}/hqcr/hqcr_celltype/'
+    if enterprise.args.step in ['all', 'hqcr_celltype']:
+        if enterprise.args.annotation_file:
+    
+            figure_path = f'{enterprise.args.output_dir}/hqcr/hqcr_celltype/'
 
-    counts = 'transcript_counts'
-    if ( CONST.CANORM ):
-        counts = 'canorm_transcript_counts'
+            counts = 'transcript_counts'
+            if enterprise.args.canorm:
+                counts = 'canorm_transcript_counts'
 
-    cell_df, df_coords = load_data_for_hqcr_celltype(sdata, spoqc_tmp_folder, counts, CONST.ANNOTATION_KEY)
-    threshold_left_dict, threshold_right_dict = celltype_artefact_analysis_for_hqcr(
-        sdata,
-        figure_path,
-        cell_df,
-        CONST.ANNOTATION_FILE,
-        CONST.ANNOTATION_KEY,
-        counts
-    )
+            cell_df, df_coords = load_data_for_hqcr_celltype(
+                enterprise.cargo.sdata,
+                enterprise.args.tmp_dir,
+                counts,
+                enterprise.cargo.celltype_annotation.annotation_key
+            )
 
-    refine_hqcr_with_celltype_thresholds(
-        sdata,
-        figure_path,
-        spoqc_tmp_folder,
-        cell_df,
-        df_coords,
-        counts,
-        threshold_left_dict, 
-        threshold_right_dict,
-        CONST.ANNOTATION_KEY,
-        imagedim,
-        CONST.IMAGE_TYPE,
-        CONST.RESOLUTION
-    )
+            threshold_left_dict, threshold_right_dict = celltype_artefact_analysis_for_hqcr(
+                enterprise.cargo.sdata,
+                figure_path,
+                cell_df,
+                enterprise.args.annotation_file,
+                enterprise.cargo.celltype_annotation.annotation_key,
+                counts
+            )
+
+            refine_hqcr_with_celltype_thresholds(
+                enterprise.cargo.sdata,
+                figure_path,
+                enterprise.args.tmp_dir,
+                cell_df,
+                df_coords,
+                counts,
+                threshold_left_dict, 
+                threshold_right_dict,
+                enterprise.cargo.celltype_annotation.annotation_key,
+                enterprise.cargo.imagedim,
+                enterprise.args.image_type,
+                enterprise.args.resolution,
+            )
+
+            print("[finish]")
+        else:
+            print("[NOTE] No annotation file provided so I will not perform start_hqcr_celltype")

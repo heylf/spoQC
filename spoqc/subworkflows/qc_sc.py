@@ -23,17 +23,27 @@ def quick_viz_images(figure_path, image_names, sdata, flip=True):
         plt.savefig(f'{figure_path}/{i}.pdf')
         plt.close()
 
-def run_qc_sc(sdata, figure_path, CONST, obs_columns):
+def run_qc_sc(enterprise):
+    if ( enterprise.args.step in ['all', 'unittest', 'generalqc'] ):
+        print('[NOTE] General QC')
+        figure_path = f'{enterprise.args.output_dir}/generalqc/'
+        
+        helperfuncs.plot_original_image_cell_circles(enterprise.cargo.sdata, figure_path, '1')
 
-    helperfuncs.plot_original_image_cell_circles(sdata, figure_path, '1')
+        quick_viz_images(figure_path, list(enterprise.cargo.sdata.images), enterprise.cargo.sdata)
+        metrics.segmentation.sc_metrics.calc_sc_metrics(
+            enterprise.cargo.sdata,
+            figure_path,
+            enterprise.args.annotation_file,
+            enterprise.cargo.celltype_annotation.annotation_key,
+        )
+        general.normalizations.cell_area_normalization(enterprise.cargo.sdata)
+        general.valid_geometries.check_for_valid_geometries(enterprise.cargo.sdata, figure_path)
 
-    quick_viz_images(figure_path, list(sdata.images), sdata)
-    metrics.segmentation.sc_metrics.calc_sc_metrics(sdata, figure_path, CONST.ANNOTATION_FILE, CONST.ANNOTATION_KEY)
-    general.normalizations.cell_area_normalization(sdata)
-    general.valid_geometries.check_for_valid_geometries(sdata, figure_path)
-
-    print("[NOTE] Write results")
-    obs_columns = helperfuncs.sdata_obs_to_parquet(sdata, figure_path, CONST.TMP_PATH, 'hqcr', obs_columns)
-    print("[finish]")
-
-    return obs_columns
+        print("[NOTE] Write results")
+        helperfuncs.sdata_obs_to_parquet(
+            enterprise,
+            figure_path,
+            'hqcr'
+        )
+        print("[finish]")

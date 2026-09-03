@@ -2,120 +2,101 @@
 from .. import image_analysis
 from .. import metrics
 
-def get_hqtr(
-        sdata, 
-        spoqc_tmp_folder,
-        imagedim,
-        dim_x,
-        dim_y,
-        CONST,
-        seed,
-        *,
-        thresh_p=None,
-        nstds_p=None,
-    ):
+def get_hqtr(enterprise):
 
-    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_metrices'] ):
+    if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_metrices']:
 
         image_analysis.structure_analysis.start_image_struc_analyis(
-            sdata,
-            CONST.FIGURE_PATH,
-            spoqc_tmp_folder,
+            enterprise.cargo.sdata,
+            enterprise.args.output_dir,
+            enterprise.args.tmp_dir,
             'hqtr',
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            imagedim,
-            dim_x,
-            dim_y,
-            CONST.OVERWRITE
+            enterprise.args.image_type,
+            enterprise.args.resolution,
+            enterprise.cargo.imagedim,
+            enterprise.cargo.dim_x,
+            enterprise.cargo.dim_y,
+            enterprise.args.overwrite,
         )
 
         print('[finish]')
 
-    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_qv'] ):
+    if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_qv']:
 
         metrics.transcript_density.qv_image.transcript_qv_image(
-            sdata,
-            CONST.FIGURE_PATH,
-            spoqc_tmp_folder,
+            enterprise.cargo.sdata,
+            enterprise.args.output_dir,
+            enterprise.args.tmp_dir,
             'hqtr',
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            dim_x,
-            dim_y,
-            imagedim,
+            enterprise.cargo.imagedim,
+            enterprise.cargo.dim_x,
+            enterprise.cargo.dim_y,
         )
 
         print('[finish]')
 
-    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_ac'] ):
+    if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_ac']:
 
         metrics.transcript_density.ac_image.transcript_ac_image(
-            sdata,
-            CONST.FIGURE_PATH,
-            spoqc_tmp_folder,
+            enterprise.cargo.sdata,
+            enterprise.args.output_dir,
+            enterprise.args.tmp_dir,
             'hqtr',
-            CONST.THREADS,
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            dim_x,
-            dim_y,
-            imagedim,
+            enterprise.args.nthreads,
+            enterprise.cargo.imagedim,
+            enterprise.cargo.dim_x,
+            enterprise.cargo.dim_y,
         )
 
         print('[finish]')
 
-    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_clustering'] ):
+    if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_clustering']:
 
         image_analysis.pixel_scoring_dask.start_pixel_qc(
-            sdata,
-            CONST.FIGURE_PATH,
-            spoqc_tmp_folder,
+            enterprise.cargo.sdata,
+            enterprise.args.output_dir,
+            enterprise.args.tmp_dir,
             'hqtr',
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            dim_x,
-            dim_y,
-            imagedim,
-            seed,
-            CONST.THREADS,
-            chunk_size=CONST.PIXEL_QC_CHUNK_SIZE,
-            sample_size=CONST.KMEANS_SAMPLE_SIZE,
-            thresh_p=thresh_p,
-            nstds_p=nstds_p,
+            enterprise.args.image_type,
+            enterprise.args.resolution,
+            enterprise.cargo.imagedim,
+            enterprise.cargo.dim_x,
+            enterprise.cargo.dim_y,
+            enterprise.args.seed,
+            enterprise.args.nthreads,
+            chunk_size=enterprise.args.pixel_qc_chunk_size,
+            sample_size=enterprise.args.kmeans_sample_size,
+            thresh_p=enterprise.args.thresh_prior_pixel,
+            nstds_p=enterprise.args.nstds_prior_pixel,
         )
 
         print("[finish]")
 
 
-# In[]
-
-    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_refinement'] ):
+    if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_refinement']:
 
         image_analysis.pixel_scoring_refinement.start_pixel_mask_refinement (
-                CONST.FIGURE_PATH,
-                spoqc_tmp_folder,
+                enterprise.args.output_dir,
+                enterprise.args.tmp_dir,
                 'hqtr',
-                dim_x,
-                dim_y,
-                1.5,
-                15
+                enterprise.cargo.dim_x,
+                enterprise.cargo.dim_y,
         )
 
         print('[finish]')
 
-    if ( CONST.STEP in ['all', 'unittest', 'hqtr', 'hqtr_bounding_box'] ):
+    if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_bounding_box']:
 
         image_analysis.bounding_boxes.define_bounding_boxes(
-            sdata,
-            CONST.FIGURE_PATH,
-            spoqc_tmp_folder,
+            enterprise.cargo.sdata,
+            enterprise.args.output_dir,
+            enterprise.args.tmp_dir,
             'hqtr',
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            dim_x,
-            dim_y,
-            imagedim,
+            enterprise.args.image_type,
+            enterprise.args.resolution,
+            enterprise.cargo.imagedim,
+            enterprise.cargo.dim_x,
+            enterprise.cargo.dim_y,
             'raw',
             dilation_radius=1
         )
@@ -123,22 +104,25 @@ def get_hqtr(
         print('[finish]')
 
 
-def celltype_refinement_of_hqtr(sdata, spoqc_tmp_folder, imagedim, dim_x, dim_y, CONST):
-
-    if ( CONST.STEP in ['all', 'hqtr_celltype'] ):
+    if enterprise.args.step in ['all', 'hqtr_celltype']:
         
-        image_analysis.celltype_analysis.start_image_celltype_analysis(
-            sdata,
-            CONST.FIGURE_PATH,
-            spoqc_tmp_folder,
-            'hqtr',
-            CONST.IMAGE_TYPE,
-            CONST.RESOLUTION,
-            imagedim,
-            dim_x,
-            dim_y,
-            CONST.ANNOTATION_KEY,
-            CONST.CANORM
-        )
+        if enterprise.args.annotation_file :
 
-        print("[finish]")
+            image_analysis.celltype_analysis.start_image_celltype_analysis(
+                enterprise.cargo.sdata,
+                enterprise.args.output_dir,
+                enterprise.args.tmp_dir,
+                'hqtr',
+                enterprise.args.image_type,
+                enterprise.args.resolution,
+                enterprise.cargo.imagedim,
+                enterprise.cargo.dim_x,
+                enterprise.cargo.dim_y,
+                enterprise.cargo.celltype_annotation.annotation_key,
+                enterprise.args.canorm,
+            )
+
+            print("[finish]")
+
+        else:
+            print("[NOTE] No annotation file provided so I will not perform celltype_refinement_of_hqtr")

@@ -24,8 +24,9 @@ from . import funkyheatmap
 
 def celltype_cluster_analysis(
         sdata,
+        base_figure_path,
+        spoqc_tmp_folder,
         subdir,
-        CONST,
         seed,
         suffix,
         dim_x,
@@ -33,6 +34,10 @@ def celltype_cluster_analysis(
         imagedim,
         stainings,
         annotation,
+        image_type,
+        resolution,
+        canorm,
+        cluster_celltype,
         *,
         just_filtering=False,
         html=False,
@@ -41,42 +46,44 @@ def celltype_cluster_analysis(
     timer = helperfuncs.Timer()
     np.random.seed(seed)
 
-    spoqc_tmp_folder = CONST.TMP_PATH
-    image_type = CONST.IMAGE_TYPE
-    resolution = CONST.RESOLUTION
-
     umap_cats = []
 
     print("[NOTE] Load cell data")
     timer.start()
-    cell_metrices = analysis_funcs.load_cell_metrices(sdata, spoqc_tmp_folder, CONST, include_nucleus_free=True)
+    cell_metrices = analysis_funcs.load_cell_metrices(
+        sdata,
+        spoqc_tmp_folder,
+        canorm,
+        include_nucleus_free=True
+    )
     timer.stop()
 
     umap_cats.extend(cell_metrices)
 
-    figure_path = f'{CONST.FIGURE_PATH}/analysis/{subdir}'
+    figure_path = f'{base_figure_path}/analysis/{subdir}'
     rna = sdata['table']
     rna.X = rna.layers['normlog']
+    annotation_key = annotation.annotation_key
 
     ####################################################################################################################
     # Subsetting data for different analyses
     ####################################################################################################################
     if ( subdir == 'cluster' ):
         largest_cluster = ''
-        if ( CONST.CLUSTER_CELLTYPE ):
-            largest_cluster = CONST.CLUSTER_CELLTYPE
+        if cluster_celltype:
+            largest_cluster = cluster_celltype
         else:
             num_largest_cluster = 0
-            for g in rna.obs.groupby(CONST.ANNOTATION_KEY):
+            for g in rna.obs.groupby(annotation_key):
                 if ( len(g[1]) > num_largest_cluster ):
                     num_largest_cluster = len(g[1])
                     largest_cluster = g[0]
         print(f"[NOTE] Picking cluster {largest_cluster}")
-        rna = rna[rna.obs[CONST.ANNOTATION_KEY] == largest_cluster]
+        rna = rna[rna.obs[annotation_key] == largest_cluster]
 
     if ( rna.n_obs < 10 ):
         print("[WARN] Too few cells. The cluster investigation has to be stopped.")
-        analysis_funcs.write_out_anndata(sdata, rna, CONST, subdir)
+        analysis_funcs.write_out_anndata(sdata, rna, base_figure_path, subdir)
         return 0
 
     ####################################################################################################################
@@ -106,7 +113,7 @@ def celltype_cluster_analysis(
     win_res = -1
     if ( not os.path.exists(res_file_name) ):
         if ( subdir == 'overview' ):
-            k = len(set(rna.obs[CONST.ANNOTATION_KEY])) + 3
+            k = len(set(rna.obs[annotation_key])) + 3
         else:
             k=15
             if ( rna.n_obs < 50 ):
@@ -161,7 +168,7 @@ def celltype_cluster_analysis(
             rna.obs[col] = np.array(sdata['table'].obs.loc[rna.obs.index, col])
 
     # Add general stuff to check
-    umap_cats.extend([CONST.ANNOTATION_KEY, 'leiden'])
+    umap_cats.extend([annotation_key, 'leiden'])
 
     X = rna.obsm["X_umap"]
 
@@ -210,8 +217,8 @@ def celltype_cluster_analysis(
 
         # Generate spatial plots for annotation clusters
         rna.obs['spatial_leiden_cluster'] = [True] * rna.n_obs
-        for c in list(set(rna.obs[CONST.ANNOTATION_KEY])):
-            rna.obs['spatial_leiden_cluster'] = rna.obs[CONST.ANNOTATION_KEY] == c
+        for c in list(set(rna.obs[annotation_key])):
+            rna.obs['spatial_leiden_cluster'] = rna.obs[annotation_key] == c
             helperfuncs.plot_scatter(
                 rna,
                 figure_path,
@@ -236,7 +243,7 @@ def celltype_cluster_analysis(
             if not is_numeric_dtype(rna.obs[umap_cat]) and umap_cat != 'leiden':
                 labels = None
                 col_color = umap_cat
-                if (umap_cat == CONST.ANNOTATION_KEY and annotation):
+                if umap_cat == annotation_key and annotation:
                     labels = annotation.celltypes
                     labels.sort()
                 else: 
@@ -247,6 +254,8 @@ def celltype_cluster_analysis(
 
                 if len(labels) == 2:
                     colors = ['black', 'yellow']
+                elif umap_cat == annotation_key:
+                    colors = annotation.colors
                 else:
                     colors = helperfuncs.generate_distinct_colors(len(labels))
                 
@@ -257,7 +266,7 @@ def celltype_cluster_analysis(
                 colors = leiden_colors
 
             # Save color to use for later
-            if ( umap_cat == CONST.ANNOTATION_KEY ):
+            if ( umap_cat == annotation_key ):
                 celltype_colors = colors
                 rna.uns['spoqc_celltype_colors'] = list(zip(labels, colors))
             if ( umap_cat == 'leiden' ):
@@ -434,7 +443,7 @@ def celltype_cluster_analysis(
                 )
 
                 # Attach umap_cat per point and format hover
-                if ( len(labels) > 2 and umap_cat != CONST.ANNOTATION_KEY ):
+                if ( len(labels) > 2 and umap_cat != annotation_key ):
                     fig.update_traces(hovertemplate=
                         "UMAP1=%{x:.3f}<br>"
                         "UMAP2=%{y:.3f}<br>"
@@ -459,7 +468,7 @@ def celltype_cluster_analysis(
                 
                 if ( html ):
                     fig.write_html(f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.html")
-                elif ( umap_cat in [CONST.ANNOTATION_KEY, 'leiden'] ):
+                elif ( umap_cat in [annotation_key, 'leiden'] ):
                     fig.write_html(
                         f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.html",
                         full_html=False,
@@ -470,7 +479,7 @@ def celltype_cluster_analysis(
 
             if ( umap_cat in ['doublet', 'nucleus_free', 'border_cell'] ):
 
-                for x in ['leiden', CONST.ANNOTATION_KEY]:
+                for x in ['leiden', annotation_key]:
 
                     bar_plot_pct = pd.DataFrame(
                         rna.obs
@@ -498,7 +507,7 @@ def celltype_cluster_analysis(
         # --- cell composition plot -----
         print("[NOTE] Generate cell type composition plot")
         timer.start()
-        ctf_df = analysis_funcs.create_fraction_df('leiden', CONST.ANNOTATION_KEY, rna)
+        ctf_df = analysis_funcs.create_fraction_df('leiden', annotation_key, rna)
 
         leiden_order = sorted(ctf_df["x"].unique(), key=lambda x: int(x))  # if leiden labels are numeric strings
         label_order = sorted(ctf_df["label"].unique())
@@ -550,7 +559,7 @@ def celltype_cluster_analysis(
                 metadata_file = ""
 
                 if ( modality == 'hqcr' ):
-                    metadata_path = f"{CONST.FIGURE_PATH}/{modality}/hqcr_ident/"
+                    metadata_path = f"{figure_path}/{modality}/hqcr_ident/"
                     metadata_file = f"{metadata_path}/{modality}s.json"
                     if ( os.path.exists(metadata_file)):
                         with open(metadata_file, "r") as f:
@@ -559,7 +568,7 @@ def celltype_cluster_analysis(
 
                 if ( modality == 'hqpr' ):
                     for staining in stainings:
-                        metadata_path = f"{CONST.FIGURE_PATH}/{modality}/hqpr_bounding_box/{staining}/"
+                        metadata_path = f"{figure_path}/{modality}/hqpr_bounding_box/{staining}/"
                         metadata_file = f"{metadata_path}/{modality}s_{staining}.txt"
                         if ( os.path.exists(metadata_file)):
                             with open(metadata_file, "r") as f:
@@ -568,7 +577,7 @@ def celltype_cluster_analysis(
                             hqr_metadata_dic[f'{modality}_{staining}'] = metadata_list
 
                 if ( modality == 'hqtr' ):
-                    metadata_path = f"{CONST.FIGURE_PATH}/{modality}/hqtr_bounding_box/"
+                    metadata_path = f"{figure_path}/{modality}/hqtr_bounding_box/"
                     metadata_file = f"{metadata_path}/{modality}s.txt"
                     if ( os.path.exists(metadata_file)):
                         with open(metadata_file, "r") as f:
@@ -781,7 +790,7 @@ def celltype_cluster_analysis(
 
         # Then a fraction plot (like cell type fractions), x-axis = cell type, y=traffic light factions
         ctf_celltype_tl = analysis_funcs.create_fraction_df(
-            CONST.ANNOTATION_KEY, 
+            annotation_key, 
             'hqcr_traffic_light', 
             rna
         )
@@ -791,7 +800,7 @@ def celltype_cluster_analysis(
             ctf_celltype_tl,
             x="x",
             y="fractions",
-            labels={"x": CONST.ANNOTATION_KEY},
+            labels={"x": annotation_key},
             color="label",
             color_discrete_map=traffic_light_colors,
             category_orders={
@@ -814,7 +823,7 @@ def celltype_cluster_analysis(
     ####################################################################################################################
     print("[NOTE] Write out anndata")
     timer.start()
-    analysis_funcs.write_out_anndata(sdata, rna, CONST, subdir)
+    analysis_funcs.write_out_anndata(sdata, rna, base_figure_path, subdir)
     timer.stop()
 
 

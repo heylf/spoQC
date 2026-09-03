@@ -1,3 +1,4 @@
+from . import combine_masks
 from . import qc_additional_analysis
 from . import qc_ambient
 from . import qc_bubble
