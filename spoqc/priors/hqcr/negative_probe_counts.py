@@ -41,9 +41,9 @@ def calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=1, std=1, tail="right"):
 
     pdf = norm.pdf(values, loc=max_mean, scale=nstds*max_std)
 
-    # Just a trick, if values are bigger or smaller based on tail then set those values to t
-    # and thus get the best probability for all those values.
-    # This is basically to enforce 
+    # Just a trick, if values are bigger or smaller based on tail then set those values to t and thus get the highest 
+    # density for all those values.
+    # Later we will inverse, i.e., values < max_mean or values > max_mean will get the worst possible probability.
     if tail == "left":
         pdf = np.where(values < max_mean, np.max(pdf), pdf)
     elif tail == "right":
