@@ -10,6 +10,7 @@ from scipy.stats import pearsonr
 
 from ... import helperfuncs
 from ... import general
+from ... import core
 
 def add_pearsoncorr_to_plotly(fig, x, y, xpos=0.05, ypos=0.95):
     """Calculate Pearson correlation and add as annotation to Plotly figure."""
@@ -442,3 +443,37 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
     with open(f'{figure_path}/rna_qc_sample_mqc.html', 'w') as f:
         for fig in figures:
             f.write(fig.to_html(full_html=False, include_plotlyjs='cdn'))
+
+    general.normalizations.cell_area_normalization(sdata)
+
+
+def init_metric(enterprise):
+
+    # These have to be defined.
+    metric_name = "nuceli_count"
+    combined_metric_name = None
+    needs_metrics = []
+    step_when_it_is_calculated = ["generalqc", "all"]
+    loaded_for_analysis = True
+    loaded_for_visualization = True
+    prior = True
+
+    # These are given my your metric calc function.
+    args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/generalqc/", 
+            enterprise.args.annotation_file, enterprise.cargo.celltype_annotation.annotation_key]
+    kwargs = None
+
+    metric = core.metric.Metric(
+        calc_sc_metrics, 
+        metric_name,
+        combined_metric_name = combined_metric_name,
+        needs_metrics = needs_metrics,
+        step_when_it_is_calculated = step_when_it_is_calculated,
+        loaded_for_analysis = loaded_for_analysis,
+        loaded_for_visualization = loaded_for_visualization,
+        prior = prior,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return metric

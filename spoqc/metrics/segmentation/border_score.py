@@ -5,6 +5,7 @@ import concurrent.futures
 from scipy.spatial import cKDTree
 
 from ... import helperfuncs
+from ... import core
 
 def compute_border_score_for_point(point_idx, points, rotation_matrices, radius, tree):
     x1, y1 = points[point_idx]
@@ -119,3 +120,34 @@ def define_border_cells(
     # Plot for border cells
     helperfuncs.plot_scatter(sdata['table'], figure_path, 'border_cell', None,
                              'border_cell', ['lightblue', 'red'], 'Border Cells')
+    
+
+def init_metric(enterprise):
+
+    # These have to be defined.
+    metric_name = "border_score"
+    combined_metric_name = None
+    needs_metrics = []
+    step_when_it_is_calculated = ["cellqc", "all"]
+    loaded_for_analysis = True
+    loaded_for_visualization = True
+    prior = False
+
+    # These are given my your metric calc function.
+    args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/cellqc/", enterprise.args.nthreads]
+    kwargs = None
+
+    metric = core.metric.Metric(
+        define_border_cells, 
+        metric_name,
+        combined_metric_name = combined_metric_name,
+        needs_metrics = needs_metrics,
+        step_when_it_is_calculated = step_when_it_is_calculated,
+        loaded_for_analysis = loaded_for_analysis,
+        loaded_for_visualization = loaded_for_visualization,
+        prior = prior,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return metric

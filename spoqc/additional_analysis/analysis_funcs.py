@@ -10,7 +10,7 @@ import dask.dataframe as dd
 from sklearn.metrics import silhouette_score
 
 from .. import helperfuncs
-from .. import subworkflows
+from .. import missions
 
 def create_fraction_df(x, label, rna):
         
@@ -137,7 +137,7 @@ def load_cell_metrices(
 
 def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc_tmp_folder, suffix, dim_x, dim_y, stainings, figure_path):
     umap_cats = []
-    polys = subworkflows.hqcr.create_polygon_dataframe(sdata, imagedim, 'cell_boundaries')
+    polys = missions.hqcr.create_polygon_dataframe(sdata, imagedim, 'cell_boundaries')
 
     for modality in ['hqcr', 'hqpr', 'hqtr']:
         if ( modality == 'hqcr' ):
@@ -147,18 +147,18 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
             )
             metric_df['hqcr_beliefs_smoothed'] = np.array(metric_df['hqcr_beliefs_smoothed']).reshape(dim_x, dim_y).flatten()
             metric_df['hqcr_mask_smoothed'] = np.array(metric_df['hqcr_mask_smoothed']).reshape(dim_x, dim_y).flatten()
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_mask_smoothed"], "hqcr_mask_smoothed", figure_path, 'markov_labels', true_false_binary=True)
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_mask_smoothed"], "hqcr_mask_mean_smoothed", figure_path, 'mean_values')
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_beliefs_smoothed"], "hqcr_beliefs_smoothed", figure_path, 'mean_values')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_mask_smoothed"], "hqcr_mask_smoothed", figure_path, 'markov_labels', true_false_binary=True)
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_mask_smoothed"], "hqcr_mask_mean_smoothed", figure_path, 'mean_values')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_beliefs_smoothed"], "hqcr_beliefs_smoothed", figure_path, 'mean_values')
             metric_df = pd.read_parquet(
                 f'{spoqc_tmp_folder}/hqcr_output_mask_{suffix}.parquet',
                 columns=["hqcr_beliefs", "hqcr_mask"], engine="pyarrow"
             )
             metric_df['hqcr_beliefs'] = np.array(metric_df['hqcr_beliefs']).reshape(dim_x, dim_y).flatten()
             metric_df['hqcr_mask'] = np.array(metric_df['hqcr_mask']).reshape(dim_x, dim_y).flatten()
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_beliefs"], "hqcr_beliefs", figure_path, 'mean_values')
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_mask"], "hqcr_mask", figure_path, 'markov_labels', true_false_binary=True)
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_mask"], "hqcr_mask_mean", figure_path, 'mean_values')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_beliefs"], "hqcr_beliefs", figure_path, 'mean_values')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_mask"], "hqcr_mask", figure_path, 'markov_labels', true_false_binary=True)
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_mask"], "hqcr_mask_mean", figure_path, 'mean_values')
             umap_cats.extend([
                 'hqcr_mask_smoothed',
                 'hqcr_mask_mean_smoothed',
@@ -173,10 +173,10 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
                 metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/hqpr_{staining}_output_mask_smoothed_{suffix}', columns=[f"hqpr_{staining}_beliefs_smoothed", f"hqpr_{staining}_mask_smoothed"], engine="pyarrow")
                 mask_smoothed = metric_dd[f"hqpr_{staining}_mask_smoothed"].compute().to_numpy()
                 beliefs_smoothed = metric_dd[f"hqpr_{staining}_beliefs_smoothed"].compute().to_numpy()
-                subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, f"hqpr_{staining}_mask_smoothed", figure_path, 'markov_labels', true_false_binary=True)
-                subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, f"hqpr_{staining}_mask_mean_smoothed", figure_path, 'mean_values')
-                subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, f"hqpr_{staining}_beliefs_smoothed", figure_path, 'mean_values_nonzero')
-                subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, f"hqpr_{staining}_beliefs_mean_informative_smoothed", figure_path, 'mean_values_informative')
+                missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, f"hqpr_{staining}_mask_smoothed", figure_path, 'markov_labels', true_false_binary=True)
+                missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, f"hqpr_{staining}_mask_mean_smoothed", figure_path, 'mean_values')
+                missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, f"hqpr_{staining}_beliefs_smoothed", figure_path, 'mean_values_nonzero')
+                missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, f"hqpr_{staining}_beliefs_mean_informative_smoothed", figure_path, 'mean_values_informative')
                 metric_dd = dd.read_parquet(
                     f'{spoqc_tmp_folder}/hqpr_{staining}_output_mask_raw',
                     columns=[f"intensity", f"hqpr_{staining}_beliefs", f"hqpr_{staining}_mask"],
@@ -185,11 +185,11 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
                 intensity = metric_dd[f"intensity"].compute().to_numpy()
                 mask = metric_dd[f"hqpr_{staining}_mask"].compute().to_numpy()
                 beliefs = metric_dd[f"hqpr_{staining}_beliefs"].compute().to_numpy()
-                subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, intensity, f'hqpr_{staining}_intensity', figure_path, 'mean_values')
-                subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask, f'hqpr_{staining}_mask', figure_path, 'markov_labels', true_false_binary=True)
-                subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask, f'hqpr_{staining}_mask_mean', figure_path, 'mean_values')
-                subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs, f'hqpr_{staining}_beliefs', figure_path, 'mean_values_nonzero')
-                subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs, f'hqpr_{staining}_beliefs_mean_informative', figure_path, 'mean_values_informative')
+                missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, intensity, f'hqpr_{staining}_intensity', figure_path, 'mean_values')
+                missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask, f'hqpr_{staining}_mask', figure_path, 'markov_labels', true_false_binary=True)
+                missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask, f'hqpr_{staining}_mask_mean', figure_path, 'mean_values')
+                missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs, f'hqpr_{staining}_beliefs', figure_path, 'mean_values_nonzero')
+                missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs, f'hqpr_{staining}_beliefs_mean_informative', figure_path, 'mean_values_informative')
                 umap_cats.extend([
                     f'hqpr_{staining}_mask_smoothed',
                     f'hqpr_{staining}_mask_mean_smoothed',
@@ -206,21 +206,21 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
                 for metric in metrices:
                     parquet_folder = f'{spoqc_tmp_folder}/metrices/{modality}/{staining}'
                     metric_dd = dd.read_parquet(f'{parquet_folder}/{metric}_output_{modality}_{staining}.parquet')
-                    subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[metric].compute().to_numpy(), f'{metric}_{modality}_{staining}', figure_path, 'mean_values')
+                    missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[metric].compute().to_numpy(), f'{metric}_{modality}_{staining}', figure_path, 'mean_values')
                     umap_cats.append(f'{metric}_{modality}_{staining}')
 
         if ( modality == 'hqtr' ):
             metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_mask_smoothed_{suffix}', columns=["hqtr_beliefs_smoothed", "hqtr_mask_smoothed"], engine="pyarrow")
             mask_smoothed = metric_dd["hqtr_mask_smoothed"].compute().to_numpy()
             beliefs_smoothed = metric_dd["hqtr_beliefs_smoothed"].compute().to_numpy()
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, "hqtr_mask_smoothed", figure_path, 'markov_labels', true_false_binary=True)
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, "hqtr_mask_mean_smoothed", figure_path, 'mean_values')
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, "hqtr_beliefs_smoothed", figure_path, 'mean_values_nonzero')
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, "hqtr_beliefs_mean_informative_smoothed", figure_path, 'mean_values_informative')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, "hqtr_mask_smoothed", figure_path, 'markov_labels', true_false_binary=True)
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, "hqtr_mask_mean_smoothed", figure_path, 'mean_values')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, "hqtr_beliefs_smoothed", figure_path, 'mean_values_nonzero')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, "hqtr_beliefs_mean_informative_smoothed", figure_path, 'mean_values_informative')
             metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_qv_prob', columns=["qv_density"], engine="pyarrow")
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[f"qv_density"].compute().to_numpy(), "hqtr_qv_density", figure_path, 'mean_values')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[f"qv_density"].compute().to_numpy(), "hqtr_qv_density", figure_path, 'mean_values')
             metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_ac_prob', columns=["ac_density"], engine="pyarrow")
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[f"ac_density"].compute().to_numpy(), "hqtr_ac_density", figure_path, 'mean_values')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[f"ac_density"].compute().to_numpy(), "hqtr_ac_density", figure_path, 'mean_values')
             metric_dd = dd.read_parquet(
                 f'{spoqc_tmp_folder}/hqtr_output_mask_raw',
                 columns=["intensity", "hqtr_beliefs", "hqtr_mask"],
@@ -229,11 +229,11 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
             intensity = metric_dd[f"intensity"].compute().to_numpy()
             mask = metric_dd[f"hqtr_mask"].compute().to_numpy()
             beliefs = metric_dd[f"hqtr_beliefs"].compute().to_numpy()
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, intensity, "hqtr_intensity", figure_path, 'mean_values')
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask, f'hqtr_mask', figure_path, 'markov_labels', true_false_binary=True)
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask, f'hqtr_mask_mean', figure_path, 'mean_values')
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs, f'hqtr_beliefs', figure_path, 'mean_values_nonzero')
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs, f'hqtr_beliefs_mean_informative', figure_path, 'mean_values_informative')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, intensity, "hqtr_intensity", figure_path, 'mean_values')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask, f'hqtr_mask', figure_path, 'markov_labels', true_false_binary=True)
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask, f'hqtr_mask_mean', figure_path, 'mean_values')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs, f'hqtr_beliefs', figure_path, 'mean_values_nonzero')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs, f'hqtr_beliefs_mean_informative', figure_path, 'mean_values_informative')
             umap_cats.extend([
                 'hqtr_mask_smoothed',
                 'hqtr_mask_mean_smoothed',
@@ -252,7 +252,7 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
             for metric in metrices:
                 parquet_folder = f'{spoqc_tmp_folder}/metrices/{modality}'
                 metric_dd = dd.read_parquet(f'{parquet_folder}/{metric}_output_{modality}.parquet')
-                subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[metric].compute().to_numpy(), f'{metric}_{modality}', figure_path, 'mean_values')
+                missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[metric].compute().to_numpy(), f'{metric}_{modality}', figure_path, 'mean_values')
                 umap_cats.append(f'{metric}_{modality}')
 
     return umap_cats

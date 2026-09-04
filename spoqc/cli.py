@@ -23,8 +23,8 @@ import spatialdata_plot
 from spoqc import general
 from spoqc import hqr
 from spoqc import helperfuncs
-from spoqc import subworkflows
-from spoqc import _core
+from spoqc import missions
+from spoqc import core
 
 @click.command(
     help="""
@@ -115,7 +115,7 @@ def main(**kwargs) -> None:
 
 # In[]
 
-    enterprise = _core.starship.Enterpise(kwargs)
+    enterprise = core.starship.Enterpise(kwargs)
 
     # Timer class
     timer = helperfuncs.Timer()
@@ -134,63 +134,57 @@ def main(**kwargs) -> None:
     staining_log.close()
     print("[finish]")
 
-    
     # In[]
     enterprise.generate_unsupervised_annotation()
 
     # In[]
-    subworkflows.qc_sc.run_qc_sc(enterprise)
+    missions.explore_metrics_space_hqcr.start_exploration(enterprise)
+    
+    # In[]
+    missions.hqcr.start_hqcr(enterprise)
 
     # In[]
-    subworkflows.qc_wsi.run_qc_wsi(enterprise)
+    missions.hqcr.start_hqcr_celltype(enterprise)
 
     # In[]
-    subworkflows.qc_bubble.run_qc_bubble(enterprise)
+    missions.hqpr.get_hqpr(enterprise)
 
     # In[]
-    subworkflows.qc_doublets.run_qc_doublets(enterprise)
+    missions.qc_ambient.start_qc_ambient(enterprise)
 
     # In[]
-    subworkflows.qc_void.run_qc_void(enterprise)
+    missions.hqtr.get_hqtr(enterprise)
 
     # In[]
-    subworkflows.qc_cell.run_qc_cell(enterprise)
+    missions.combine_masks.run_combine_masks(enterprise)
 
     # In[]
-    subworkflows.hqcr.start_hqcr(enterprise)
+    missions.qc_transcript.run_qc_transcript(enterprise)
 
     # In[]
-    subworkflows.hqcr.start_hqcr_celltype(enterprise)
+    missions.qc_additional_analysis.run_qc_additional_analysis(enterprise)
 
     # In[]
-    subworkflows.hqpr.get_hqpr(enterprise)
+    missions.final_report.run_final_report(enterprise)
+
+    ##################
+    # Extra Missions #
+    ##################
 
     # In[]
-    subworkflows.qc_ambient.start_qc_ambient(enterprise)
+    missions.explore_base_images.start_exploration(enterprise)
 
     # In[]
-    subworkflows.hqtr.get_hqtr(enterprise)
+    missions.explore_wsi.start_exploration(enterprise)
 
     # In[]
-    subworkflows.combine_masks.run_combine_masks(enterprise)
+    missions.qc_cellcycle.run_qc_cellcycle(enterprise)
 
     # In[]
-    subworkflows.qc_transcript.run_qc_transcript(enterprise)
+    missions.qc_model.run_qc_model(enterprise)
 
     # In[]
-    subworkflows.qc_cellcycle.run_qc_cellcycle(enterprise)
-
-    # In[]
-    subworkflows.qc_model.run_qc_model(enterprise)
-
-    # In[]
-    subworkflows.qc_marker.run_qc_marker(enterprise)
-
-    # In[]
-    subworkflows.qc_additional_analysis.run_qc_additional_analysis(enterprise)
-
-    # In[]
-    subworkflows.final_report.run_final_report(enterprise)
+    missions.qc_marker.run_qc_marker(enterprise)
 
     timer.stop()
     print("[FINISH]")

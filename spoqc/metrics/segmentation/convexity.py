@@ -5,6 +5,7 @@ import geopandas as gpd
 from typing import Tuple, List
 
 from ... import helperfuncs
+from ... import core
 
 def is_convex(polygon: List[Tuple[float, float]]) -> Tuple[bool, float]:
     """
@@ -142,3 +143,34 @@ def calc_convexity(sdata, figure_path):
     with open(f'{figure_path}/convexity.html', 'w') as f:
         for fig in figures:
             f.write(fig.to_html(full_html=False, include_plotlyjs='cdn'))
+
+
+def init_metric(enterprise):
+
+    # These have to be defined.
+    metric_name = "convexity"
+    combined_metric_name = None
+    needs_metrics = []
+    step_when_it_is_calculated = ["cellqc", "all"]
+    loaded_for_analysis = True
+    loaded_for_visualization = True
+    prior = False
+
+    # These are given my your metric calc function.
+    args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/cellqc/"]
+    kwargs = None
+
+    metric = core.metric.Metric(
+        calc_convexity, 
+        metric_name,
+        combined_metric_name = combined_metric_name,
+        needs_metrics = needs_metrics,
+        step_when_it_is_calculated = step_when_it_is_calculated,
+        loaded_for_analysis = loaded_for_analysis,
+        loaded_for_visualization = loaded_for_visualization,
+        prior = prior,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return metric

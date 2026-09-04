@@ -16,7 +16,6 @@ def create_output_structure(args):
             "annotation",
             "generalqc",    
             "whole_slide_qc",
-            "bubbleqc",
             "doubletqc",
             "voidqc",
             "cellqc",

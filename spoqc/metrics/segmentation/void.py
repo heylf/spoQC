@@ -10,6 +10,7 @@ import seaborn as sns
 import os
 
 from ... import helperfuncs
+from ... import core
 
 def count_stuff_in_triangles_via_delaunay(delaunay, stuff):
     num_triangles = len(delaunay.simplices)
@@ -568,5 +569,34 @@ def calc_void(
 
     print("[NOTE] Void QC done!")
     timer.stop()
-  
-# %%
+
+
+def init_metric(enterprise):
+
+    # These have to be defined.
+    metric_name = "void"
+    combined_metric_name = None
+    needs_metrics = ["doublet_score"]
+    step_when_it_is_calculated = ["voidqc", "all"]
+    loaded_for_analysis = True
+    loaded_for_visualization = True
+    prior = False
+
+    # These are given my your metric calc function.
+    args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/voidqc/", enterprise.args.tmp_dir]
+    kwargs = None
+
+    metric = core.metric.Metric(
+        calc_void, 
+        metric_name,
+        combined_metric_name = combined_metric_name,
+        needs_metrics = needs_metrics,
+        step_when_it_is_calculated = step_when_it_is_calculated,
+        loaded_for_analysis = loaded_for_analysis,
+        loaded_for_visualization = loaded_for_visualization,
+        prior = prior,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return metric

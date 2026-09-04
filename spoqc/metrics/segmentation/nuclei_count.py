@@ -1,8 +1,9 @@
 import plotly.express as px
 
 from ... import helperfuncs
+from ... import core
 
-def count_nuclei(sdata, figure_path):
+def calc_count_nuclei(sdata, figure_path):
 
     # This is from convexity calculations
     nuclei_counts = [len(x) for x in sdata['table'].obs['nuclei_idxs']]
@@ -38,3 +39,34 @@ def count_nuclei(sdata, figure_path):
             helperfuncs.plot_density(sdata['table'], f'w{cat}', figure_path)
             helperfuncs.plot_scatter_density(sdata['table'], figure_path, cat, 
                                              cat, f'w{cat}', ['lightblue', 'red'], f'Cells with {cat}')
+
+
+def init_metric(enterprise):
+
+    # These have to be defined.
+    metric_name = "nuceli_count"
+    combined_metric_name = None
+    needs_metrics = []
+    step_when_it_is_calculated = ["cellqc", "all"]
+    loaded_for_analysis = True
+    loaded_for_visualization = True
+    prior = False
+
+    # These are given my your metric calc function.
+    args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/cellqc/"]
+    kwargs = None
+
+    metric = core.metric.Metric(
+        calc_count_nuclei, 
+        metric_name,
+        combined_metric_name = combined_metric_name,
+        needs_metrics = needs_metrics,
+        step_when_it_is_calculated = step_when_it_is_calculated,
+        loaded_for_analysis = loaded_for_analysis,
+        loaded_for_visualization = loaded_for_visualization,
+        prior = prior,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return metric

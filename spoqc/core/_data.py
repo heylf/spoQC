@@ -77,17 +77,18 @@ class CargoSpatialData:
             dataloaders.xenium.correct_indexing(self.sdata)
 
 
-    def perform_standard_data_processing(self, step, nhvg, span):
+    def perform_standard_data_processing(self, output_dir, nhvg, span, check_geometries):
         print(f'[NOTE] Perform mandaory steps')
-        if ( step != 'generalqc' ):
-            general.valid_geometries.correct_for_valid_geometries(self.sdata)
+        if check_geometries:
+            general.valid_geometries.check_for_valid_geometries(self.sdata, f"{output_dir}/generalqc/")
+        general.valid_geometries.correct_for_valid_geometries(self.sdata)
 
-            # Sanity Check
-            for obj_type in ['cell', 'nucleus']:
-                geometries = np.array(self.sdata[f'{obj_type}_boundaries']['geometry'])
-                for i, obj in enumerate(geometries):
-                    if( not obj.is_valid ):
-                        sys.exit("[ERROR] Found invalid geometries")
+        # Sanity Check
+        for obj_type in ['cell', 'nucleus']:
+            geometries = np.array(self.sdata[f'{obj_type}_boundaries']['geometry'])
+            for i, obj in enumerate(geometries):
+                if( not obj.is_valid ):
+                    sys.exit("[ERROR] Found invalid geometries")
 
         general.normalizations.transform_normalize_sc_data(self.sdata, nhvg, span)
         general.normalizations.fill_nans_for_0_transcript_cells(self.sdata)

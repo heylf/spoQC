@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 
 from ... import helperfuncs
+from ... import core
 
 # window_sizes = for plotting. You can selected more windowsizes. This is just to zoom in or out for double plots.
 # num_doublet = is just the amount of doublet that will be plottet as examples.
@@ -209,3 +210,47 @@ def calc_doublet_score(
     transcript_doublet_df.index = transcript_coordinates_df.index
 
     helperfuncs.df_to_parquet(transcript_doublet_df, 'doublet', spoqc_tmp_folder, [], 'transcripts')
+
+
+def init_metric(enterprise):
+
+    # These have to be defined.
+    metric_name = "doublet_score"
+    combined_metric_name = None
+    needs_metrics = []
+    step_when_it_is_calculated = ["doubletqc", "all"]
+    loaded_for_analysis = True
+    loaded_for_visualization = True
+    prior = True
+
+    # Additional code
+    ncelltypes = -1
+    if ( enterprise.args.annotation_file and enterprise.cargo.celltype_annotation.ncelltypes == None ):
+        ncelltypes = enterprise.cargo.celltype_annotation.ncelltypes
+    else:
+        ncelltypes = enterprise.args.ncelltypes
+    mean_diameter = np.mean(enterprise.cargo.sdata['cell_circles']['radius'])*2
+    print(f"[NOTE] Estimated cell diameter is {mean_diameter}")
+    print(f"[NOTE] Doublet QC with {ncelltypes} estimated celltypes")
+
+    # These are given my your metric calc function.
+    args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/doubletqc/",
+            enterprise.args.tmp_dir, enterprise.args.nthreads, 'transcripts',
+            ncelltypes, mean_diameter]
+    kwargs = None
+
+    # Metric call
+    metric = core.metric.Metric(
+        calc_doublet_score, 
+        metric_name,
+        combined_metric_name = combined_metric_name,
+        needs_metrics = needs_metrics,
+        step_when_it_is_calculated = step_when_it_is_calculated,
+        loaded_for_analysis = loaded_for_analysis,
+        loaded_for_visualization = loaded_for_visualization,
+        prior = prior,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return metric

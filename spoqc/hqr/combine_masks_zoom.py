@@ -7,7 +7,7 @@ import sys
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib_venn import venn3
 
-from .. import _core
+from .. import core
 from .. import helperfuncs
 from .. import metrics
 
@@ -30,7 +30,7 @@ def start_combining_masks(
     x_2_org = 22000
     y_2_org = 2500
 
-    imagedim_zoom = _core._data.ImageDimStruct(
+    imagedim_zoom = core._data.ImageDimStruct(
         imagedim.bb_xmin + x_1_org,
         imagedim.bb_ymin + y_1_org,
         imagedim.bb_xmin + x_2_org,

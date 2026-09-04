@@ -1097,12 +1097,12 @@ def values_to_hex_gradient(values, cmap_name='hot', reverse=False):
     return hex_colors
 
 
-def sdata_obs_to_parquet(enterprise, figure_path, suffix):
+def sdata_obs_to_parquet(enterprise, step, suffix):
     adata = enterprise.cargo.sdata["table"]
     new_columns = [x for x in adata.obs.columns if x not in enterprise.cargo.cols_already_written]
     write_df = adata.obs.loc[:,new_columns]
     write_df.index = adata.obs.index
-    write_df.to_parquet(f"{enterprise.args.tmp_dir}/{figure_path.split('/')[-2]}_output_{suffix}.parquet")
+    write_df.to_parquet(f"{enterprise.args.tmp_dir}/{step}_output_{suffix}.parquet")
     enterprise.cargo.cols_already_written += new_columns
 
 

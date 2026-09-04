@@ -138,7 +138,7 @@ def _generate_input(sdata, figure_path, image_type):
     plt.close()
 
 
-def run_qc_wsi(enterprise):
+def start_exploration(enterprise):
     if enterprise.args.step in ['all', 'whole_slide_qc']:
         print('[NOTE] Domain QC')
         figure_path = f'{enterprise.args.output_dir}/whole_slide_qc/'

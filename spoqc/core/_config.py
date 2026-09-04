@@ -33,6 +33,7 @@ class Args:
         self.image_type = 'morphology_focus'
         self.resolution = 'scale0'
         self.ncelltypes = 20 if kwargs['dev_test'] else None
+        self.check_geometries = True if kwargs['step'] == 'all' or kwargs['step'] == 'generalqc' else False
 
         if kwargs['dev_test'] or kwargs['step'] == 'unittest':
             self.nthreads = 8

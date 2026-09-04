@@ -6,6 +6,9 @@ from typing import Dict, Any, Tuple
 from . import _output_structure
 from . import _config
 from . import _data
+from . import metric
+from .. import helperfuncs
+from .. import metrics
 
 class Enterpise:
     def __init__(self, kwargs):
@@ -41,9 +44,10 @@ class Enterpise:
 
         # Apply standard data processing to cargo
         self.cargo.perform_standard_data_processing(
-            self.args.step,
+            self.args.output_dir,
             self.args.num_variable_genes,
-            self.args.span
+            self.args.span,
+            self.args.check_geometries,
         )
 
         
