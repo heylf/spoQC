@@ -5,6 +5,7 @@ import numpy as np
 
 from scipy.stats import norm
 from ... import helperfuncs
+from sklearn.mixture import GaussianMixture
 
 def calc_probs_doublet_distance(sdata, figure_path, nstds):
     distances = sdata['table'].obs['doublet_distance']
@@ -34,18 +35,28 @@ def calc_probs_doublet_distance(sdata, figure_path, nstds):
 # ddd = density divided by distance (relative density)
 # The closer ddd is to 0 the better the quality.
 # The bigger -log10(ddd) is the better the quality.
-def calc_probs_ddd(sdata, figure_path, nstds, max_mean = 3.0, max_std = 1.0, tail = "right"):
+def calc_probs_ddd(sdata, figure_path, nstds, max_std = 1.0, tail = "right"):
     ddds = -np.log10(np.array(sdata['table'].obs['doublet_ddd']) + 1e-10)
-    pdf = norm.pdf(ddds, loc=max_mean, scale=nstds*max_std)
+
+    # There will be 2 peaks.
+    # One peak is the added cosntant for the log10 (1e-10), which is basically cells without a doublet event.
+    # The actual peak we are looking for is thus the min of all peaks.
+    mix = GaussianMixture(n_components=2, tol=1e-8, max_iter=int(1e4))
+    mix.fit(ddds.reshape(-1, 1))
+    means = mix.means_
+    cov = mix.covariances_
+    mean = np.min(means)
+
+    pdf = norm.pdf(ddds, loc=mean, scale=nstds*max_std)
     probs = np.array([0.0] * len(pdf))
 
     # Just a trick, if values are bigger or smaller based on tail then set those values to t and thus get the highest 
     # density for all those values.
     # Here we do not inverse, i.e., values < max_mean or values > max_mean will get the best possible probability.
     if tail == "left":
-        pdf = np.where(ddds < max_mean, np.max(pdf), pdf)
+        pdf = np.where(ddds < mean, np.max(pdf), pdf)
     elif tail == "right":
-        pdf = np.where(ddds > max_mean, np.max(pdf), pdf)
+        pdf = np.where(ddds > mean, np.max(pdf), pdf)
 
     # If you have no doublets then min_max normalization does not matter.
     if ( len(ddds[ddds == 100_000]) != len(ddds) ):
@@ -57,11 +68,11 @@ def calc_probs_ddd(sdata, figure_path, nstds, max_mean = 3.0, max_std = 1.0, tai
         100,
         figure_path,
         f"""
-        Log10+1 Doublet density divided by distance: t={max_mean} with {nstds} x {np.round(max_std, 3)} std 
+        Log10+1 Doublet density divided by distance: t={np.round(mean, 3)} with {nstds} x {np.round(max_std, 3)} std 
         & {tail} tail filtering
         """,
         "doublet_ddd_prior",
-        t=max_mean,
+        t=mean,
         std=max_std,
         nstds=nstds,
     )
