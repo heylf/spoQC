@@ -1,37 +1,41 @@
+import pkgutil
+import importlib
 import dask.dataframe as dd
 import numpy as np
 
 from .. import priors
+from .. import core
 
-def traffic_light(priors, bad_threshold=0.3, warning_threshold=0.6):
-    n_bad = sum(p < bad_threshold for p in priors)
-    n_warning = sum(
-        bad_threshold <= p < warning_threshold
-        for p in priors
-    )
+def _generate_prior_set(name_priorset):
+    priorset_list = []
+    for module_info in pkgutil.iter_modules(priors.segmentation.__path__):
+        module_name = module_info.name
+        full_name = f"{priors.segmentation.__name__}.{module_name}"
+        module = importlib.import_module(full_name)
 
-    if n_bad >= 2:
-        return "red"
+        if hasattr(module, "init_prior"):
+            priorset_list.append(module.init_prior())
+            print(f"Loaded prior: {module_name}")
+        else:
+            print(f"WARNING: {module_name} has no init_prior() function")
 
-    if n_bad == 1 or n_warning >= 2:
-        return "yellow"
-
-    return "green"
-
-
-# Asymetric evidence aggregation will put a penalty on priors that are extremely bad.
-# Example A: [.90,.90,.90,.90,.90,.90], result = 0.900
-# Example B: [.99,.99,.99,.99,.99,.10], result = 0.391
-def asymmetric_evidence_aggregation(priors, gamma=2.0, axis=-1):
-    priors = np.asarray(priors, dtype=float)
-    priors = np.clip(priors, 1e-12, 1.0)
-    surprise = -np.log(priors)
-    weighted_surprise = np.mean(surprise ** gamma, axis=axis) ** (1 / gamma)
-    return np.exp(-weighted_surprise)
+    priorset = core.prior.PriorSet(name_priorset, priorset_list)
+    priorset.calculate_metrics()
+    return priorset
 
 
 # We will combine the pixel scorep prior with more priors
 def combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts, doublet_prior_std):
+
+    priorset = _generate_prior_set('hqcr')
+    final_prior = priorset.combine_prior_asymmetric_evidence_aggregation()
+    traffic_lights = priorset.combine_prior_traffic_light_system()
+    sdata['table'].obs['good_quality_probabilities'] = final_prior
+    sdata['table'].obs['hqcr_traffic_light'] = traffic_lights
+    
+
+
+
 
     prior_transcript_counts, cell_df = priors.hqcr.transcript_and_gene_counts.calc_counts_probs(
         sdata, 
@@ -57,33 +61,6 @@ def combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts, d
     prior_invalid_cell_geometry = priors.hqcr.invalid_geometry.calc_probs(sdata, figure_path, 'cell')
     prior_invalid_nucelus_geometry = priors.hqcr.invalid_geometry.calc_probs(sdata, figure_path, 'nucleus')
 
-    stacked_priors = np.stack(
-        [
-            prior_transcript_counts,
-            prior_gene_counts,
-            prior_doublet_distance,
-            prior_negative_probe_counts,
-            prior_invalid_cell_geometry,
-            prior_invalid_nucelus_geometry,
-        ],
-        axis=1,
-    )
-    final_prior = asymmetric_evidence_aggregation(stacked_priors, axis=1)
-
-    sdata['table'].obs['good_quality_probabilities'] = final_prior
-
-    traffic_lights = [
-        traffic_light(cell_priors)
-        for cell_priors in zip(
-            prior_transcript_counts,
-            prior_gene_counts,
-            prior_doublet_distance,
-            prior_negative_probe_counts,
-            prior_invalid_cell_geometry,
-            prior_invalid_nucelus_geometry,
-        )
-    ]
-    sdata['table'].obs['hqcr_traffic_light'] = traffic_lights
 
 
 def combine_priors_hqpr(spoqc_tmp_folder, image_ddf, belief_name, mask_name):
