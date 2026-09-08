@@ -17,13 +17,12 @@ def calc_valid_gemoetries():
 def init_metric(enterprise):
 
     # These have to be defined.
-    metric_name = "valid_geometries"
-    combined_metric_name = None
+    name = "valid_geometries"
+    submetrics = ["wvalid_cell_geometry", "wvalid_nucleus_geometry"]
     needs_metrics = []
     step_when_it_is_calculated = ["generalqc", "all"]
     loaded_for_analysis = True
     loaded_for_visualization = True
-    prior = True
 
     # These are given my your metric calc function.
     args = []
@@ -31,13 +30,12 @@ def init_metric(enterprise):
 
     metric = core.metric.Metric(
         calc_valid_gemoetries, 
-        metric_name,
-        combined_metric_name = combined_metric_name,
+        name,
+        submetrics,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,
         loaded_for_visualization = loaded_for_visualization,
-        prior = prior,
         args = args,
         kwargs = kwargs,
     )    

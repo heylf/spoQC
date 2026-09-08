@@ -3,7 +3,7 @@ import plotly.express as px
 from ... import helperfuncs
 from ... import core
 
-def calc_count_nuclei(sdata, figure_path):
+def _calc_count_nuclei(sdata, figure_path):
 
     # This is from convexity calculations
     nuclei_counts = [len(x) for x in sdata['table'].obs['nuclei_idxs']]
@@ -44,27 +44,25 @@ def calc_count_nuclei(sdata, figure_path):
 def init_metric(enterprise):
 
     # These have to be defined.
-    metric_name = "nuceli_count"
-    combined_metric_name = None
+    name = "nuceli_count"
+    submetrics = ["nuceli_count"]
     needs_metrics = []
     step_when_it_is_calculated = ["cellqc", "all"]
     loaded_for_analysis = True
     loaded_for_visualization = True
-    prior = False
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/cellqc/"]
     kwargs = None
 
     metric = core.metric.Metric(
-        calc_count_nuclei, 
-        metric_name,
-        combined_metric_name = combined_metric_name,
+        _calc_count_nuclei, 
+        name,
+        submetrics,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,
         loaded_for_visualization = loaded_for_visualization,
-        prior = prior,
         args = args,
         kwargs = kwargs,
     )    

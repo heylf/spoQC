@@ -11,136 +11,11 @@ from rasterio.features import rasterize, MergeAlg
 from rasterio.transform import from_origin
 from scipy.stats import median_abs_deviation
 
+from .. import core
 from .. import hqr
 from .. import helperfuncs
 from .. import priors
-
-# Function to print all HQCRs
-def plot_hqcr(sdata, figure_path, min_number_good_cells_hqcr, minimum_number_of_total_cells):
-    islands = list(set(sdata['table'].obs['island_index']))
-    sdata['table'].obs['cell_region'] = np.array(['undefined'] * len(sdata['table']))
-
-    for island in islands:
-        island_idxs = sdata['table'].obs['island_index'] == island
-        island_adata = sdata['table'][island_idxs]
-
-        num_good_qc_cells = list(island_adata.obs['refined_qc_class']).count(1) # good
-        num_bad_qc_cells = list(island_adata.obs['refined_qc_class']).count(0) # bad
-
-        good_bad_ration = 0.0
-        if ( num_bad_qc_cells == 0 ):
-            good_bad_ration = 100
-        else:
-            good_bad_ration = num_good_qc_cells / num_bad_qc_cells
-
-        title = ''
-        island_suffix = ''
-        if ( good_bad_ration > 1.0 ):
-            if ( num_good_qc_cells > min_number_good_cells_hqcr ):
-                title = f'HQCR {island+1}'
-                island_suffix = 'hqcr'
-                sdata['table'].obs.loc[island_idxs, 'cell_region'] = 'hqcr'
-            else:
-                title = f'Small HQCR {island+1}'
-                island_suffix = 'small_hqcr'
-                sdata['table'].obs.loc[island_idxs, 'cell_region'] = 'small_hqcr'
-        else:
-            title = f'LQCR {island+1}'
-            island_suffix = 'lqcr'
-            sdata['table'].obs.loc[island_idxs, 'cell_region'] = 'lqcr'
-
-        # Here I just setelect all the cells that are part of the island to mark them later in the plot.
-        island_select = np.array([0] * sdata['table'].n_obs)
-        island_select[island_idxs] = 1
-        sdata['table'].obs['island_select'] = island_select
-
-        if ( num_good_qc_cells + num_bad_qc_cells > minimum_number_of_total_cells ):
-            helperfuncs.plot_scatter(
-                island_adata,
-                f'{figure_path}/{island_suffix}/',
-                f'zoomed_{island_suffix}_{island+1}',
-                None,
-                None,
-                None,
-                title
-            )
-            helperfuncs.plot_scatter(
-                sdata['table'],
-                f'{figure_path}/{island_suffix}/',
-                f'{island_suffix}_{island+1}',
-                None,
-                'island_select',
-                ['lightblue', 'red'],
-                title
-            )
-
-    hqcr_df = pd.DataFrame({
-        'islands': sdata['table'].obs['island_index'], 
-        'cell_region': sdata['table'].obs['cell_region']
-    })
-
-    hqcr_df.to_json(f"{figure_path}/hqcr.json", orient="columns")
-
-
-def generate_hqcr_html(figure_path, df_plot, cat, ncat, catnames, qc_metrics):
-
-    figures = []
-
-    qc_metrics = [x for x in qc_metrics if x not in ['celltype']]
-
-    for level in qc_metrics:
-        plotname = 'violinplot'
-        title = 'Distribution of'
-        if ( level == 'doublet' or level == 'nucleus_free' ):
-            num_doublets_qc_cluster = [-1] * ncat
-            for c in range(0, ncat):
-                ndoublets = len([True for x in df_plot[df_plot[cat] == catnames[c]][level] if x == 1])
-                num_doublets_qc_cluster[c] = ndoublets
-
-            plot_doublet_df = pd.DataFrame({
-                cat: [str(x) for x in catnames],
-                level: num_doublets_qc_cluster
-            })
-            fig = px.bar(
-                plot_doublet_df,
-                x=level,
-                y=cat,
-                width=800,
-                height=800
-            )
-            plotname = 'barplot'
-            title = 'Count of'
-        else:
-            if ( level == 'island_score' ):
-                fig = px.violin(
-                    x=helperfuncs.min_max_normalize(df_plot['island_score']), 
-                    y=df_plot[cat],
-                    width=800,
-                    height=800
-                )
-                fig.update_layout(
-                    xaxis=dict(range=[0, 1.1], title='min-max normalized island score'),
-                    yaxis=dict(title=cat)
-                )
-            else:
-                fig = px.violin(
-                    df_plot,
-                    x=level,
-                    y=cat,
-                    width=800,
-                    height=800
-                )
-
-        fig.update_layout(title=f"{title} {level} for all {cat}", showlegend=True)
-        helperfuncs.apply_general_plotly_layout(fig, True)
-
-        figures.append(fig)
-        fig.write_image(f"{figure_path}/{plotname}_{level}.png", scale=3)
-        fig.write_image(f"{figure_path}/{plotname}_{level}.pdf", scale=3)
-
-    with open(f'{figure_path}/hqcr_{cat}.html', 'w') as f:
-        for fig in figures:
-            f.write(fig.to_html(full_html=False, include_plotlyjs='cdn'))
+from .. import missions
 
 
 def cell_artefact_assignment(cell_df, sdata):
@@ -195,7 +70,7 @@ def create_polygon_dataframe(sdata, imagedim, object, prob_col=None):
     return polys
 
 
-def create_cell_probability_image(sdata, polys, img, resolution, prob_col):
+def _create_cell_probability_image(sdata, polys, img, resolution, prob_col):
 
     dim_x = len(sdata[img][resolution].image.y.values)
     dim_y = len(sdata[img][resolution].image.x.values)
@@ -391,11 +266,11 @@ def map_values_to_cells(
             sdata['table'].obs[res_col] = polygon_scores
 
 
-def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution, figure_path, 
+def _cell_quality_probability_refinement(sdata, imagedim, image_type, resolution, figure_path, 
                                         prob_col, res_col, spoqc_tmp_folder, suffix):
     
     polys = create_polygon_dataframe(sdata, imagedim, 'cell_boundaries', prob_col)
-    average_cell_probability_image = create_cell_probability_image(sdata, polys, image_type, resolution, prob_col)
+    average_cell_probability_image = _create_cell_probability_image(sdata, polys, image_type, resolution, prob_col)
 
     # This is a sanity check
     has_values_over_1 = np.any(np.array(polys[prob_col]) > 1)
@@ -451,38 +326,8 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
         df.to_parquet(f"{spoqc_tmp_folder}/traffic_light_output_hqcr.parquet")
 
 
-def load_data_for_hqcr(sdata, spoqc_tmp_folder, counts):
-    print("[NOTE] Gather cell QC metrices")
-    helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
-    qc_domains_adata = sdata['table']
 
-    cell_df = helperfuncs.load_cell_df(counts, sdata)
-
-    # Check for NaNs
-    print("[DEBUG] Number of NaNs in each column:")
-    print(cell_df.isna().sum())
-
-    # This I have to do to avoid an error because of the number of features I have selected.
-    qc_metrices = list(cell_df.columns)
-    qc_domains_adata = qc_domains_adata[:,0:len(qc_metrices)]
-    qc_domains_adata.X = cell_df
-
-    return qc_domains_adata, cell_df, qc_metrices
-
-
-def clustering_for_hqcr(qc_domains_adata, figure_path, nthreads, seed, test_res_n_clusters=10, test_res=False):
-    # leiden clustering
-    print("[NOTE] Cell QC clustering")
-    sc.pp.neighbors(qc_domains_adata, n_neighbors=20, random_state=seed)
-    sc.tl.umap(qc_domains_adata, random_state=seed)
-
-    if ( test_res ):
-        helperfuncs.test_resolutions_leiden(qc_domains_adata, figure_path, nthreads, k=test_res_n_clusters)
-
-    sc.tl.leiden(qc_domains_adata, resolution=1.2)
-
-
-def start_hqcr(enterprise):
+def start_hqcr(enterprise, test_res=False):
 
     if enterprise.args.step in ['all', 'unittest', 'hqcr_ident']:
 
@@ -505,30 +350,29 @@ def start_hqcr(enterprise):
                 flip=True
             )
 
-        counts = 'transcript_counts'
-        if enterprise.args.canorm:
-            counts = 'canorm_transcript_counts'
+        print("[NOTE] Gather cell QC metrices")
+        helperfuncs.read_sdata_parquet_tmp_files(enterprise.cargo.sdata, enterprise.args.tmp_dir, 'hqcr')
 
-        qc_domains_adata, cell_df, qc_metrices = load_data_for_hqcr(
-            enterprise.cargo.sdata,
-            enterprise.args.tmp_dir,
-            counts
-        )
+        enterprise.initialize_hqcr_set()
 
-        clustering_for_hqcr(qc_domains_adata, figure_path, enterprise.args.nthreads, enterprise.args.seed)
-        
-        # Here we combine available priors
-        priors.combine_priors.combine_priors_hqcr(
-            enterprise.cargo.sdata,
-            figure_path,
-            cell_df,
-            qc_domains_adata,
-            counts,
-            enterprise.args.doublet_prior_std,
-        )
+        # Leiden clustering.
+        print("[NOTE] Cell QC clustering")
+        sc.pp.neighbors(enterprise.hqcr_set.cell_clustering_adata, n_neighbors=20, random_state=enterprise.args.seed)
+        sc.tl.umap(enterprise.hqcr_set.cell_clustering_adata, random_state=enterprise.args.seed)
+        if test_res: # Use this to optimize the step.
+            helperfuncs.test_resolutions_leiden(
+                enterprise.hqcr_set.cell_clustering_adata,
+                figure_path,
+                enterprise.args.nthreads,
+                k=10
+            )
+        sc.tl.leiden(enterprise.hqcr_set.cell_clustering_adata, resolution=1.2)
+
+        # Here we combine available.
+        missions.combine_priors.combine_priors_hqcr(enterprise, figure_path)
 
         # Cell quality probability refinement
-        cell_quality_probability_refinement(
+        _cell_quality_probability_refinement(
             enterprise.cargo.sdata,
             enterprise.cargo.imagedim,
             enterprise.args.image_type,
@@ -544,36 +388,50 @@ def start_hqcr(enterprise):
         ###### Plots ######
         ###################
         print("[NOTE] Generate plots for HQCRs")
-        plot_hqcr(enterprise.cargo.sdata, figure_path, 50, 20)
+        missions.plots_hqcr.plot_hqcr(enterprise.cargo.sdata, figure_path, 50, 20)
 
         # HTML report for qc metrices
-        cell_df['cell_area'] = enterprise.cargo.sdata['table'].obs['cell_area']
-        cell_df['cell_region'] = enterprise.cargo.sdata['table'].obs['cell_region']
+        enterprise.hqcr_set.cell_clustering_df['cell_area'] = enterprise.cargo.sdata['table'].obs['cell_area']
+        enterprise.hqcr_set.cell_clustering_df['cell_region'] = enterprise.cargo.sdata['table'].obs['cell_region']
 
         # Add for a better visualiation all of the data again as an all data cluster
-        cell_df_all = cell_df.copy()
+        cell_df_all = enterprise.hqcr_set.cell_clustering_df.copy()
         cell_df_all['qc_cluster_str'] = ['all'] * len(cell_df_all)
-        cell_df_combined_with_all = pd.concat([cell_df, cell_df_all])
+        cell_df_combined_with_all = pd.concat([enterprise.hqcr_set.cell_clustering_df, cell_df_all])
 
         print("[NOTE] Generate plots for HTMLs")
         # Generate html for qc metrices
         ncat = len(set(cell_df_combined_with_all['qc_cluster_str']))
         catnames = list(set(cell_df_combined_with_all['qc_cluster_str']))
         catnames.sort()
-        generate_hqcr_html(figure_path, cell_df_combined_with_all, 'qc_cluster_str', ncat, catnames, qc_metrices)
+        missions.plots_hqcr.generate_hqcr_html(
+            figure_path,
+            cell_df_combined_with_all,
+            'qc_cluster_str',
+            ncat,
+            catnames,
+            enterprise.hqcr_set.metrics,
+        )
 
         # Generate html for quality cell regions (bad, small and hqcrs)
-        ncat = len(set(cell_df['cell_region']))
-        catnames = list(set(cell_df['cell_region']))
+        ncat = len(set(enterprise.hqcr_set.cell_clustering_df['cell_region']))
+        catnames = list(set(enterprise.hqcr_set.cell_clustering_df['cell_region']))
         catnames.sort()
-        generate_hqcr_html(figure_path, cell_df, 'cell_region', ncat, catnames, qc_metrices)
+        missions.plots_hqcr.generate_hqcr_html(
+            figure_path,
+            enterprise.hqcr_set.cell_clustering_df,
+            'cell_region',
+            ncat,
+            catnames,
+            enterprise.hqcr_set.metrics,
+        )
 
         # Generate html for just all the data
         cell_df_all['data'] = list(cell_df_all['qc_cluster_str'])
         ncat = len(set(cell_df_all['data']))
         catnames = list(set(cell_df_all['data']))
         catnames.sort()
-        generate_hqcr_html(figure_path, cell_df_all, 'data', ncat, catnames, qc_metrices)
+        missions.plots_hqcr.generate_hqcr_html(figure_path, cell_df_all, 'data', ncat, catnames, enterprise.hqcr_set.metrics)
 
         print("[finish]")
 
@@ -604,7 +462,7 @@ def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_
         ncat = len(set(cell_df[annotation_key]))
         catnames = list(set(cell_df[annotation_key]))
         catnames.sort()
-        generate_hqcr_html(figure_path, cell_df, annotation_key, ncat, catnames, qc_metrics)
+        missions.plots_hqcr.generate_hqcr_html(figure_path, cell_df, annotation_key, ncat, catnames, qc_metrics)
         celltypes = cell_df[annotation_key].unique()
         cell_artefact_assignment(cell_df, sdata)
 
@@ -802,7 +660,7 @@ def refine_hqcr_with_celltype_thresholds(
     sdata['table'].obs['bad_quality_probs_celltype'] = 1 - good_quality_probs_celltype
 
     # Refine good_quality_probs_celltype assignment per cell based on the bad quality probability.
-    cell_quality_probability_refinement(
+    _cell_quality_probability_refinement(
         sdata,
         imagedim,
         image_type,

@@ -12,7 +12,7 @@ import os
 from ... import helperfuncs
 from ... import core
 
-def count_stuff_in_triangles_via_delaunay(delaunay, stuff):
+def _count_stuff_in_triangles_via_delaunay(delaunay, stuff):
     num_triangles = len(delaunay.simplices)
     stuff = np.asarray(stuff)
 
@@ -34,7 +34,7 @@ def count_stuff_in_triangles_via_delaunay(delaunay, stuff):
     return counts, indices_list
 
 
-def build_triangle_graph_using_neighbors(delaunay, points):
+def _build_triangle_graph_using_neighbors(delaunay, points):
     triangles = delaunay.simplices  # Point indices [[1,2,3], [4,5,6]]. [1,2,3] cell indices forming a triangle.
     neighbors = delaunay.neighbors  # Indices for neighbouring simplices.
     edge_length_list = []
@@ -61,7 +61,7 @@ def build_triangle_graph_using_neighbors(delaunay, points):
 
 # Interesting voids hold still a lot of information.
 # Less interesting voids almost have nothing in there.
-def calc_void(
+def _calc_void(
         sdata,
         figure_path,
         spoqc_tmp_folder,
@@ -93,7 +93,7 @@ def calc_void(
     #####################################
     print("[NOTE] Built traingular dictionary")
     timer.start()
-    edge_length_list, triangle_dict, triangles  = build_triangle_graph_using_neighbors(delaunay, points)
+    edge_length_list, triangle_dict, triangles  = _build_triangle_graph_using_neighbors(delaunay, points)
     num_triangles = len(triangles)
     timer.stop()
 
@@ -323,7 +323,7 @@ def calc_void(
     transcripts_outside_cell_df = transcripts_df.loc[transcripts_df['cell_id'] == -1]
     transcript_ocell_coords = np.array(list(zip(transcripts_outside_cell_df['x'], transcripts_outside_cell_df['y'])))
     timer.start()
-    counts, indices = count_stuff_in_triangles_via_delaunay(delaunay, transcript_ocell_coords)
+    counts, indices = _count_stuff_in_triangles_via_delaunay(delaunay, transcript_ocell_coords)
     timer.stop()
     triangles_df['transcripts_counts_outside_cell'] = counts
 
@@ -349,7 +349,7 @@ def calc_void(
         transcripts_doublet_df = transcripts_outside_cell_df.loc[transcripts_outside_cell_df['doublet']]
         if ( len(transcripts_doublet_df) > 0 ):
             transcript_doublet_coords = np.array(list(zip(transcripts_doublet_df['x'], transcripts_doublet_df['y'])))
-            counts, indices = count_stuff_in_triangles_via_delaunay(delaunay, transcript_doublet_coords)
+            counts, indices = _count_stuff_in_triangles_via_delaunay(delaunay, transcript_doublet_coords)
             triangles_df['transcripts_counts_doublets'] = counts
         else:
             print(f'[NOTE] no doublets found')
@@ -368,7 +368,7 @@ def calc_void(
             if ( len(transcripts_contaminant_df) > 0 ):
                 transcript_contaminant_coords = np.array(list(zip(transcripts_contaminant_df['x'],
                                                               transcripts_contaminant_df['y'])))
-                counts, indices = count_stuff_in_triangles_via_delaunay(
+                counts, indices = _count_stuff_in_triangles_via_delaunay(
                     delaunay,
                     transcript_contaminant_coords
                 )
@@ -391,7 +391,7 @@ def calc_void(
         ) 
     )
     timer.stop()
-    counts, indices = count_stuff_in_triangles_via_delaunay(delaunay, nuclei_centoid_coords)
+    counts, indices = _count_stuff_in_triangles_via_delaunay(delaunay, nuclei_centoid_coords)
 
     # Lets just consider nulcei_counts > 3 because my triangle consists of 3 cells.
     # Of course this does not consider cells with multi-nucei or multiplets.
@@ -574,27 +574,25 @@ def calc_void(
 def init_metric(enterprise):
 
     # These have to be defined.
-    metric_name = "void"
-    combined_metric_name = None
+    name = "void"
+    submetrics = ["convexhull_outside_trnascripts"]
     needs_metrics = ["doublet_score"]
     step_when_it_is_calculated = ["voidqc", "all"]
     loaded_for_analysis = True
     loaded_for_visualization = True
-    prior = False
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/voidqc/", enterprise.args.tmp_dir]
     kwargs = None
 
     metric = core.metric.Metric(
-        calc_void, 
-        metric_name,
-        combined_metric_name = combined_metric_name,
+        _calc_void, 
+        name,
+        submetrics,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,
         loaded_for_visualization = loaded_for_visualization,
-        prior = prior,
         args = args,
         kwargs = kwargs,
     )    

@@ -7,7 +7,7 @@ from typing import Any, Dict
 from ... import helperfuncs
 from ... import core
 
-def calc_bubble_score(sdata: Dict[str, Any], figure_path: str, bubble_key: str) -> None:
+def _calc_bubble_score(sdata: Dict[str, Any], figure_path: str, bubble_key: str) -> None:
     """
     Analyze and visualize cell geometries to identify potential bubble-like structures in spatial data.
 
@@ -116,27 +116,25 @@ def calc_bubble_score(sdata: Dict[str, Any], figure_path: str, bubble_key: str) 
 def init_metric(enterprise):
 
     # These have to be defined.
-    metric_name = "bubble_score"
-    combined_metric_name = None
+    name = "bubble_score"
+    submetrics = ["thinness_score"] # use the name above or fill in further metrics calculated by this metric
     needs_metrics = []
     step_when_it_is_calculated = ["cellqc", "all"]
     loaded_for_analysis = True
     loaded_for_visualization = True
-    prior = False
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/cellqc/", "cell_boundaries"]
     kwargs = None
 
     metric = core.metric.Metric(
-        calc_bubble_score, 
-        metric_name,
-        combined_metric_name = combined_metric_name,
+        _calc_bubble_score, 
+        name,
+        submetrics,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,
         loaded_for_visualization = loaded_for_visualization,
-        prior = prior,
         args = args,
         kwargs = kwargs,
     )    

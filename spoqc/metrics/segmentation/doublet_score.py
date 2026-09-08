@@ -10,7 +10,7 @@ from ... import core
 # window_sizes = for plotting. You can selected more windowsizes. This is just to zoom in or out for double plots.
 # num_doublet = is just the amount of doublet that will be plottet as examples.
 # distance = Threshold to use to call a cell a doublet cell if its close to the detected doublet signal of ovrlpy.
-def calc_doublet_score(
+def _calc_doublet_score(
         sdata,
         figure_path,
         spoqc_tmp_folder,
@@ -215,13 +215,12 @@ def calc_doublet_score(
 def init_metric(enterprise):
 
     # These have to be defined.
-    metric_name = "doublet_score"
-    combined_metric_name = None
+    name = "doublet_score"
+    submetrics = ["doublet_distance"] # use the name above or fill in further metrics calculated by this metric
     needs_metrics = []
     step_when_it_is_calculated = ["doubletqc", "all"]
     loaded_for_analysis = True
     loaded_for_visualization = True
-    prior = True
 
     # Additional code
     ncelltypes = -1
@@ -241,14 +240,13 @@ def init_metric(enterprise):
 
     # Metric call
     metric = core.metric.Metric(
-        calc_doublet_score, 
-        metric_name,
-        combined_metric_name = combined_metric_name,
+        _calc_doublet_score, 
+        name,
+        submetrics,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,
         loaded_for_visualization = loaded_for_visualization,
-        prior = prior,
         args = args,
         kwargs = kwargs,
     )    

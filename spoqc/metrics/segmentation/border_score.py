@@ -7,7 +7,7 @@ from scipy.spatial import cKDTree
 from ... import helperfuncs
 from ... import core
 
-def compute_border_score_for_point(point_idx, points, rotation_matrices, radius, tree):
+def _compute_border_score_for_point(point_idx, points, rotation_matrices, radius, tree):
     x1, y1 = points[point_idx]
 
     # Find nearby points
@@ -42,7 +42,7 @@ def compute_border_score_for_point(point_idx, points, rotation_matrices, radius,
     return max(scores), point_idx
 
 
-def get_border_scores_optimized(df, radius, step, threads):
+def _get_border_scores_optimized(df, radius, step, threads):
     points = df[['x', 'y']].values
     tree = cKDTree(points)
 
@@ -57,7 +57,7 @@ def get_border_scores_optimized(df, radius, step, threads):
     compute_args = (points, rotation_matrices, radius, tree)
 
     def wrapper(idx):
-        return compute_border_score_for_point(idx, *compute_args)
+        return _compute_border_score_for_point(idx, *compute_args)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
         results = list(executor.map(wrapper, range(len(points))))
@@ -65,7 +65,7 @@ def get_border_scores_optimized(df, radius, step, threads):
     return np.array(results)
 
 
-def define_border_cells(
+def _define_border_cells(
         sdata: dict,
         figure_path: str,
         threads: int,
@@ -93,7 +93,7 @@ def define_border_cells(
               Additionally, saves a scatter plot visualization to the specified path.
 
     Notes:
-        - The border scores are computed using `get_border_scores_optimized`.
+        - The border scores are computed using `_get_border_scores_optimized`.
         - A scatter plot of the border cells is generated using `helperfuncs.plot_scatter`.
     """
 
@@ -103,7 +103,7 @@ def define_border_cells(
     })
 
     # Get scores
-    border_scores_indices = get_border_scores_optimized(df, radius, stepsize, threads)
+    border_scores_indices = _get_border_scores_optimized(df, radius, stepsize, threads)
 
     # Store scores
     indices = border_scores_indices[:, 1].astype(int)
@@ -125,27 +125,25 @@ def define_border_cells(
 def init_metric(enterprise):
 
     # These have to be defined.
-    metric_name = "border_score"
-    combined_metric_name = None
+    name = "border_scores"
+    submetrics = ["border_scores"] # use the name above or fill in further metrics calculated by this metric
     needs_metrics = []
     step_when_it_is_calculated = ["cellqc", "all"]
     loaded_for_analysis = True
     loaded_for_visualization = True
-    prior = False
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/cellqc/", enterprise.args.nthreads]
     kwargs = None
 
     metric = core.metric.Metric(
-        define_border_cells, 
-        metric_name,
-        combined_metric_name = combined_metric_name,
+        _define_border_cells, 
+        name,
+        submetrics,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,
         loaded_for_visualization = loaded_for_visualization,
-        prior = prior,
         args = args,
         kwargs = kwargs,
     )    

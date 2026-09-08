@@ -1,3 +1,4 @@
+from . import combine_priors
 from . import combine_masks
 from . import explore_base_images
 from . import explore_metrics_space_hqcr
@@ -12,3 +13,4 @@ from . import hqcr
 from . import hqpr
 from . import hqtr
 from . import final_report
+from . import plots_hqcr

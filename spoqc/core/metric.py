@@ -6,14 +6,13 @@ class Metric:
     def __init__(
             self, 
             calc_func,
-            metric_name,
+            name,
+            submetrics,
             *,
             step_when_it_is_calculated=[],
-            combined_metric_name=None,
             needs_metrics = [],
             loaded_for_analysis=False,
             loaded_for_visualization=False,
-            prior=False,
             args=None,
             kwargs=None,
         ):
@@ -23,13 +22,12 @@ class Metric:
         self.args = args if args else []
         self.kwargs = kwargs if kwargs else {}
 
-        self.name = metric_name
-        self.combined_metric_name = combined_metric_name
+        self.name = name
+        self.submetrics = submetrics
         self.needs_metrics = needs_metrics
         self.step_when_it_is_calculated = step_when_it_is_calculated
         self.loaded_for_analysis = loaded_for_analysis
         self.loaded_for_visualization = loaded_for_visualization
-        self.prior = prior
 
     def calculate(self):
         return self._calc_func(*self.args, **self.kwargs)
@@ -43,6 +41,7 @@ class MetricSet:
             sys.exit("[ERROR] Metric set is empty")
         else:
             self.metricset = metricset
+
 
     def calculate_metrics(self, step):
         metrics_by_name = {metric.name: metric for metric in self.metricset}

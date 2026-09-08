@@ -2,12 +2,13 @@ import pandas as pd
 import numpy as np
 
 from ... import helperfuncs
+from ... import core
 
 from scipy.stats import norm
 from sklearn.mixture import GaussianMixture
 from dask_ml.preprocessing import MinMaxScaler
 
-def calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=1, std=1, tail="right"):
+def _calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=1, std=1, tail="right"):
     values = np.array(df["control_probe_counts"])
     mix = GaussianMixture(n_components=gmm_mod, tol=1e-8, max_iter=int(1e4))
     mix.fit(values.reshape(-1, 1))
@@ -53,3 +54,26 @@ def calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=1, std=1, tail="right"):
 
     # Calculate the probability at x for each pixel clusters.
     return helperfuncs.min_max_normalize(out)
+
+
+def init_prior(enterprise):
+
+    # These have to be defined.
+    name = "control_probe_counts_prior"
+    tmp_path = None
+    needs_metrics = ["sc_metrics"]
+
+    # These are given by your prior calc function.
+    args = [enterprise.hqcr_set.cell_clustering_df, f'{enterprise.args.output_dir}/hqcr/hqcr_ident/']
+    kwargs = None
+
+    prior = core.prior.Prior(
+        _calc_probs, 
+        name,
+        needs_metrics = needs_metrics,
+        tmp_path = tmp_path,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return prior

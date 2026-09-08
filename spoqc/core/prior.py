@@ -11,18 +11,20 @@ class Prior:
             calc_func,
             name,
             *,
-            path = None,
+            tmp_path = None,
             needs_metrics = [],
             args=None,
             kwargs=None,
         ):
-        
-        self.name = name
-        self.tmp_path = path
+
         self._calc_func = calc_func
-        self.needs_metrics = needs_metrics
+
         self.args = args if args else []
         self.kwargs = kwargs if kwargs else {}
+
+        self.name = name
+        self.tmp_path = tmp_path
+        self.needs_metrics = needs_metrics
 
     def calculate(self):
         return self._calc_func(*self.args, **self.kwargs)

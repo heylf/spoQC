@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 
 from ... import helperfuncs
+from ... import core
 
 # For each cell calculate the bad quality probability, which is basically the poportion of 
 # all the cells in a distance beloning to the bad quality cluster.
-def get_bad_quality_probability(x, df, distance_matrix, bad_cluster, qc_cluster):
+def _get_bad_quality_probability(x, df, distance_matrix, bad_cluster, qc_cluster):
     quality_clusters = df.iloc[distance_matrix[x]][qc_cluster]
     number_of_bad_quality_cells = list(quality_clusters.values).count(bad_cluster)
     if ( len(quality_clusters) != 0 ):
@@ -14,10 +15,9 @@ def get_bad_quality_probability(x, df, distance_matrix, bad_cluster, qc_cluster)
         return(0.0)
 
 
-def reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
+def _reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
 
     # Identify cluster of lowest quality and cluster of highest quality
-    # df['qc_cluster'] = qc_domains_adata.obs['spatialleiden_3qclvls']
     cell_df['leiden'] = [int(x) for x in qc_domains_adata.obs['leiden']]
     clusters = np.array(list(set(cell_df['leiden'].values)))
     clusters.sort()
@@ -47,9 +47,9 @@ def reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
     helperfuncs.plot_scatter(qc_domains_adata, figure_path, 'qc_cluster', None, 'qc_cluster', None, None)
 
 
-def calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thres_counts):
+def _calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thres_counts = 1.0):
 
-    reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts)
+    _reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts)
 
     # Get bad cluster
     mean_counts = [np.mean(cell_df.loc[cell_df['qc_cluster'] == c][counts]) for c in [0,1,2]]
@@ -82,7 +82,7 @@ def calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thr
     })
 
     distance_matrix = helperfuncs.points_within_radius(df_coords, 30, False)
-    bad_quality_probabilities =  np.array([get_bad_quality_probability(
+    bad_quality_probabilities =  np.array([_get_bad_quality_probability(
         x,
         cell_df,
         distance_matrix,
@@ -91,4 +91,33 @@ def calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thr
     ) for x in range(sdata['table'].n_obs)])
     good_quality_probabilities = 1 - bad_quality_probabilities
 
-    return good_quality_probabilities, cell_df
+    return good_quality_probabilities
+
+
+def init_prior(enterprise):
+
+    # These have to be defined.
+    name = "transcript_counts_prior"
+    tmp_path = None
+    needs_metrics = ["sc_metrics"]
+
+    counts = "transcript_counts"
+    if enterprise.args.canorm:
+        counts = "canorm_transcript_counts"
+
+    # These are given by your prior calc function.
+    args = [enterprise.cargo.sdata, f'{enterprise.args.output_dir}/hqcr/hqcr_ident/',
+            enterprise.hqcr_set.cell_clustering_df, enterprise.hqcr_set.cell_clustering_adata,
+            counts]
+    kwargs = None
+
+    prior = core.prior.Prior(
+        _calc_counts_probs, 
+        name,
+        needs_metrics = needs_metrics,
+        tmp_path = tmp_path,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return prior

@@ -7,7 +7,7 @@ from typing import Tuple, List
 from ... import helperfuncs
 from ... import core
 
-def is_convex(polygon: List[Tuple[float, float]]) -> Tuple[bool, float]:
+def _is_convex(polygon: List[Tuple[float, float]]) -> Tuple[bool, float]:
     """
     Determines if a polygon is convex and measures its convexity.
     
@@ -61,7 +61,7 @@ def is_convex(polygon: List[Tuple[float, float]]) -> Tuple[bool, float]:
 
 
 # Function to assign nulcei to cell
-def find_overlapping_nuclei(cells: gpd.GeoDataFrame, nucleus: gpd.GeoDataFrame):
+def _find_overlapping_nuclei(cells: gpd.GeoDataFrame, nucleus: gpd.GeoDataFrame):
     print("[NOTE] Find overlapping nuceli for cells")
     timer = helperfuncs.Timer()
     timer.start()
@@ -74,7 +74,7 @@ def find_overlapping_nuclei(cells: gpd.GeoDataFrame, nucleus: gpd.GeoDataFrame):
     return overlaps
 
 
-def calc_convexity(sdata, figure_path):
+def _calc_convexity(sdata, figure_path):
 
     timer = helperfuncs.Timer()
 
@@ -83,7 +83,7 @@ def calc_convexity(sdata, figure_path):
     timer.start()
     cell_convexity_metric_list = []
     for poly in sdata['cell_boundaries']['geometry']:
-        cell_is_polygon_convex, cell_convexity_metric = is_convex(list(poly.exterior.coords))
+        cell_is_polygon_convex, cell_convexity_metric = _is_convex(list(poly.exterior.coords))
         cell_convexity_metric_list.append(cell_convexity_metric)
     timer.stop()
 
@@ -91,7 +91,7 @@ def calc_convexity(sdata, figure_path):
     sdata['table'].obs['convexity_metric_cell'] = cell_convexity_metric_list
 
     # Find nuceli cell overlaps
-    nulcei_of_the_cell = find_overlapping_nuclei(sdata['cell_boundaries'], sdata['nucleus_boundaries'])
+    nulcei_of_the_cell = _find_overlapping_nuclei(sdata['cell_boundaries'], sdata['nucleus_boundaries'])
     sdata['table'].obs['nuclei_idxs'] = nulcei_of_the_cell
 
     # Convexity calcualteion for nuclei associated with cell
@@ -106,7 +106,7 @@ def calc_convexity(sdata, figure_path):
                 convexities = []
                 for nuceuls_idx in cell_nuclei:
                     nuceuls_poly = sdata['nucleus_boundaries']['geometry'].loc[nuceuls_idx]
-                    is_polygon_convex, convexity_metric = is_convex(list(nuceuls_poly.exterior.coords))
+                    is_polygon_convex, convexity_metric = _is_convex(list(nuceuls_poly.exterior.coords))
                     convexities.append(convexity_metric)
                 nulcei_convexity_metric_list.append(np.mean(convexities))
                 min_convexity_metric_list.append(np.min(convexities))
@@ -148,27 +148,25 @@ def calc_convexity(sdata, figure_path):
 def init_metric(enterprise):
 
     # These have to be defined.
-    metric_name = "convexity"
-    combined_metric_name = None
+    name = "convexity"
+    submetrics = ["convexity_metric_cell", "convexity_min_nuceli"]
     needs_metrics = []
     step_when_it_is_calculated = ["cellqc", "all"]
     loaded_for_analysis = True
     loaded_for_visualization = True
-    prior = False
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/cellqc/"]
     kwargs = None
 
     metric = core.metric.Metric(
-        calc_convexity, 
-        metric_name,
-        combined_metric_name = combined_metric_name,
+        _calc_convexity, 
+        name,
+        submetrics,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,
         loaded_for_visualization = loaded_for_visualization,
-        prior = prior,
         args = args,
         kwargs = kwargs,
     )    

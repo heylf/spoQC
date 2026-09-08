@@ -4,7 +4,7 @@ import pandas as pd
 from ... import helperfuncs
 from ... import core
 
-def calc_low_qc_transcript_count(
+def _calc_low_qc_transcript_count(
         sdata,
         figure_path,
         *,
@@ -40,27 +40,25 @@ def calc_low_qc_transcript_count(
 def init_metric(enterprise):
 
     # These have to be defined.
-    metric_name = "low_transcript_quality_count"
-    combined_metric_name = None
+    name = "num_low_qc_transcript"
+    submetrics = ["num_low_qc_transcript"]
     needs_metrics = []
     step_when_it_is_calculated = ["cellqc", "all"]
     loaded_for_analysis = True
     loaded_for_visualization = True
-    prior = False
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/cellqc/"]
     kwargs = None
 
     metric = core.metric.Metric(
-        calc_low_qc_transcript_count, 
-        metric_name,
-        combined_metric_name = combined_metric_name,
+        _calc_low_qc_transcript_count, 
+        name,
+        submetrics,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,
         loaded_for_visualization = loaded_for_visualization,
-        prior = prior,
         args = args,
         kwargs = kwargs,
     )    

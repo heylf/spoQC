@@ -112,9 +112,8 @@ from spoqc import core
 def main(**kwargs) -> None:
     print("[START]")
 
-
-# In[]
-
+    # In[]
+    importlib.reload(core.starship)
     enterprise = core.starship.Enterpise(kwargs)
 
     # Timer class
@@ -135,10 +134,20 @@ def main(**kwargs) -> None:
     print("[finish]")
 
     # In[]
+    # Load metrics
+    enterprise.load_metric_sets()
+
+    # In[]
     enterprise.generate_unsupervised_annotation()
 
     # In[]
     missions.explore_metrics_space_hqcr.start_exploration(enterprise)
+
+    # In[]
+    # Load priors
+    importlib.reload(core.prior)
+    importlib.reload(core.hqr)
+    enterprise.load_prior_sets()
     
     ########
     # TODO #

@@ -6,7 +6,7 @@ from typing import Tuple, List
 from ... import helperfuncs
 from ... import core
 
-def find_connected_groups_iterative(points: List[Tuple[float, float]], distance_threshold: float) -> List[List[int]]:
+def _find_connected_groups_iterative(points: List[Tuple[float, float]], distance_threshold: float) -> List[List[int]]:
     """
     Identifies connected groups of points based on a distance threshold using an iterative approach.
 
@@ -58,7 +58,7 @@ def find_connected_groups_iterative(points: List[Tuple[float, float]], distance_
     return connected_groups
 
 
-def calc_island_score(
+def _calc_island_score(
         sdata,
         figure_path,
         *,
@@ -73,7 +73,7 @@ def calc_island_score(
     # Create a list of tuples. x and y should technically be the same since it is a pixel / intensity point.
     adata_coordinates = list(zip(adata_x, adata_y))
 
-    groups = find_connected_groups_iterative(adata_coordinates, distance_threshold)
+    groups = _find_connected_groups_iterative(adata_coordinates, distance_threshold)
 
     island_indices = np.array([-1] * sdata['table'].n_obs)
     island_scores = np.array([-1] * sdata['table'].n_obs)
@@ -93,29 +93,28 @@ def calc_island_score(
 def init_metric(enterprise):
 
     # These have to be defined.
-    metric_name = "island_score"
-    combined_metric_name = None
+    name = "island_score"
+    submetrics = ["island_score"] # use the name above or fill in further metrics calculated by this metric
     needs_metrics = []
     step_when_it_is_calculated = ["cellqc", "all"]
     loaded_for_analysis = True
     loaded_for_visualization = True
-    prior = False
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/cellqc/"]
     kwargs = None
 
     metric = core.metric.Metric(
-        calc_island_score, 
-        metric_name,
-        combined_metric_name = combined_metric_name,
+        _calc_island_score, 
+        name,
+        submetrics,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,
         loaded_for_visualization = loaded_for_visualization,
-        prior = prior,
         args = args,
         kwargs = kwargs,
     )    
     
     return metric
+

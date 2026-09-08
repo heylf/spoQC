@@ -1,5 +1,7 @@
 import os
 import sys
+import pkgutil
+import importlib
 
 from typing import Dict, Any, Tuple
 
@@ -7,8 +9,11 @@ from . import _output_structure
 from . import _config
 from . import _data
 from . import metric
+from . import prior
+from . import hqr
 from .. import helperfuncs
 from .. import metrics
+from .. import priors
 
 class Enterpise:
     def __init__(self, kwargs):
@@ -120,4 +125,74 @@ class Enterpise:
             print(f'[NOTE] Perform unsuperivsed cell annotation')
             self.cargo.celltype_annotation.perform_unsupervised_celltype_annotation(self.cargo.sdata, self.args)
         print("[finish]")
+
+
+    def _load_metricset(self, name, modality):
+        metricset_list = []
+        metrics_module = getattr(metrics, modality)
+        for module_info in pkgutil.iter_modules(metrics_module.__path__):
+            module_name = module_info.name
+            full_name = f"{metrics_module.__name__}.{module_name}"
+            module = importlib.import_module(full_name)
+
+            if hasattr(module, "init_metric"):
+                metricset_list.append(module.init_metric(self))
+                print(f"Loaded metric: {module_name}")
+            else:
+                print(f"WARNING: {module_name} has no init_metric() function")
+
+        metricset = metric.MetricSet(name, metricset_list)
+        return metricset
+
+
+    def load_metric_sets(self):
+        self.hqcr_metricset = self._load_metricset("hqcr", "segmentation")
+        # self.hqpr_metricset = self._load_metricset("hqpr", "segmentation")
+        # self.hqtr_metricset = self._load_metricset("hqtr", "segmentation")
+
+
+    def _load_priorset(self, name, modality):
+        priorset_list = []
+        priors_module = getattr(priors, modality)
+        for module_info in pkgutil.iter_modules(priors_module.__path__):
+            module_name = module_info.name
+            full_name = f"{priors_module.__name__}.{module_name}"
+            module = importlib.import_module(full_name)
+
+            if hasattr(module, "init_prior"):
+                priorset_list.append(module.init_prior(self))
+                print(f"Loaded prior: {module_name}")
+            else:
+                print(f"WARNING: {module_name} has no init_prior() function")
+
+        priorset = prior.PriorSet(name, priorset_list)
+        return priorset
+
+    def _check_prior_metric_match(self, metricset, priorset):
+        metric_names = [metric.name for metric in metricset]
+        for prior in priorset:
+            for metric in prior.needs_metrics:
+                if metric not in metric_names:
+                    sys.exit(f"""
+                        [ERROR] You defined a prior for a metric that is not defined. 
+                        The prior for {prior.name} is missing as metric.
+                    """)
+
+    def _initialize_hqcr_set(self):
+        hqcr_set = hqr.HqcrSet(self)
+        hqcr_set.load_cell_clustering_df(self)
+        hqcr_set.load_cell_clustering_adata(self)
+        self.hqcr_set = hqcr_set
+
+    def load_prior_sets(self):
+        if self.args.step in ['all', 'unittest', 'hqcr_ident']:
+            self._initialize_hqcr_set()
+            self.hqcr_priorset = self._load_priorset("hqcr", "hqcr")
+        # self.hqpr_priorset = self._load_priorset("hqpr", "segmentation")
+        # self.hqtr_priorset = self._load_priorset("hqtr", "segmentation")
+
+        self._check_prior_metric_match(self.hqcr_metricset.metricset, self.hqcr_priorset.priorset)
+
+
+
 

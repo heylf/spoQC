@@ -12,7 +12,7 @@ from ... import helperfuncs
 from ... import general
 from ... import core
 
-def add_pearsoncorr_to_plotly(fig, x, y, xpos=0.05, ypos=0.95):
+def _add_pearsoncorr_to_plotly(fig, x, y, xpos=0.05, ypos=0.95):
     """Calculate Pearson correlation and add as annotation to Plotly figure."""
     corr, p_value = pearsonr(x, y)
     
@@ -25,34 +25,7 @@ def add_pearsoncorr_to_plotly(fig, x, y, xpos=0.05, ypos=0.95):
         align="left"
     )
 
-# Calculate confidence intervale function
-def get_ci_df(count_series, mode, rna):
-    min_num_cells = np.min(count_series.size())
-
-    # Get number of groups
-    num_group = len(rna.obs.groupby(mode).size())
-
-    num_replicates = 1000
-
-    mean_array = np.empty([0])
-    labels = np.empty([0])
-
-    for key, item in count_series:
-        labels = np.append(labels, np.array([key]*num_replicates))
-
-        tmp_mean_array = np.empty([num_replicates])
-        counts = np.array(count_series.get_group(key).tolist())
-
-        for i in range(0, num_replicates):
-            tmp_mean_array[i] = np.mean(random.choices(counts, k=min_num_cells))
-
-        mean_array = np.append(mean_array, tmp_mean_array)
-    
-    d = {'group': labels, 'values': mean_array}
-    d = pd.DataFrame(data=d, index=[x for x in range(0, num_group*num_replicates)])
-    return(d)
-
-def prepate_qc(sdata, figure_path=None):
+def _prepate_qc(sdata, figure_path=None):
 
     ####################################################################################################################
     ###### PREPARE QC ##################################################################################################
@@ -98,7 +71,7 @@ def prepate_qc(sdata, figure_path=None):
     return rna
 
 
-def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
+def _calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
     ####################################################################################################################
     ###### GLOBAL VARS and DIRECTORIES #################################################################################
@@ -117,7 +90,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
     random.seed(seed)
     print(f"[NOTE] seed {seed}")
 
-    rna = prepate_qc(sdata, figure_path=figure_path)
+    rna = _prepate_qc(sdata, figure_path=figure_path)
     general.normalizations.fill_nans_for_0_transcript_cells(rna)
 
     ####################################################################################################################
@@ -413,7 +386,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
                         opacity=0.7
                     )
 
-                    add_pearsoncorr_to_plotly(fig, celltype_sdata[x], celltype_sdata[y])
+                    _add_pearsoncorr_to_plotly(fig, celltype_sdata[x], celltype_sdata[y])
                     
                     figures.append(fig)
                     fig.write_image(f"{figure_path}/scatterplot_pearsoncorr_{x}_{y}_{celltype}.png", scale=int(DPI/100))
@@ -430,7 +403,7 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
             opacity=0.7
         )
 
-        add_pearsoncorr_to_plotly(fig, rna.obs[x], rna.obs[y])
+        _add_pearsoncorr_to_plotly(fig, rna.obs[x], rna.obs[y])
 
         figures.append(fig)
         fig.write_image(f"{figure_path}/scatterplot_pearsoncorr_{x}_{y}.png", scale=int(DPI/100))
@@ -449,14 +422,19 @@ def calc_sc_metrics(sdata, figure_path, annotation_path, annotation_key):
 
 def init_metric(enterprise):
 
+    transcript_counts = 'transcript_counts'
+    gene_counts = 'n_genes_by_counts'
+    if enterprise.args.canorm:
+        transcript_counts = 'canorm_transcript_counts'
+        gene_counts = 'canorm_n_genes_by_counts'
+
     # These have to be defined.
-    metric_name = "nuceli_count"
-    combined_metric_name = None
+    name = "sc_metrics"
+    submetrics = [transcript_counts, gene_counts, "control_probe_counts"]
     needs_metrics = []
     step_when_it_is_calculated = ["generalqc", "all"]
     loaded_for_analysis = True
     loaded_for_visualization = True
-    prior = True
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/generalqc/", 
@@ -464,14 +442,13 @@ def init_metric(enterprise):
     kwargs = None
 
     metric = core.metric.Metric(
-        calc_sc_metrics, 
-        metric_name,
-        combined_metric_name = combined_metric_name,
+        _calc_sc_metrics, 
+        name,
+        submetrics,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,
         loaded_for_visualization = loaded_for_visualization,
-        prior = prior,
         args = args,
         kwargs = kwargs,
     )    
