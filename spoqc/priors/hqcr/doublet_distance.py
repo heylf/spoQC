@@ -35,7 +35,7 @@ def calc_probs_doublet_distance(sdata, figure_path, nstds):
 # ddd = density divided by distance (relative density)
 # The closer ddd is to 0 the better the quality.
 # The bigger -log10(ddd) is the better the quality.
-def calc_probs_ddd(sdata, figure_path, nstds, max_std = 1.0, tail = "right"):
+def calc_probs_ddd(sdata, figure_path, nstds, max_std = 1.0, tail = "right", mean=None):
     ddds = -np.log10(np.array(sdata['table'].obs['doublet_ddd']) + 1e-10)
 
     # There will be 2 peaks.
@@ -45,7 +45,9 @@ def calc_probs_ddd(sdata, figure_path, nstds, max_std = 1.0, tail = "right"):
     mix.fit(ddds.reshape(-1, 1))
     means = mix.means_
     cov = mix.covariances_
-    mean = np.min(means)
+
+    if mean == None:
+        mean = np.min(means)
 
     pdf = norm.pdf(ddds, loc=mean, scale=nstds*max_std)
     probs = np.array([0.0] * len(pdf))

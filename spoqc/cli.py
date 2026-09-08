@@ -167,6 +167,14 @@ def build_parser() -> argparse.ArgumentParser:
         required=False
     )
     parser.add_argument(
+        "--doublet_prior_mean",
+        dest="doublet_prior_mean",
+        type=float,
+        default=None,
+        help="The mean for the doublet prior estimation. If you increase it then the impact of doublet events increaes, that means doublets events will impact more cells and give them lower quality.",
+        required=False
+    )
+    parser.add_argument(
         "--cluster_celltype",
         dest="cluster_celltype",
         type=str,
@@ -323,6 +331,9 @@ def main(argv: list[str] | None = None) -> None:
         @constant
         def DOULET_PRIOR_STD():
             return args['doublet_prior_std']
+        @constant
+        def DOULET_PRIOR_MEAN():
+            return args['doublet_prior_mean']
         @constant
         def NSTDS_PRIOR_PIXEL():
             return args['nstds_prior_pixel']

@@ -538,7 +538,7 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
     clustering_for_hqcr(qc_domains_adata, figure_path, CONST, seed)
     
     # Here we combine available priors
-    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts, CONST.DOULET_PRIOR_STD)
+    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts, CONST.DOULET_PRIOR_STD, CONST.DOULET_PRIOR_MEAN)
 
     # Cell quality probability refinement
     cell_quality_probability_refinement(
