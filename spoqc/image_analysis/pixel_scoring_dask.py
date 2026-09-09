@@ -122,7 +122,7 @@ def start_pixel_qc(
     ###### Metrics ######
     #####################
     # We calculate pixel scores for each pixel cluster.
-    pixel_scores_ds, clusters_ids, image_ddf = metrics.image.pixel_score.calc_pixel_score(
+    pixel_scores_ds, clusters_ids, image_ddf = metrics.hqpr.pixel_score.calc_pixel_score(
         sdata,
         figure_path,
         spoqc_tmp_folder_metrices,

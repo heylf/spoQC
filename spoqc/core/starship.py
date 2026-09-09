@@ -2,6 +2,7 @@ import os
 import sys
 import pkgutil
 import importlib
+import numpy as np
 
 from typing import Dict, Any, Tuple
 
@@ -55,7 +56,72 @@ class Enterpise:
             self.args.check_geometries,
         )
 
+        if self.args.step in ['all', 'unittest', 'hqpr', 'hqpr_metrices']:
+            self.cargo.get_pixel_intensities_hqpr(
+                self.args.tmp_dir,
+                self.args.image_type,
+                self.args.resolution,
+                self.args.staining,
+            )
+            
+        if self.args.step in ['all', 'unittest', 'hqtr', 'hqtr_metrices']:
+            self.cargo.get_pixel_intensities_hqtr(
+                self.args.output_dir,
+                self.args.tmp_dir,
+                self.args.overwrite,
+            )
+
+
+        # Some initial plots done during data loading
+        self._data_loading_plots()
+
+        print("[finish]")
+
         
+    def _data_loading_plots(self):
+        print("[NOTE] Plot some data loading plots")
+
+        if self.args.step in ['all', 'unittest', 'hqpr', 'hqpr_metrices']:
+
+            modality = "hqpr"
+            helperfuncs.plot_pixels(
+                f'{self.args.output_dir}/{modality}/{modality}_metrices/{self.args.staining}/',
+                np.log10(self.cargo.xy_intensities_hqpr + 1),
+                self.cargo.imagedim,
+                'input_pixel_intensities',
+                'input_pixel_intensities',
+                'gray',
+                False,
+                False
+            )
+
+        if self.args.step in ['all', 'unittest', 'hqtr', 'hqtr_metrices']:
+
+            modality = "hqtr"
+            figure_path = f'{self.args.output_dir}/{modality}/{modality}_metrices/'
+
+            # Plot transcript point plot
+            helperfuncs.plot_scatter_by_category(
+                self.cargo.sdata.points['transcripts'].compute(),
+                None, 
+                figure_path, 
+                'transcript_points',
+                'transcript_points',
+                None,
+                pointsize=0.5
+            )
+
+            helperfuncs.plot_pixels(
+                figure_path,
+                np.log10(self.cargo.xy_intensities_hqtr + 1),
+                self.cargo.imagedim,
+                'input_transcript_densities',
+                'input_transcript_densities',
+                'gray',
+                False,
+                False
+            )
+
     def _crop_data(
             self: Any,
             sdata: Any,
@@ -128,6 +194,7 @@ class Enterpise:
 
 
     def _load_metricset(self, name, modality):
+        print(f"[NOTE] Load metric set for {modality}")
         metricset_list = []
         metrics_module = getattr(metrics, modality)
         for module_info in pkgutil.iter_modules(metrics_module.__path__):
@@ -142,12 +209,13 @@ class Enterpise:
                 print(f"WARNING: {module_name} has no init_metric() function")
 
         metricset = metric.MetricSet(name, metricset_list)
+        print('[finish]')
         return metricset
 
 
     def load_metric_sets(self):
-        self.hqcr_metricset = self._load_metricset("hqcr", "segmentation")
-        # self.hqpr_metricset = self._load_metricset("hqpr", "segmentation")
+        self.hqcr_metricset = self._load_metricset("hqcr", "hqcr")
+        self.hqpr_metricset = self._load_metricset("hqpr", "hqpr")
         # self.hqtr_metricset = self._load_metricset("hqtr", "segmentation")
 
 
@@ -185,7 +253,7 @@ class Enterpise:
         self.hqcr_set = hqcr_set
 
     def load_prior_sets(self):
-        if self.args.step in ['all', 'unittest', 'hqcr_ident']:
+        if self.args.step in ['all', 'unittest', 'hqcr_ident', 'hqcr_celltype']:
             self._initialize_hqcr_set()
             self.hqcr_priorset = self._load_priorset("hqcr", "hqcr")
         # self.hqpr_priorset = self._load_priorset("hqpr", "segmentation")

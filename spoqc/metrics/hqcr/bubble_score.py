@@ -118,6 +118,7 @@ def init_metric(enterprise):
     # These have to be defined.
     name = "bubble_score"
     submetrics = ["thinness_score"] # use the name above or fill in further metrics calculated by this metric
+    modality = "hqcr"
     needs_metrics = []
     step_when_it_is_calculated = ["cellqc", "all"]
     loaded_for_analysis = True
@@ -131,6 +132,7 @@ def init_metric(enterprise):
         _calc_bubble_score, 
         name,
         submetrics,
+        modality,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,

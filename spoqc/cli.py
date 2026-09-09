@@ -121,6 +121,7 @@ def main(**kwargs) -> None:
 
     # In[]
     # Load data
+    importlib.reload(core._data)
     enterprise.load_cargo_data()
 
     # In[]
@@ -141,7 +142,7 @@ def main(**kwargs) -> None:
     enterprise.generate_unsupervised_annotation()
 
     # In[]
-    missions.explore_metrics_space_hqcr.start_exploration(enterprise)
+    missions.metrics_space.start_exploration(enterprise)
 
     # In[]
     # Load priors
@@ -149,15 +150,18 @@ def main(**kwargs) -> None:
     importlib.reload(core.hqr)
     enterprise.load_prior_sets()
     
+    # In[]
+    importlib.reload(missions.hqcr)
+    importlib.reload(missions.combine_priors)
+    missions.hqcr.start_exploration(enterprise)
+
+    # In[]
+    importlib.reload(missions.hqcr_celltype)
+    missions.hqcr_celltype.start_exploration(enterprise)
+
     ########
     # TODO #
     ########
-
-    # In[]
-    missions.hqcr.start_hqcr(enterprise)
-
-    # In[]
-    missions.hqcr.start_hqcr_celltype(enterprise)
 
     # In[]
     missions.hqpr.get_hqpr(enterprise)
@@ -185,10 +189,10 @@ def main(**kwargs) -> None:
     ##################
 
     # In[]
-    missions.explore_base_images.start_exploration(enterprise)
+    missions.base_images.start_exploration(enterprise)
 
     # In[]
-    missions.explore_wsi.start_exploration(enterprise)
+    missions.wsi.start_exploration(enterprise)
 
     # In[]
     missions.qc_cellcycle.run_qc_cellcycle(enterprise)

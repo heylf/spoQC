@@ -576,6 +576,7 @@ def init_metric(enterprise):
     # These have to be defined.
     name = "void"
     submetrics = ["convexhull_outside_trnascripts"]
+    modality = "hqcr"
     needs_metrics = ["doublet_score"]
     step_when_it_is_calculated = ["voidqc", "all"]
     loaded_for_analysis = True
@@ -589,6 +590,7 @@ def init_metric(enterprise):
         _calc_void, 
         name,
         submetrics,
+        modality,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,

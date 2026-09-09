@@ -42,6 +42,7 @@ def init_metric(enterprise):
     # These have to be defined.
     name = "num_low_qc_transcript"
     submetrics = ["num_low_qc_transcript"]
+    modality = "hqcr"
     needs_metrics = []
     step_when_it_is_calculated = ["cellqc", "all"]
     loaded_for_analysis = True
@@ -55,6 +56,7 @@ def init_metric(enterprise):
         _calc_low_qc_transcript_count, 
         name,
         submetrics,
+        modality,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,

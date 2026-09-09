@@ -4,26 +4,9 @@ from .. import metrics
 
 def get_hqtr(enterprise):
 
-    if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_metrices']:
-
-        image_analysis.structure_analysis.start_image_struc_analyis(
-            enterprise.cargo.sdata,
-            enterprise.args.output_dir,
-            enterprise.args.tmp_dir,
-            'hqtr',
-            enterprise.args.image_type,
-            enterprise.args.resolution,
-            enterprise.cargo.imagedim,
-            enterprise.cargo.dim_x,
-            enterprise.cargo.dim_y,
-            enterprise.args.overwrite,
-        )
-
-        print('[finish]')
-
     if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_qv']:
 
-        metrics.transcript_density.qv_image.transcript_qv_image(
+        metrics.hqtr.qv_image.transcript_qv_image(
             enterprise.cargo.sdata,
             enterprise.args.output_dir,
             enterprise.args.tmp_dir,
@@ -37,7 +20,7 @@ def get_hqtr(enterprise):
 
     if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_ac']:
 
-        metrics.transcript_density.ac_image.transcript_ac_image(
+        metrics.hqtr.ac_image.transcript_ac_image(
             enterprise.cargo.sdata,
             enterprise.args.output_dir,
             enterprise.args.tmp_dir,

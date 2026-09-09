@@ -8,7 +8,9 @@ class Metric:
             calc_func,
             name,
             submetrics,
+            modality,
             *,
+            should_be_calculated = True,
             step_when_it_is_calculated=[],
             needs_metrics = [],
             loaded_for_analysis=False,
@@ -24,6 +26,8 @@ class Metric:
 
         self.name = name
         self.submetrics = submetrics
+        self.modality = modality
+        self.should_be_calculated = should_be_calculated
         self.needs_metrics = needs_metrics
         self.step_when_it_is_calculated = step_when_it_is_calculated
         self.loaded_for_analysis = loaded_for_analysis
@@ -36,6 +40,7 @@ class Metric:
 class MetricSet:
     def __init__(self, name, metricset):
         self.name = name
+        self.metrics_calculated = False
 
         if len(metricset) == 0:
             sys.exit("[ERROR] Metric set is empty")
@@ -44,23 +49,31 @@ class MetricSet:
 
 
     def calculate_metrics(self, step):
-        metrics_by_name = {metric.name: metric for metric in self.metricset}
-        pending = {metric.name for metric in self.metricset if step in metric.step_when_it_is_calculated}
+        if not self.metrics_calculated:
+            print(f"[NOTE] Calculate metrics for {step}")
 
-        while pending:
-            # Go over each name in pending (e.g., void), check if void has metrics that it depends on
-            # (e.g., doublet_score) and that still needs to be calculated.
-            # If that is the case then do not add it to ready.
-            ready = [name for name in pending if not set(metrics_by_name[name].needs_metrics) & pending]
+            metrics_by_name = {metric.name: metric for metric in self.metricset}
+            pending = {metric.name for metric in self.metricset if 
+                ( step in metric.step_when_it_is_calculated and metric.should_be_calculated)
+            }
 
-            if len(ready) == 0 :
-                sys.exit(f"[ERROR] Circular or unresolved metric dependency among: {sorted(pending)}")
+            while pending:
+                # Go over each name in pending (e.g., void), check if void has metrics that it depends on
+                # (e.g., doublet_score) and that still needs to be calculated.
+                # If that is the case then do not add it to ready.
+                ready = [name for name in pending if not set(metrics_by_name[name].needs_metrics) & pending]
 
-            for name in ready:
-                metric = metrics_by_name[name]
-                print(f"[NOTE] Calculating {metric.name}")
-                timer = helperfuncs.Timer()
-                timer.start()
-                metric.calculate()
-                timer.stop()
-                pending.discard(name)
+                if len(ready) == 0 :
+                    sys.exit(f"[ERROR] Circular or unresolved metric dependency among: {sorted(pending)}")
+
+                for name in ready:
+                    metric = metrics_by_name[name]
+                    print(f"[NOTE] Calculating {metric.name}")
+                    timer = helperfuncs.Timer()
+                    timer.start()
+                    metric.calculate()
+                    timer.stop()
+                    pending.discard(name)
+
+            self.metrics_calculated = True
+            print("[finish]")

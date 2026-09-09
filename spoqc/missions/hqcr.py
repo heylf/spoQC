@@ -17,18 +17,6 @@ from .. import priors
 from .. import missions
 
 
-def cell_artefact_assignment(cell_df, sdata):
-    cell_df['artefact'] = 'cell'
-
-    # Assign artefacts
-    cell_df.loc[cell_df['doublet'] == 1, 'artefact'] = 'doublet'
-    mean_overlap = cell_df['cell_overlap_area'].mean()
-
-    cell_df.loc[(cell_df['nuceli_count'] > 1) & (cell_df['cell_overlap_area'] > mean_overlap), 'artefact'] = 'doublet'
-    cell_df.loc[cell_df['nucleus_free'] == 1, 'artefact'] = 'nucleus_free'
-    sdata['table'].obs['artefact'] = cell_df['artefact']
-
-
 def create_polygon_dataframe(sdata, imagedim, object, prob_col=None):
 
     # Get all polygon coordinates in the real coordinate system.
@@ -265,7 +253,7 @@ def map_values_to_cells(
             sdata['table'].obs[res_col] = polygon_scores
 
 
-def _cell_quality_probability_refinement(sdata, imagedim, image_type, resolution, figure_path, 
+def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution, figure_path, 
                                         prob_col, res_col, spoqc_tmp_folder, suffix):
     
     polys = create_polygon_dataframe(sdata, imagedim, 'cell_boundaries', prob_col)
@@ -326,7 +314,7 @@ def _cell_quality_probability_refinement(sdata, imagedim, image_type, resolution
 
 
 
-def start_hqcr(enterprise, test_res=False):
+def start_exploration(enterprise, test_res=False):
 
     if enterprise.args.step in ['all', 'unittest', 'hqcr_ident']:
 
@@ -352,8 +340,6 @@ def start_hqcr(enterprise, test_res=False):
         print("[NOTE] Gather cell QC metrices")
         helperfuncs.read_sdata_parquet_tmp_files(enterprise.cargo.sdata, enterprise.args.tmp_dir, 'hqcr')
 
-        enterprise.initialize_hqcr_set()
-
         # Leiden clustering.
         print("[NOTE] Cell QC clustering")
         sc.pp.neighbors(enterprise.hqcr_set.cell_clustering_adata, n_neighbors=20, random_state=enterprise.args.seed)
@@ -368,10 +354,10 @@ def start_hqcr(enterprise, test_res=False):
         sc.tl.leiden(enterprise.hqcr_set.cell_clustering_adata, resolution=1.2)
 
         # Here we combine available.
-        missions.combine_priors.combine_priors_hqcr(enterprise, figure_path)
+        missions.combine_priors.combine_priors_hqcr(enterprise)
 
         # Cell quality probability refinement
-        _cell_quality_probability_refinement(
+        cell_quality_probability_refinement(
             enterprise.cargo.sdata,
             enterprise.cargo.imagedim,
             enterprise.args.image_type,
@@ -433,297 +419,3 @@ def start_hqcr(enterprise, test_res=False):
         missions.plots_hqcr.generate_hqcr_html(figure_path, cell_df_all, 'data', ncat, catnames, enterprise.hqcr_set.metrics)
 
         print("[finish]")
-
-
-def load_data_for_hqcr_celltype(sdata, spoqc_tmp_folder, counts, annotation_key):
-
-    # Load data
-    helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
-
-    cell_df = helperfuncs.load_cell_df(counts, sdata)
-    cell_df[annotation_key] = sdata['table'].obs[annotation_key]
-    cell_df['cell_area'] = sdata['table'].obs['cell_area']
-    cell_df['nulleus_area'] = sdata['table'].obs['nucleus_area']
-    cell_df['nucleus_free'] = sdata['table'].obs['wnucleus_free']
-
-    df_coords = pd.DataFrame({
-        'x': sdata['table'].obsm['spatial'][:,0],
-        'y': sdata['table'].obsm['spatial'][:,1],
-    })
-
-    return cell_df, df_coords
-
-
-def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_file, annotation_key, counts):
-
-    qc_metrics = list(cell_df.columns)
-    if ( annotation_file != "" ):
-        ncat = len(set(cell_df[annotation_key]))
-        catnames = list(set(cell_df[annotation_key]))
-        catnames.sort()
-        missions.plots_hqcr.generate_hqcr_html(figure_path, cell_df, annotation_key, ncat, catnames, qc_metrics)
-        celltypes = cell_df[annotation_key].unique()
-        cell_artefact_assignment(cell_df, sdata)
-
-        figures = []
-        min_num_cells = 100 # minimum number of cells needed for multiplet and nucleus free cell distribution to estiamte thresh
-        threshold_left_dict = {}
-        threshold_right_dict = {}
-
-        total_artefact_scores = np.zeros(len(celltypes))
-
-        for qc_metric in qc_metrics:
-            if qc_metric in [counts, 'n_genes_by_counts', 'num_low_qc_transcript']:
-
-                threshold_log_file = open(f'{figure_path}/threshold_log.txt', 'w')
-
-                thresholds_left = []
-                thresholds_right = []
-                artefact_scores = []
-                nmads = 1  # Parameter for MAD calculation
-
-                for celltype in celltypes:
-
-                    cell_df_check = cell_df[cell_df[annotation_key] == celltype].copy()
-                    
-                    # Distributions
-                    celltype_whole_distribution = cell_df_check[qc_metric]
-                    celltype_doublet_distribution = cell_df_check[cell_df_check['artefact'] == 'doublet'][qc_metric]
-                    celltype_nucleusfree_distribution = cell_df_check[cell_df_check['artefact'] == 'nucleusfree'][qc_metric]
-                    celltype_cell_distribution = cell_df_check[cell_df_check['artefact'] == 'cell'][qc_metric]
-                    
-                    bins = 100
-
-                    # Compute artefact score
-                    a, _ = np.histogram(celltype_cell_distribution, bins=bins, density=True)
-                    a += 1e-10 # Avoid division by zero
-                    b, _ = np.histogram(celltype_doublet_distribution, bins=bins, density=True)
-                    b += 1e-10 # Avoid division by zero
-                    c, _ = np.histogram(celltype_nucleusfree_distribution, bins=bins, density=True)
-                    c += 1e-10 # Avoid division by zero
-
-                    # Take abs of KL. I am not interested which kind of skewe I have in b or c vs a.
-                    if ( len(celltype_cell_distribution) > 0 ):
-
-                        if ( len(celltype_doublet_distribution) > min_num_cells and len(celltype_nucleusfree_distribution) > min_num_cells ):
-                            threshold_log_file.write(f"Left and right theshold adjustment since {celltype} had {min_num_cells} for both doublet and nucleus free cells. \n")
-                            artefact_scores.append( abs(helperfuncs.KL(a, b)) + abs(helperfuncs.KL(a, c)) )
-                            thresholds_right.append( np.median(celltype_doublet_distribution) - nmads * median_abs_deviation(celltype_doublet_distribution) )
-                            thresholds_left.append( np.median(celltype_nucleusfree_distribution) + nmads * median_abs_deviation(celltype_nucleusfree_distribution) )
-                        elif ( len(celltype_doublet_distribution) > min_num_cells and len(celltype_nucleusfree_distribution) == 0 ):
-                            threshold_log_file.write(f"Only right theshold adjustment since {celltype} had not enough {min_num_cells} nucleus free cells. \n")
-                            artefact_scores.append( abs(helperfuncs.KL(a, b)) )
-                            thresholds_right.append( np.median(celltype_doublet_distribution) - nmads * median_abs_deviation(celltype_doublet_distribution) )
-                            thresholds_left.append( np.median(celltype_cell_distribution) - nmads * median_abs_deviation(celltype_cell_distribution) )
-                        elif ( len(celltype_doublet_distribution) == 0 and len(celltype_nucleusfree_distribution) > min_num_cells ):
-                            threshold_log_file.write(f"Only left theshold adjustment since {celltype} had not enough {min_num_cells} doublet cells. \n")
-                            artefact_scores.append( abs(helperfuncs.KL(a, c)) )
-                            thresholds_right.append( np.median(celltype_cell_distribution) + nmads * median_abs_deviation(celltype_cell_distribution) )
-                            thresholds_left.append( np.median(celltype_nucleusfree_distribution) + nmads * median_abs_deviation(celltype_nucleusfree_distribution) )
-                        else:
-                            threshold_log_file.write(f"No theshold adjustment since {celltype} had not enough {min_num_cells} doublet and nucleus free cells. \n")
-                            artefact_scores.append( 0.0 )
-                            thresholds_right.append( np.median(celltype_cell_distribution) + nmads * median_abs_deviation(celltype_cell_distribution) )
-                            thresholds_left.append( np.median(celltype_cell_distribution) - nmads * median_abs_deviation(celltype_cell_distribution) )
-                    else:
-                        artefact_scores.append( 0.0 )
-                        thresholds_right.append( 0.0 )
-                        thresholds_left.append( 0.0 )
-
-                total_artefact_scores += np.array(artefact_scores)
-
-                threshold_left_dict[qc_metric] = thresholds_left
-                threshold_left_dict['celltypes'] = celltypes
-                threshold_right_dict[qc_metric] = thresholds_right
-                threshold_right_dict['celltypes'] = celltypes
-
-                fig = px.violin(
-                    cell_df,
-                    x=qc_metric,
-                    y=annotation_key,
-                    color='artefact',
-                    box=False,
-                    title=f'Multiplet and nucleus free cell disbtributions for {qc_metric}',
-                    color_discrete_map={
-                        'doublet': 'red',
-                        'nucleus_free': 'orange',
-                        'cell': 'blue'
-                    }
-                )
-                fig.add_trace(
-                    go.Scatter(
-                        y=celltypes,
-                        x=thresholds_left,
-                        mode='markers',
-                        marker=dict(color='red', size=10, symbol='line-ns', line=dict(width=2, color='red')),
-                        name='Left Threshold'
-                    )
-                )
-                fig.add_trace(
-                    go.Scatter(
-                        y=celltypes,
-                        x=thresholds_right,
-                        mode='markers',
-                        marker=dict(color='blue', size=10, symbol='line-ns', line=dict(width=2, color='blue')),
-                        name='Right Threshold'
-                    )
-                )
-                fig.update_layout(width=800, height=2500, violinmode='overlay')
-                figures.append(fig)
-                fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.png", scale=3)
-                fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.pdf", scale=3)
-
-                # Bar plot of artefact scores
-                df_artefact_scores = pd.DataFrame({'celltype': celltypes, 'artefact_scores': artefact_scores })
-                fig_bar = px.bar(
-                    df_artefact_scores,
-                    x='artefact_scores',
-                    y='celltype',
-                    orientation='h',
-                    title=f'Artefact Scores per Celltype for {qc_metric}'
-                )
-                figures.append(fig_bar)
-                fig_bar.write_image(f"{figure_path}/barplot_artefact_scores_{qc_metric}.png", scale=3)
-
-            elif qc_metric in ['convexity_metric_cell', 'convexity_min_nuceli', 'border_scores',
-                            'thinness_score', 'island_score', 'cell_overlap_area',
-                            'convexhull_outside_trnascripts', 'convexhull_all_trnascripts']:
-                fig = px.violin(
-                    cell_df,
-                    x=qc_metric,
-                    y=annotation_key,
-                    color='artefact',
-                    box=False,
-                    title=f'Multiplet and nucleus free cell disbtributions for {qc_metric}'
-                )
-                fig.update_layout(width=800, height=2500, violinmode='overlay')
-                figures.append(fig)
-                fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.png", scale=3)
-                fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.pdf", scale=3)
-
-            else:
-                print(f"[NOTE] {qc_metric} is not implemented yet for doublet and nucelus free cell check.")
-
-        # Bar plot of artefact scores
-        df_artefact_scores = pd.DataFrame({'celltype': celltypes, 'artefact_scores': total_artefact_scores })
-        fig_bar = px.bar(
-            df_artefact_scores,
-            x='artefact_scores',
-            y='celltype',
-            orientation='h',
-            title=f'Artefact Scores per Celltype for all considered QC metrices'
-        )
-        figures.append(fig_bar)
-        fig_bar.write_image(f"{figure_path}/barplot_total_artefact_scores.png", scale=3)
-        fig_bar.write_image(f"{figure_path}/barplot_total_artefact_scores.pdf", scale=3)
-
-        # Generate plotly HTML
-        html_content = ''.join(fig.to_html(full_html=False) for fig in figures)
-        with open(f"{figure_path}/celltype_qc_analysis.html", "w") as f:
-            f.write(html_content)
-
-        threshold_log_file.close()
-
-    return threshold_left_dict, threshold_right_dict
-
-
-def refine_hqcr_with_celltype_thresholds(
-        sdata,
-        figure_path,
-        spoqc_tmp_folder,
-        cell_df,
-        df_coords,
-        counts,
-        threshold_left_dict,
-        threshold_right_dict,
-        annotation_key,
-        imagedim,
-        image_type,
-        resolution
-    ):
-
-    # Lets first investigate what we can do with the celltype informed threhsholds.
-    # Refine HQCR based on cell type thresholds.
-    # Now I have to find out which of those multiplets and emtplets are true and which are real cells still.
-    qc_metric = counts
-    good_quality_probs_celltype, cell_df = priors.hqcr.transcript_counts_celltype.calc_celltype_transcript_counts_probs(
-        sdata, 
-        cell_df, 
-        threshold_left_dict, 
-        threshold_right_dict, 
-        annotation_key,
-        qc_metric,
-        df_coords
-    )
-    sdata['table'].obs['good_quality_probs_celltype'] = good_quality_probs_celltype
-    sdata['table'].obs['bad_quality_probs_celltype'] = 1 - good_quality_probs_celltype
-
-    # Refine good_quality_probs_celltype assignment per cell based on the bad quality probability.
-    _cell_quality_probability_refinement(
-        sdata,
-        imagedim,
-        image_type,
-        resolution,
-        figure_path,
-        'good_quality_probs_celltype',
-        'refine_qc_celltype_class',
-        spoqc_tmp_folder,
-        'celltype_refined'
-    )
-
-    # Generate plots
-    helperfuncs.plot_scatter_density(
-        sdata['table'], figure_path, 'refine_qc_celltype_class',
-        'refine_qc_celltype_class', 'bad_quality_probs_celltype', ['red', 'lightblue'], 'Density of Bad Cell Quality Informed by Celltype'
-    )
-
-    helperfuncs.plot_scatter_density(
-        sdata['table'], figure_path, 'artefact',
-        'artefact', 'bad_quality_probs_celltype', ['lightblue', 'red', 'black'], 'Density of Bad Cell Quality Informed by Celltype'
-    )
-
-def start_hqcr_celltype(enterprise):
-
-    if enterprise.args.step in ['all', 'hqcr_celltype']:
-        if enterprise.args.annotation_file:
-    
-            figure_path = f'{enterprise.args.output_dir}/hqcr/hqcr_celltype/'
-
-            counts = 'transcript_counts'
-            if enterprise.args.canorm:
-                counts = 'canorm_transcript_counts'
-
-            cell_df, df_coords = load_data_for_hqcr_celltype(
-                enterprise.cargo.sdata,
-                enterprise.args.tmp_dir,
-                counts,
-                enterprise.cargo.celltype_annotation.annotation_key
-            )
-
-            threshold_left_dict, threshold_right_dict = celltype_artefact_analysis_for_hqcr(
-                enterprise.cargo.sdata,
-                figure_path,
-                cell_df,
-                enterprise.args.annotation_file,
-                enterprise.cargo.celltype_annotation.annotation_key,
-                counts
-            )
-
-            refine_hqcr_with_celltype_thresholds(
-                enterprise.cargo.sdata,
-                figure_path,
-                enterprise.args.tmp_dir,
-                cell_df,
-                df_coords,
-                counts,
-                threshold_left_dict, 
-                threshold_right_dict,
-                enterprise.cargo.celltype_annotation.annotation_key,
-                enterprise.cargo.imagedim,
-                enterprise.args.image_type,
-                enterprise.args.resolution,
-            )
-
-            print("[finish]")
-        else:
-            print("[NOTE] No annotation file provided so I will not perform start_hqcr_celltype")

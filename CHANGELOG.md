@@ -10,6 +10,7 @@
 - New parameter for the doublet distance prior
 - Funky heatmap now renders the minimum value as a circle marker
 - Performance improvements across pixel scoring/clustering, void calculation, global Moran's I, prior combination, and Leiden clustering; increased prior bin size
+- The clustering for HQCR now takes all metrics in the `metrics/hqcr` folder into account.
 
 ### `Fixed`
 - `combine_priors`: replaced min/max weighting with an absolute average weighted by number of priors
@@ -23,6 +24,9 @@
 
 ### `Deprecated`
 - Removed the unused `hqtr_memopt.py` module (superseded HQTR memory-optimization path)
+- BIG REDESIGN: spoqc is now object oriented! Metrics and prior can now esiear implemented.
+- Changed names in `metrics` to respective HQR.
+- `subworkflows` are now called `missions`.
 
 
 # 0.0.1

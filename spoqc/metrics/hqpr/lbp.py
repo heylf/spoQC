@@ -2,7 +2,7 @@ from skimage.feature import local_binary_pattern
 
 from ... import helperfuncs
 
-def pixel_lbp(figure_path, xy_intensities, n_points, radius, imagedim):
+def pixel_lbp(figure_path, xy_intensities, imagedim, n_points=100, radius=3):
     """
     Calculate the Local Binary Pattern (LBP) of a grayscale image.
 

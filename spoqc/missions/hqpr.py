@@ -2,26 +2,6 @@ from .. import image_analysis
 
 def get_hqpr(enterprise):
 
-    # Memory depends on threads. The more threads you choose the more memory you need.
-    if enterprise.args.step in ['all', 'unittest', 'hqpr', 'hqpr_metrices'] :
-        
-        image_analysis.structure_analysis.start_image_struc_analyis(
-            enterprise.cargo.sdata,
-            enterprise.args.output_dir,
-            enterprise.args.tmp_dir,
-            'hqpr',
-            enterprise.args.image_type,
-            enterprise.args.resolution,
-            enterprise.cargo.imagedim,
-            enterprise.cargo.dim_x,
-            enterprise.cargo.dim_y,
-            enterprise.args.overwrite,
-            staining=enterprise.args.staining,
-        )
-
-        print('[finish]')
-
-
     if enterprise.args.step in ['all', 'unittest', 'hqpr', 'hqpr_clustering']:
 
         image_analysis.pixel_scoring_dask.start_pixel_qc(

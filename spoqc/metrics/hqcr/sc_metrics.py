@@ -431,6 +431,7 @@ def init_metric(enterprise):
     # These have to be defined.
     name = "sc_metrics"
     submetrics = [transcript_counts, gene_counts, "control_probe_counts"]
+    modality = "hqcr"
     needs_metrics = []
     step_when_it_is_calculated = ["generalqc", "all"]
     loaded_for_analysis = True
@@ -445,6 +446,7 @@ def init_metric(enterprise):
         _calc_sc_metrics, 
         name,
         submetrics,
+        modality,
         needs_metrics = needs_metrics,
         step_when_it_is_calculated = step_when_it_is_calculated,
         loaded_for_analysis = loaded_for_analysis,

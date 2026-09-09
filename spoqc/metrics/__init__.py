@@ -1,3 +1,3 @@
-from . import image
-from . import segmentation
-from . import transcript_density
+from . import hqpr
+from . import hqcr
+from . import hqtr

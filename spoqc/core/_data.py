@@ -11,6 +11,7 @@ from typing import NamedTuple
 from . import dataloaders
 from .. import helperfuncs
 from .. import general
+from .. import image_analysis
 
 class CargoSpatialData:
     def __init__(
@@ -41,6 +42,13 @@ class CargoSpatialData:
         self.dim_y = None
 
         self.set_sdata_dimentsion_attributes(image_type, resolution)
+
+        self.xy_intensities_hqpr = None
+        self.intensities_hqpr = None
+        self.texture_intensities_hqpr = None
+        self.xy_intensities_hqtr = None
+        self.intensities_hqtr = None
+        self.texture_intensities_hqtr = None
 
 
     def set_sdata_dimentsion_attributes(self, image_type, resolution):
@@ -93,6 +101,81 @@ class CargoSpatialData:
         general.normalizations.transform_normalize_sc_data(self.sdata, nhvg, span)
         general.normalizations.fill_nans_for_0_transcript_cells(self.sdata)
         print("[finish]")
+
+
+    def get_pixel_intensities_hqpr(
+            self,
+            spoqc_tmp_folder, 
+            image_type,
+            resolution,
+            staining,
+            *,
+            modality="hqpr",
+        ):
+
+        print("[NOTE] Get pixel intensities HQPR")
+
+        spoqc_tmp_folder = f'{spoqc_tmp_folder}/metrices/{modality}/{staining}/'
+
+        xy_intensities = None
+        intensities = None
+
+        xy_intensities = self.sdata[image_type][resolution].image.values[int(staining)]
+        xy_intensities = np.flipud(xy_intensities)
+        intensities = xy_intensities.flatten()
+
+        n_bins = 256
+
+        # Quantized copy used only by the entropy/uniformity/homogeneity sliding-window metrics below:
+        # each window's np.bincount allocates max(window_values)+1 elements, so raw uint16 image intensities 
+        # (full 0-65535 dynamic range) make every window allocation far larger than the handful of values 
+        # it summarizes. Transcript density values (hqtr) are already small integers and don't need this.
+        texture_intensities = np.floor(
+            (xy_intensities.astype(np.float64) - xy_intensities.min())
+            / max(xy_intensities.max() - xy_intensities.min(), 1) * (n_bins - 1)
+        ).astype(np.uint8)
+
+        self.xy_intensities_hqpr = xy_intensities
+        self.intensities_hqpr = intensities
+        self.texture_intensities_hqpr = texture_intensities
+
+
+    def get_pixel_intensities_hqtr(
+            self,
+            figure_path_base,
+            spoqc_tmp_folder, 
+            overwrite,
+            *,
+            modality="hqtr",
+        ):
+
+        print("[NOTE] Get pixel intensities")
+
+        tmp_suffix = modality
+        figure_path = f'{figure_path_base}/{modality}/{modality}_metrices/'
+        spoqc_tmp_folder = f'{spoqc_tmp_folder}/metrices/{modality}'
+
+        xy_intensities = None
+        intensities = None
+
+        # Intensities already flipped
+        intensities = image_analysis.transcript_density_image.generate_transcript_density_image(
+            self.sdata,
+            figure_path,
+            spoqc_tmp_folder,
+            self.imagedim,
+            self.dim_x,
+            self.dim_y,
+            overwrite,
+        )
+        xy_intensities = intensities.reshape(self.dim_x, self.dim_y)
+
+        helperfuncs.nparr_to_parquet(intensities, 'transcript_density', spoqc_tmp_folder, tmp_suffix)
+        texture_intensities = xy_intensities
+
+        self.xy_intensities_hqtr = xy_intensities
+        self.intensities_hqtr = intensities
+        self.texture_intensities_hqtr = texture_intensities
 
 
 class CelltypeAnnotation:

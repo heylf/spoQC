@@ -124,7 +124,7 @@ def define_bounding_boxes(
 
     if ( modality == 'hqtr' ):
         # Intensities already flipped
-        intensities = metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
+        intensities = metrics.hqtr.transcript_density_image.generate_transcript_density_image(
             sdata,
             figure_path,
             imagedim,

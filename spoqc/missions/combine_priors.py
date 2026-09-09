@@ -8,9 +8,9 @@ from .. import core
 
 
 # We will combine the pixel scorep prior with more priors
-def combine_priors_hqcr(enterprise, figure_path):
+def combine_priors_hqcr(enterprise):
 
-    enterprise.hqcr_priorset.calculate_metrics()
+    enterprise.hqcr_priorset.calculate_priors_df()
     final_prior = enterprise.hqcr_priorset.combine_prior_asymmetric_evidence_aggregation()
     traffic_lights = enterprise.hqcr_priorset.combine_prior_traffic_light_system()
     enterprise.cargo.sdata['table'].obs['good_quality_probabilities'] = final_prior

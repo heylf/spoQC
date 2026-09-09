@@ -33,6 +33,7 @@ class Prior:
 class PriorSet:
     def __init__(self, name, priorset):
         self.name = name
+        self.priors_calculated = False
 
         if len(priorset) == 0:
             sys.exit("[ERROR] Prior set is empty")
@@ -40,22 +41,30 @@ class PriorSet:
             self.priorset = priorset
 
     def calculate_priors_df(self):
-        prior_df = pd.DataFrame({})
-        for prior in self.priorset:
-            print(f"[NOTE] Calculating {prior.name}")
-            timer = helperfuncs.Timer()
-            timer.start()
-            prior_df[prior.name] = prior.calculate()
-            timer.stop()
-        self.prior_df = prior_df
+        if not self.priors_calculated:
+
+            prior_df = pd.DataFrame({})
+            for prior in self.priorset:
+                print(f"[NOTE] Calculating {prior.name}")
+                timer = helperfuncs.Timer()
+                timer.start()
+                prior_df[prior.name] = prior.calculate()
+                timer.stop()
+            self.prior_df = prior_df
+
+            self.priors_calculated = True
 
     def calculate_priors_ddf(self):
-        for prior in self.priorset:
-            print(f"[NOTE] Calculating {prior.name}")
-            timer = helperfuncs.Timer()
-            timer.start()
-            prior.calculate()
-            timer.stop()
+        if not self.priors_calculated:
+
+            for prior in self.priorset:
+                print(f"[NOTE] Calculating {prior.name}")
+                timer = helperfuncs.Timer()
+                timer.start()
+                prior.calculate()
+                timer.stop()
+
+            self.priors_calculated = True
 
     # Asymetric evidence aggregation will put a penalty on priors that are extremely bad.
     # Example A: [.90,.90,.90,.90,.90,.90], result = 0.900

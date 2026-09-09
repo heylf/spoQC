@@ -101,10 +101,14 @@ def init_prior(enterprise):
     tmp_path = None
     needs_metrics = ["sc_metrics"]
 
+    counts = "n_genes_by_counts"
+    if enterprise.args.canorm:
+        counts = "canorm_n_genes_by_counts"
+
     # These are given by your prior calc function.
     args = [enterprise.cargo.sdata, f'{enterprise.args.output_dir}/hqcr/hqcr_ident/',
             enterprise.hqcr_set.cell_clustering_df, enterprise.hqcr_set.cell_clustering_adata,
-            "n_genes_by_counts"]
+            counts]
     kwargs = None
 
     prior = core.prior.Prior(
