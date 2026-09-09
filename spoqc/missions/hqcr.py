@@ -11,7 +11,6 @@ from rasterio.features import rasterize, MergeAlg
 from rasterio.transform import from_origin
 from scipy.stats import median_abs_deviation
 
-from .. import core
 from .. import hqr
 from .. import helperfuncs
 from .. import priors
