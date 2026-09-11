@@ -27,6 +27,7 @@
 - BIG REDESIGN: spoqc is now object oriented! Metrics and prior can now esiear implemented.
 - Changed names in `metrics` to respective HQR.
 - `subworkflows` are now called `missions`.
+- remove `subworkflows/qc_ambient` as it was merged with metrics calculations 
 
 
 # 0.0.1

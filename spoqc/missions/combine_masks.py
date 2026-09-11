@@ -30,6 +30,8 @@ def run_combine_masks(enterprise):
             enterprise.args.staining,
             enterprise.args.image_type,
             enterprise.args.resolution,
+            enterprise.args.overwrite,
+            enterprise.args.chunk_size,
             celltype_refined=False
         )
 

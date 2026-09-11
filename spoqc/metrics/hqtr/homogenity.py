@@ -56,7 +56,7 @@ def init_metric(enterprise):
     # These have to be defined.
     name = "homogeneity"
     submetrics = ["homogeneity"]
-    modality = "hqpr"
+    modality = "hqtr"
     needs_metrics = []
     step_when_it_is_calculated = [f"{modality}_metrices", "all"]
     loaded_for_analysis = True
@@ -81,15 +81,14 @@ def init_metric(enterprise):
         intensities = enterprise.cargo.intensities_hqtr
         xy_intensities = enterprise.cargo.xy_intensities_hqtr
         texture_intensities = enterprise.cargo.texture_intensities_hqtr
-    tmp_file = f"{tmp_folder}/{name}_output_{modality}_{enterprise.args.staining}.parquet"
+    tmp_file = f"{tmp_folder}/{name}_output_{modality}.parquet"
 
     # Do not touch.
     if not enterprise.args.overwrite and os.path.exists(tmp_file):
         should_be_calculated = False
 
     # These are given my your metric calc function.
-    args = [figure_path, texture_intensities, enterprise.cargo.imagedim, name, tmp_folder, 
-            f"{modality}_{enterprise.args.staining}"]
+    args = [figure_path, texture_intensities, enterprise.cargo.imagedim, name, tmp_folder, modality]
     kwargs = None
 
     metric = core.metric.Metric(

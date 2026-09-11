@@ -17,8 +17,8 @@ def generate_transcript_density_image(
         dim_x,
         dim_y,
         overwrite,
+        chunk_size,
         *,
-        chunk_size=10000,
         kernel_radius=3,
         flip=False
 ):
@@ -27,6 +27,7 @@ def generate_transcript_density_image(
 
     tmp_path = f"{spoqc_tmp_folder}/hqtr_output_transcript_density"
     if not os.path.exists(tmp_path):
+    # TODO put comment in
     #if not os.path.exists(tmp_path) and not overwrite:
 
         print("[NOTE] Generate transcript density image")
@@ -98,7 +99,6 @@ def generate_transcript_density_image(
 
         np_arr = xy_kernel_transcript_density.flatten()
         image_ddf = dd.from_dask_array(da.from_array(np_arr, chunks=chunk_size), columns=["transcript_density"])
-        helperfuncs.ddf_to_parquet(image_ddf, 'hqtr', spoqc_tmp_folder, [], 'transcript_density')
         return np_arr
     else:
         print("[NOTE] Load transcript density image")

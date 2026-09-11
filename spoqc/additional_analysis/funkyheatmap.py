@@ -79,7 +79,7 @@ def plot_funkyheatmap(rna, figure_path):
     pixel_metrices_as = []
     for col in rna.obs.columns:
         if 'hqpr' in col:
-            for m in ['homogenity', 'uniformity']:
+            for m in ['homogeneity', 'uniformity']:
                 if col.startswith(m):
                     pixel_metrices_as.append(col)
 
@@ -103,7 +103,7 @@ def plot_funkyheatmap(rna, figure_path):
         funky_heatmap_df = funky_heatmap_df.join(rna.obs.groupby('leiden')[col].median(), how='left')
         column_lists.append([col, "hqtr_s", col, "circle", {"width": 1, "legend": False}, "hqtr_s"])
 
-    for col in ['homogenity_hqtr', 'uniformity_hqtr']:
+    for col in ['homogeneity_hqtr', 'uniformity_hqtr']:
         funky_heatmap_df = funky_heatmap_df.join(rna.obs.groupby('leiden')[col].median(), how='left')
         column_lists.append([col, "hqtr_as", col, "circle", {"width": 1, "legend": False}, "hqtr_as"])
 

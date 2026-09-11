@@ -24,7 +24,7 @@ class Args:
         self.step = kwargs['step']
         self.overwrite = kwargs['overwrite']
         self.staining = kwargs['staining']
-        self.pixel_qc_chunk_size = kwargs['pixel_qc_chunk_size']
+        self.chunk_size = kwargs['chunk_size']
         self.kmeans_sample_size = kwargs['kmeans_sample_size']
         self.dataset = kwargs['dataset'] if 'dataset' in kwargs else None
         self.cluster_celltype = kwargs['cluster_celltype'] if 'cluster_celltype' in kwargs else None

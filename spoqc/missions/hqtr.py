@@ -1,59 +1,14 @@
 
 from .. import image_analysis
-from .. import metrics
+from .. import missions
 
-def get_hqtr(enterprise):
-
-    if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_qv']:
-
-        metrics.hqtr.qv_image.transcript_qv_image(
-            enterprise.cargo.sdata,
-            enterprise.args.output_dir,
-            enterprise.args.tmp_dir,
-            'hqtr',
-            enterprise.cargo.imagedim,
-            enterprise.cargo.dim_x,
-            enterprise.cargo.dim_y,
-        )
-
-        print('[finish]')
-
-    if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_ac']:
-
-        metrics.hqtr.ac_image.transcript_ac_image(
-            enterprise.cargo.sdata,
-            enterprise.args.output_dir,
-            enterprise.args.tmp_dir,
-            'hqtr',
-            enterprise.args.nthreads,
-            enterprise.cargo.imagedim,
-            enterprise.cargo.dim_x,
-            enterprise.cargo.dim_y,
-        )
-
-        print('[finish]')
+def start_exploration(enterprise):
 
     if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_clustering']:
 
-        image_analysis.pixel_scoring_dask.start_pixel_qc(
-            enterprise.cargo.sdata,
-            enterprise.args.output_dir,
-            enterprise.args.tmp_dir,
-            'hqtr',
-            enterprise.args.image_type,
-            enterprise.args.resolution,
-            enterprise.cargo.imagedim,
-            enterprise.cargo.dim_x,
-            enterprise.cargo.dim_y,
-            enterprise.args.seed,
-            enterprise.args.nthreads,
-            chunk_size=enterprise.args.pixel_qc_chunk_size,
-            sample_size=enterprise.args.kmeans_sample_size,
-            thresh_p=enterprise.args.thresh_prior_pixel,
-            nstds_p=enterprise.args.nstds_prior_pixel,
-        )
-
-        print("[finish]")
+        print("[NOTE] Calculate Priors and combine them")
+        missions.combine_priors.combine_priors_hqtr(enterprise)
+        print('[finish]')   
 
 
     if enterprise.args.step in ['all', 'unittest', 'hqtr', 'hqtr_refinement']:
@@ -64,6 +19,7 @@ def get_hqtr(enterprise):
                 'hqtr',
                 enterprise.cargo.dim_x,
                 enterprise.cargo.dim_y,
+                enterprise.args.chunk_size,
         )
 
         print('[finish]')
@@ -81,6 +37,8 @@ def get_hqtr(enterprise):
             enterprise.cargo.dim_x,
             enterprise.cargo.dim_y,
             'raw',
+            enterprise.args.overwrite,
+            enterprise.args.chunk_size,
             dilation_radius=1
         )
 
@@ -103,6 +61,7 @@ def get_hqtr(enterprise):
                 enterprise.cargo.dim_y,
                 enterprise.cargo.celltype_annotation.annotation_key,
                 enterprise.args.canorm,
+                enterprise.hqcr_set.cell_clustering_df,
             )
 
             print("[finish]")

@@ -260,7 +260,7 @@ def _calc_pixel_score_prior(
         staining=None,
         thresh_p=None,
         nstds_p=None,
-        col="pixel_score"
+        col="pixel_score",
     ):
 
     timer = helperfuncs.Timer()
@@ -322,7 +322,7 @@ def _calc_pixel_score_prior(
         plot_all_pixel_clusters,
         chunk_size,
         staining,
-        image_ddf   
+        image_ddf,
     )
 
     ####################
@@ -336,7 +336,7 @@ def _calc_pixel_score_prior(
         figure_path,
         gmm_mod=3,
         nstds=nstds_p,
-        t=thresh_p
+        t=thresh_p,
     )    
 
     ########################
@@ -382,7 +382,7 @@ def init_prior(enterprise):
 
     # These have to be defined.
     name = "pixel_score"
-    modality = "hqpr"
+    modality = "hqtr"
     tmp_path = None
     needs_metrics = ["edge_strength", "energy", "relevance", "entropy", "homogeneity", "uniformity"]
 

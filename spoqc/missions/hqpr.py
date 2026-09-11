@@ -1,28 +1,13 @@
+from .. import helperfuncs
 from .. import image_analysis
+from .. import missions
 
-def get_hqpr(enterprise):
+def start_exploration(enterprise):
 
     if enterprise.args.step in ['all', 'unittest', 'hqpr', 'hqpr_clustering']:
 
-        image_analysis.pixel_scoring_dask.start_pixel_qc(
-            enterprise.cargo.sdata,
-            enterprise.args.output_dir,
-            enterprise.args.tmp_dir,
-            'hqpr',
-            enterprise.args.image_type,
-            enterprise.args.resolution,
-            enterprise.cargo.imagedim,
-            enterprise.cargo.dim_x,
-            enterprise.cargo.dim_y,
-            enterprise.args.seed,
-            enterprise.args.nthreads,
-            chunk_size=enterprise.args.pixel_qc_chunk_size,
-            sample_size=enterprise.args.kmeans_sample_size,
-            staining=enterprise.args.staining,
-            thresh_p=enterprise.args.thresh_prior_pixel,
-            nstds_p=enterprise.args.nstds_prior_pixel,
-        )
-
+        print("[NOTE] Calculate Priors and combine them")
+        missions.combine_priors.combine_priors_hqpr(enterprise)
         print('[finish]')   
 
     if enterprise.args.step in ['all', 'unittest', 'hqpr', 'hqpr_refinement']:
@@ -33,6 +18,7 @@ def get_hqpr(enterprise):
                 'hqpr',
                 enterprise.cargo.dim_x,
                 enterprise.cargo.dim_y,
+                enterprise.args.chunk_size,
                 staining=enterprise.args.staining,
         )
 
@@ -52,6 +38,8 @@ def get_hqpr(enterprise):
             enterprise.cargo.dim_x,
             enterprise.cargo.dim_y,
             'raw',
+            enterprise.args.overwrite,
+            enterprise.args.chunk_size,
             staining=enterprise.args.staining,
         )
 
@@ -74,6 +62,7 @@ def get_hqpr(enterprise):
                 enterprise.cargo.dim_y,
                 enterprise.cargo.celltype_annotation.annotation_key,
                 enterprise.args.canorm,
+                enterprise.hqcr_set.cell_clustering_df,
                 staining=enterprise.args.staining,
             )
 

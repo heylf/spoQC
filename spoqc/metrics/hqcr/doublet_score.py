@@ -216,7 +216,7 @@ def init_metric(enterprise):
 
     # These have to be defined.
     name = "doublet_score"
-    submetrics = ["doublet_distance"] # use the name above or fill in further metrics calculated by this metric
+    submetrics = ["doublet_distance", "wdoublet"]
     modality = "hqcr"
     needs_metrics = []
     step_when_it_is_calculated = ["doubletqc", "all"]

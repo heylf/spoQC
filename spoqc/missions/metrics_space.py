@@ -11,3 +11,4 @@ def start_exploration(enterprise):
     )
 
     enterprise.hqpr_metricset.calculate_metrics(enterprise.args.step)
+    enterprise.hqtr_metricset.calculate_metrics(enterprise.args.step)

@@ -826,5 +826,7 @@ def celltype_cluster_analysis(
     analysis_funcs.write_out_anndata(sdata, rna, base_figure_path, subdir)
     timer.stop()
 
+    rna.X = rna.layers['raw']
+
 
 # %%

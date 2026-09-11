@@ -21,6 +21,8 @@ def start_combining_masks(
         staining,
         image_type,
         resolution,
+        overwrite,
+        chunk_size,
         *,
         celltype_refined=False
 ):
@@ -192,9 +194,12 @@ def start_combining_masks(
                 intensities = metrics.hqtr.transcript_density_image.generate_transcript_density_image(
                     sdata,
                     figure_path,
+                    spoqc_tmp_folder,
                     imagedim,
                     dim_x,
                     dim_y,
+                    overwrite,
+                    chunk_size,
                 )
                 xy_intensities = intensities.reshape(dim_x, dim_y)
             else:

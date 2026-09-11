@@ -135,14 +135,14 @@ def load_cell_metrices(
     return cell_metrices
 
 
-def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc_tmp_folder, suffix, dim_x, dim_y, stainings, figure_path):
+def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc_tmp_folder, prefix, dim_x, dim_y, stainings, figure_path):
     umap_cats = []
     polys = missions.hqcr.create_polygon_dataframe(sdata, imagedim, 'cell_boundaries')
 
     for modality in ['hqcr', 'hqpr', 'hqtr']:
         if ( modality == 'hqcr' ):
             metric_df = pd.read_parquet(
-                f'{spoqc_tmp_folder}/hqcr_output_mask_smoothed_{suffix}.parquet',
+                f'{spoqc_tmp_folder}/mask_smoothed_{prefix}_output_hqcr.parquet',
                 columns=["hqcr_beliefs_smoothed", "hqcr_mask_smoothed"], engine="pyarrow"
             )
             metric_df['hqcr_beliefs_smoothed'] = np.array(metric_df['hqcr_beliefs_smoothed']).reshape(dim_x, dim_y).flatten()
@@ -151,7 +151,7 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
             missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_mask_smoothed"], "hqcr_mask_mean_smoothed", figure_path, 'mean_values')
             missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_df["hqcr_beliefs_smoothed"], "hqcr_beliefs_smoothed", figure_path, 'mean_values')
             metric_df = pd.read_parquet(
-                f'{spoqc_tmp_folder}/hqcr_output_mask_{suffix}.parquet',
+                f'{spoqc_tmp_folder}/mask_{prefix}_output_hqcr.parquet',
                 columns=["hqcr_beliefs", "hqcr_mask"], engine="pyarrow"
             )
             metric_df['hqcr_beliefs'] = np.array(metric_df['hqcr_beliefs']).reshape(dim_x, dim_y).flatten()
@@ -170,7 +170,7 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
 
         if ( modality == 'hqpr' ):
             for staining in stainings:
-                metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/hqpr_{staining}_output_mask_smoothed_{suffix}', columns=[f"hqpr_{staining}_beliefs_smoothed", f"hqpr_{staining}_mask_smoothed"], engine="pyarrow")
+                metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/mask_smoothed_{prefix}_output_hqpr_{staining}', columns=[f"hqpr_{staining}_beliefs_smoothed", f"hqpr_{staining}_mask_smoothed"], engine="pyarrow")
                 mask_smoothed = metric_dd[f"hqpr_{staining}_mask_smoothed"].compute().to_numpy()
                 beliefs_smoothed = metric_dd[f"hqpr_{staining}_beliefs_smoothed"].compute().to_numpy()
                 missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, f"hqpr_{staining}_mask_smoothed", figure_path, 'markov_labels', true_false_binary=True)
@@ -178,7 +178,7 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
                 missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, f"hqpr_{staining}_beliefs_smoothed", figure_path, 'mean_values_nonzero')
                 missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, f"hqpr_{staining}_beliefs_mean_informative_smoothed", figure_path, 'mean_values_informative')
                 metric_dd = dd.read_parquet(
-                    f'{spoqc_tmp_folder}/hqpr_{staining}_output_mask_raw',
+                    f'{spoqc_tmp_folder}/mask_raw_output_hqpr_{staining}',
                     columns=[f"intensity", f"hqpr_{staining}_beliefs", f"hqpr_{staining}_mask"],
                     engine="pyarrow"
                 )
@@ -202,7 +202,7 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
                     f'hqpr_{staining}_mask_mean',
                 ])
 
-                metrices = ['edge_strength', 'energy', 'relevance', 'entropy', 'homogenity', 'uniformity']
+                metrices = ['edge_strength', 'energy', 'relevance', 'entropy', 'homogeneity', 'uniformity']
                 for metric in metrices:
                     parquet_folder = f'{spoqc_tmp_folder}/metrices/{modality}/{staining}'
                     metric_dd = dd.read_parquet(f'{parquet_folder}/{metric}_output_{modality}_{staining}.parquet')
@@ -210,7 +210,7 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
                     umap_cats.append(f'{metric}_{modality}_{staining}')
 
         if ( modality == 'hqtr' ):
-            metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_mask_smoothed_{suffix}', columns=["hqtr_beliefs_smoothed", "hqtr_mask_smoothed"], engine="pyarrow")
+            metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/mask_smoothed_{prefix}_output_hqtr', columns=["hqtr_beliefs_smoothed", "hqtr_mask_smoothed"], engine="pyarrow")
             mask_smoothed = metric_dd["hqtr_mask_smoothed"].compute().to_numpy()
             beliefs_smoothed = metric_dd["hqtr_beliefs_smoothed"].compute().to_numpy()
             missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, "hqtr_mask_smoothed", figure_path, 'markov_labels', true_false_binary=True)
@@ -222,7 +222,7 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
             metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_ac_prob', columns=["ac_density"], engine="pyarrow")
             missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[f"ac_density"].compute().to_numpy(), "hqtr_ac_density", figure_path, 'mean_values')
             metric_dd = dd.read_parquet(
-                f'{spoqc_tmp_folder}/hqtr_output_mask_raw',
+                f'{spoqc_tmp_folder}/mask_raw_output_hqtr',
                 columns=["intensity", "hqtr_beliefs", "hqtr_mask"],
                 engine="pyarrow"
             )
@@ -248,7 +248,7 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
                 'hqtr_mask_mean',
             ])
 
-            metrices = ['edge_strength', 'energy', 'relevance', 'entropy', 'homogenity', 'uniformity']
+            metrices = ['edge_strength', 'energy', 'relevance', 'entropy', 'homogeneity', 'uniformity']
             for metric in metrices:
                 parquet_folder = f'{spoqc_tmp_folder}/metrices/{modality}'
                 metric_dd = dd.read_parquet(f'{parquet_folder}/{metric}_output_{modality}.parquet')

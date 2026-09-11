@@ -7,9 +7,9 @@ import dask.dataframe as dd
 from scipy.ndimage import convolve
 
 from ... import helperfuncs
-from ... import priors
+from ... import core
 
-def generate_transcript_quality_density_image(
+def _generate_transcript_quality_density_image(
         sdata,
         figure_path,
         imagedim,
@@ -91,7 +91,7 @@ def generate_transcript_quality_density_image(
     return xy_kernel_transcript_density.flatten()
 
 
-def transcript_qv_image(
+def _transcript_qv_image(
         sdata,
         figure_path,
         spoqc_tmp_folder,
@@ -99,15 +99,13 @@ def transcript_qv_image(
         imagedim,
         dim_x,
         dim_y,
-        *,
-        chunk_size=10000
+        chunk_size,
     ):
-    figure_path = f'{figure_path}/hqtr/hqtr_qv/'
     timer = helperfuncs.Timer()
 
     print("[NOTE] Generate qv image")
     timer.start()
-    np_arr = generate_transcript_quality_density_image(sdata, figure_path, imagedim, dim_x, dim_y)
+    np_arr = _generate_transcript_quality_density_image(sdata, figure_path, imagedim, dim_x, dim_y)
     image_ddf = dd.from_dask_array(da.from_array(np_arr, chunks=chunk_size), columns=["qv_density"])
     timer.stop()
 
@@ -116,23 +114,37 @@ def transcript_qv_image(
     helperfuncs.plot_histogram_for_array(image_ddf['qv_density'].compute().to_numpy(), 100,
                                          figure_path, "Transcript QV", "transcript_qv")
     timer.stop()
+
+    helperfuncs.ddf_to_parquet(image_ddf, 'qv_density', spoqc_tmp_folder, [], modality)
+
+
+def init_metric(enterprise):
+
+    # These have to be defined.
+    name = "qv_density"
+    submetrics = ["qv_density"] # use the name above or fill in further metrics calculated by this metric
+    modality = "hqtr"
+    needs_metrics = []
+    step_when_it_is_calculated = ['all', 'unittest', 'hqtr', 'hqtr_qv']
+    loaded_for_analysis = True
+    loaded_for_visualization = True
+
+    # These are given my your metric calc function.
+    args = [enterprise.cargo.sdata, f'{enterprise.args.output_dir}/hqtr/hqtr_qv/', enterprise.args.tmp_dir, 'hqtr',
+            enterprise.cargo.imagedim, enterprise.cargo.dim_x, enterprise.cargo.dim_y, enterprise.args.chunk_size]
+    kwargs = None
+
+    metric = core.metric.Metric(
+        _transcript_qv_image, 
+        name,
+        submetrics,
+        modality,
+        needs_metrics = needs_metrics,
+        step_when_it_is_calculated = step_when_it_is_calculated,
+        loaded_for_analysis = loaded_for_analysis,
+        loaded_for_visualization = loaded_for_visualization,
+        args = args,
+        kwargs = kwargs,
+    )    
     
-    # At 10x Genomics they use a threshold of qv < 20 (see 10xBaysor tutorial)
-    print("[NOTE] Calculate qv probabilities")
-    timer.start()
-    image_ddf = priors.hqtr.ac_or_qv.calc_prob_pixel_stuff_v2(image_ddf, figure_path, 20.0, 3, 'left', 'qv_density')
-    timer.stop()
-
-    helperfuncs.plot_pixels(
-        figure_path,
-        image_ddf['norm_p_qv_density'].compute().to_numpy().reshape(dim_x, dim_y),
-        imagedim,
-        'norm_p_qv_density',
-        'Normalized probability of QV density pixel', 
-        'hot',
-        False,
-        False
-    )
-
-    helperfuncs.ddf_to_parquet(image_ddf, modality, spoqc_tmp_folder, [], 'qv_prob')
-
+    return metric

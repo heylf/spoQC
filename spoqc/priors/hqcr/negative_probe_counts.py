@@ -60,6 +60,7 @@ def init_prior(enterprise):
 
     # These have to be defined.
     name = "control_probe_counts_prior"
+    modality = "hqcr"
     tmp_path = None
     needs_metrics = ["sc_metrics"]
 
@@ -70,6 +71,7 @@ def init_prior(enterprise):
     prior = core.prior.Prior(
         _calc_probs, 
         name,
+        modality,
         needs_metrics = needs_metrics,
         tmp_path = tmp_path,
         args = args,

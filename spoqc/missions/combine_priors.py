@@ -5,11 +5,10 @@ import numpy as np
 
 from .. import priors
 from .. import core
-
+from .. import helperfuncs
 
 # We will combine the pixel scorep prior with more priors
 def combine_priors_hqcr(enterprise):
-
     enterprise.hqcr_priorset.calculate_priors_df()
     final_prior = enterprise.hqcr_priorset.combine_prior_asymmetric_evidence_aggregation()
     traffic_lights = enterprise.hqcr_priorset.combine_prior_traffic_light_system()
@@ -17,47 +16,78 @@ def combine_priors_hqcr(enterprise):
     enterprise.cargo.sdata['table'].obs['hqcr_traffic_light'] = traffic_lights
 
 
-def combine_priors_hqpr(spoqc_tmp_folder, image_ddf, belief_name, mask_name):
-    image_ddf = image_ddf.rename(
-        columns={
-            "norm_p_pixel_score": belief_name,
-            "pixel_score_mask": mask_name,
-        }
-    )
-    return image_ddf
+def combine_priors_hqpr(enterprise):
+    enterprise.hqpr_priorset.calculate_priors_ddf()
+    row_means_series = enterprise.hqpr_priorset.combine_prior_mean_ddf()
 
+    modality = "hqpr"
+    belief_name = f"{modality}_{enterprise.args.staining}_beliefs"
+    mask_name = f"{modality}_{enterprise.args.staining}_mask"
+    tmp_suffix = f"{modality}_{enterprise.args.staining}"
+    figure_path = f'{enterprise.args.output_dir}/{modality}/{modality}_clustering/{enterprise.args.staining}/'
 
-def combine_priors_hqtr(spoqc_tmp_folder, image_ddf, belief_name, mask_name):
-    qv_ddf = dd.read_parquet(
-        f"{spoqc_tmp_folder}/hqtr_output_qv_prob",
-        columns=["norm_p_qv_density"],
-        engine="pyarrow",
-        calculate_divisions=True,
-    )
+    # Preserves chunk size.
+    enterprise.hqpr_priorset.prior_ddf = enterprise.hqpr_priorset.prior_ddf.assign(**{
+        belief_name: row_means_series,
+        mask_name: (row_means_series > 0.5).astype("int8"),
+    }).persist()
 
-    ac_ddf = dd.read_parquet(
-        f"{spoqc_tmp_folder}/hqtr_output_ac_prob",
-        columns=["norm_p_ac_density"],
-        engine="pyarrow",
-        calculate_divisions=True,
-    )
-
-    # Keep everything lazy / partitioned
-    belief = (
-        image_ddf["norm_p_pixel_score"]
-        + qv_ddf["norm_p_qv_density"]
-        + ac_ddf["norm_p_ac_density"]
+    helperfuncs.plot_pixels(
+        figure_path,
+        enterprise.hqpr_priorset.prior_ddf[belief_name].compute().to_numpy().reshape(
+            enterprise.cargo.dim_x, enterprise.cargo.dim_y
+        ),
+        enterprise.cargo.imagedim,
+        'beliefs',
+        'Combined probability (beliefs)', 
+        'hot',
+        False,
+        False
     )
 
-    image_ddf = image_ddf.assign(**{belief_name: belief})
-    num_priors = 3.0
-    scaled = image_ddf[belief_name] / num_priors
+    print("[NOTE] Writing out data")
+    timer = helperfuncs.Timer()
+    timer.start()
+    helperfuncs.ddf_to_parquet(enterprise.hqpr_priorset.prior_ddf, 'mask_raw', enterprise.args.tmp_dir, [], tmp_suffix)
+    timer.stop()
 
-    return image_ddf.assign(
-        **{
-            belief_name: scaled,
-            mask_name: (scaled > 0.5).astype("int8"),
-        }
+    return enterprise.hqpr_priorset.prior_ddf
+
+
+def combine_priors_hqtr(enterprise):
+    enterprise.hqtr_priorset.calculate_priors_ddf()
+    row_means_series = enterprise.hqtr_priorset.combine_prior_mean_ddf()
+
+    modality = "hqtr"
+    belief_name = f"{modality}_beliefs"
+    mask_name = f"{modality}_mask"
+    tmp_suffix = modality
+    figure_path = f'{enterprise.args.output_dir}/{modality}/{modality}_clustering/'
+
+    # Preserves chunk size.
+    enterprise.hqtr_priorset.prior_ddf = enterprise.hqtr_priorset.prior_ddf.assign(**{
+        belief_name: row_means_series,
+        mask_name: (row_means_series > 0.5).astype("int8"),
+    }).persist()
+
+    helperfuncs.plot_pixels(
+        figure_path,
+        enterprise.hqtr_priorset.prior_ddf[belief_name].compute().to_numpy().reshape(
+            enterprise.cargo.dim_x, enterprise.cargo.dim_y
+        ),
+        enterprise.cargo.imagedim,
+        'beliefs',
+        'Combined probability (beliefs)', 
+        'hot',
+        False,
+        False
     )
 
+    print("[NOTE] Writing out data")
+    timer = helperfuncs.Timer()
+    timer.start()
+    helperfuncs.ddf_to_parquet(enterprise.hqtr_priorset.prior_ddf, 'mask_raw', enterprise.args.tmp_dir, [], tmp_suffix)
+    timer.stop()
+
+    return enterprise.hqtr_priorset.prior_ddf
 # %%

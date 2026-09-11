@@ -41,7 +41,7 @@ def _merge_overlapping_boxes(boxes):
         boxes = new_boxes
     return boxes
 
-def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, flip = False):
+def _boudning_box_plot(bounding_boxes, figure_path, prefix, image, imagedim, flip = False):
     plt.figure(figsize=(12, 6))
 
     if ( flip ):
@@ -84,8 +84,8 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
                 linewidth=2,
             )
 
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/imageplot_{prefix}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/imageplot_{prefix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -99,7 +99,9 @@ def define_bounding_boxes(
         imagedim,
         dim_x,
         dim_y, 
-        suffix,
+        prefix,
+        overwrite,
+        chunk_size,
         *,
         dilation_radius=10,
         minum_num_pixel=100_000,
@@ -107,10 +109,10 @@ def define_bounding_boxes(
         flip=False
     ):
 
-    prefix = modality
+    suffix = modality
     if ( staining ):
         figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/{staining}/'
-        prefix = f'{modality}_{staining}'
+        suffix = f'{modality}_{staining}'
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/'
 
@@ -124,20 +126,16 @@ def define_bounding_boxes(
 
     if ( modality == 'hqtr' ):
         # Intensities already flipped
-        intensities = metrics.hqtr.transcript_density_image.generate_transcript_density_image(
-            sdata,
-            figure_path,
-            imagedim,
-            dim_x,
-            dim_y,
-        )
+        td_file = f'{spoqc_tmp_folder}/metrices/hqtr/transcript_density_output_hqtr.parquet'
+        intensities = helperfuncs.read_data_as_dda([td_file], chunk_size)[:, 0]
+        intensities = intensities.compute()
         image = intensities.reshape(dim_x, dim_y)
 
-    mask = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_smoothed_{suffix}',
-                           columns=[f"{prefix}_mask_smoothed"], engine="pyarrow")
+    mask = dd.read_parquet(f'{spoqc_tmp_folder}/mask_smoothed_{prefix}_output_{suffix}',
+                           columns=[f"{suffix}_mask_smoothed"], engine="pyarrow")
 
     # Convert DataFrame to a NumPy array for processing
-    binary_image = mask[f"{prefix}_mask_smoothed"].compute().to_numpy().reshape(dim_x, dim_y)
+    binary_image = mask[f"{suffix}_mask_smoothed"].compute().to_numpy().reshape(dim_x, dim_y)
 
     # Apply dilation to merge nearby regions
     structuring_element = disk(dilation_radius)

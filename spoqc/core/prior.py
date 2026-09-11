@@ -10,6 +10,7 @@ class Prior:
             self, 
             calc_func,
             name,
+            modality,
             *,
             tmp_path = None,
             needs_metrics = [],
@@ -25,6 +26,7 @@ class Prior:
         self.name = name
         self.tmp_path = tmp_path
         self.needs_metrics = needs_metrics
+        self.modality = modality
 
     def calculate(self):
         return self._calc_func(*self.args, **self.kwargs)
@@ -33,6 +35,9 @@ class Prior:
 class PriorSet:
     def __init__(self, name, priorset):
         self.name = name
+        self.priors_calculated = False
+        self.prior_df = None
+        self.prior_ddf = None
         self.priors_calculated = False
 
         if len(priorset) == 0:
@@ -50,20 +55,26 @@ class PriorSet:
                 timer.start()
                 prior_df[prior.name] = prior.calculate()
                 timer.stop()
+            
             self.prior_df = prior_df
-
             self.priors_calculated = True
 
     def calculate_priors_ddf(self):
         if not self.priors_calculated:
 
+            ddf_list = []
             for prior in self.priorset:
                 print(f"[NOTE] Calculating {prior.name}")
                 timer = helperfuncs.Timer()
                 timer.start()
-                prior.calculate()
+                ddf_list.append(prior.calculate())
                 timer.stop()
 
+            image_ddf = ddf_list[0]
+            if len(ddf_list) > 1:
+                image_ddf = dd.concat(ddf_list, axis=1)
+            
+            self.prior_ddf = image_ddf
             self.priors_calculated = True
 
     # Asymetric evidence aggregation will put a penalty on priors that are extremely bad.
@@ -101,21 +112,9 @@ class PriorSet:
         return self.prior_df.apply(_traffic_light, axis=1)
 
 
-    def combine_prior_mean(self, spoqc_tmp_folder):
-
-        ddf_list = []
-        for prior in self.priorset:
-            ddf_list.append(
-                    dd.read_parquet(
-                    f"{spoqc_tmp_folder}/hqtr_output_qv_prob",
-                    columns=[prior.name],
-                    engine="pyarrow",
-                    calculate_divisions=True,
-                )
-            )
-
-        image_ddf = ddf_list[0]
-        for i in range(1, len(ddf_list)):
-            image_ddf += ddf_list[i]
-
-        return image_ddf
+    def combine_prior_mean_ddf(self):
+        colnames = [f"prob_{prior.name}" for prior in self.priorset]
+        use_ddf = self.prior_ddf[colnames]
+        print(f"[NOTE] Colnames in use_ddf: f{use_ddf.columns}")
+        row_means_series = use_ddf.mean(axis=1)
+        return row_means_series

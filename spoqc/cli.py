@@ -80,9 +80,9 @@ from spoqc import core
               help="""Number of cores to be used.""")
 @click.option("--overwrite", required=False, is_flag=True,
               help="""Overwriting temporary files.""")
-@click.option("--pixel_qc_chunk_size", type=int, required=False, default=200_000,
+@click.option("--chunk_size", type=int, required=False, default=200_000,
               help="""
-              Row-chunk size for the pixel-level QC dask arrays/dataframes (hqpr/hqtr clustering and scoring).
+              Row-chunk size for the dask arrays/dataframes (hqpr/hqtr clustering and scoring).
               Larger values reduce dask task-graph overhead but increase peak memory per chunk.
               """
               )
@@ -149,7 +149,11 @@ def main(**kwargs) -> None:
     importlib.reload(core.prior)
     importlib.reload(core.hqr)
     enterprise.load_prior_sets()
-    
+
+    #######################
+    # Lets go on missions #
+    #######################
+
     # In[]
     importlib.reload(missions.hqcr)
     importlib.reload(missions.combine_priors)
@@ -159,18 +163,15 @@ def main(**kwargs) -> None:
     importlib.reload(missions.hqcr_celltype)
     missions.hqcr_celltype.start_exploration(enterprise)
 
+    # In[]
+    missions.hqpr.start_exploration(enterprise)
+
+    # In[]
+    missions.hqtr.start_exploration(enterprise)
+
     ########
     # TODO #
     ########
-
-    # In[]
-    missions.hqpr.get_hqpr(enterprise)
-
-    # In[]
-    missions.qc_ambient.start_qc_ambient(enterprise)
-
-    # In[]
-    missions.hqtr.get_hqtr(enterprise)
 
     # In[]
     missions.combine_masks.run_combine_masks(enterprise)

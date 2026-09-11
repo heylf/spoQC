@@ -265,4 +265,6 @@ def cell_category_analysis(
     done_file = open(f"{figure_path}/done.txt", "w")
     done_file.write("its done")
     done_file.close()
+
+    rna.X = rna.layers['raw']
 # %%

@@ -1,3 +1,4 @@
+
 import numpy as np
 import os
 
@@ -13,20 +14,22 @@ from ... import helperfuncs
 from ... import core
 
 @njit
-def homogeneity(x: IntArray) -> np.floating:
+def occurrence_probability(
+    x: IntArray,
+) -> np.ndarray[tuple[int], np.dtype[np.floating]]:
+    """Relative occurrence of each non-negative integer"""
+    # assert x.size > 0
     counts = np.bincount(x.ravel())
-    m, n = x.shape
-    v = x[m // 2, n // 2]  # central value
+    return counts / x.size
 
-    counts[v] -= 1  # remove central pixel
-    p = counts / (x.size - 1)
-    # np.arange(len(p)) gets the corresponding value to each probability p
-    abs_diff = np.fabs(np.arange(len(p)) - v)
-    # If the absolute center pixel difference of the intensieties is large then the homogeneity is low and vice versa.
-    # If all values are the same then the homogeneity is 1.
-    return (p / (abs_diff + 1)).sum()
+@njit
+def entropy(x: IntArray) -> np.floating:
+    p = occurrence_probability(x)
+    # removing zeros is faster than using nansum
+    p = p[p > 0]
+    return -(p * np.log(p)).sum()
 
-def _pixel_homogeneity(figure_path, img, imagedim, name, spoqc_tmp_folder, tmp_suffix, window_size=5, mode="reflect"):
+def _pixel_entropy(figure_path, img, imagedim, name, spoqc_tmp_folder, tmp_suffix, mode="reflect", window_size=5):
     timer = helperfuncs.Timer()
 
     # numba.set_threads(threads)
@@ -34,29 +37,31 @@ def _pixel_homogeneity(figure_path, img, imagedim, name, spoqc_tmp_folder, tmp_s
 
     timer.start()
     print("... Parallel processing")
-    homogeneity_image = sliding_window_padded(homogeneity, img, radius, mode=mode)
+    entropy_image = sliding_window_padded(entropy, img, radius, mode=mode)
     timer.stop()
 
+    print("... Create plot")
     helperfuncs.plot_pixels(
         figure_path,
-        homogeneity_image,
+        entropy_image,
         imagedim,
-        "homogeneity",
-        "Pixel Homogeneity",
+        "entropy",
+        "Pixel Entropy",
         "hot",
+
         False,
         False,
     )
 
-    helperfuncs.nparr_to_parquet(homogeneity_image.flatten(), name, spoqc_tmp_folder, tmp_suffix)
+    helperfuncs.nparr_to_parquet(entropy_image.flatten(), name, spoqc_tmp_folder, tmp_suffix)
 
 
 def init_metric(enterprise):
 
     # These have to be defined.
-    name = "homogeneity"
-    submetrics = ["homogeneity"]
-    modality = "hqpr"
+    name = "entropy"
+    submetrics = ["entropy"]
+    modality = "hqtr"
     needs_metrics = []
     step_when_it_is_calculated = [f"{modality}_metrices", "all"]
     loaded_for_analysis = True
@@ -81,19 +86,18 @@ def init_metric(enterprise):
         intensities = enterprise.cargo.intensities_hqtr
         xy_intensities = enterprise.cargo.xy_intensities_hqtr
         texture_intensities = enterprise.cargo.texture_intensities_hqtr
-    tmp_file = f"{tmp_folder}/{name}_output_{modality}_{enterprise.args.staining}.parquet"
+    tmp_file = f"{tmp_folder}/{name}_output_{modality}.parquet"
 
     # Do not touch.
     if not enterprise.args.overwrite and os.path.exists(tmp_file):
         should_be_calculated = False
 
     # These are given my your metric calc function.
-    args = [figure_path, texture_intensities, enterprise.cargo.imagedim, name, tmp_folder, 
-            f"{modality}_{enterprise.args.staining}"]
+    args = [figure_path, texture_intensities, enterprise.cargo.imagedim, name, tmp_folder, modality]
     kwargs = None
 
     metric = core.metric.Metric(
-        _pixel_homogeneity, 
+        _pixel_entropy, 
         name,
         submetrics,
         modality,

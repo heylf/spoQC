@@ -3,7 +3,6 @@ from . import combine_masks
 from . import base_images
 from . import metrics_space
 from . import qc_additional_analysis
-from . import qc_ambient
 from . import qc_cellcycle
 from . import qc_marker
 from . import qc_model

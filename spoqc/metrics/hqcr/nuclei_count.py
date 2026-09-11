@@ -45,7 +45,7 @@ def init_metric(enterprise):
 
     # These have to be defined.
     name = "nuceli_count"
-    submetrics = ["nuceli_count"]
+    submetrics = ["nuceli_count", "wnucleus_free"]
     modality = "hqcr"
     needs_metrics = ["convexity"] # in convexity the nulcei_idcx is caluclated, do not do it again
     step_when_it_is_calculated = ["cellqc", "all"]

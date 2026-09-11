@@ -482,6 +482,7 @@ def run_qc_marker(enterprise):
             plot_sanpy_score_genes(enterprise.cargo.sdata, figure_path, negative_markers, 'negative_markers')
             plot_sanpy_score_genes(enterprise.cargo.sdata, figure_path, positive_markers, 'positive_markers')
 
+            adata.X = adata.layers['raw']
             print("[finish]")
         else:
             print("[NOTE] Marker QC will not be performmed because no annotation was provided.")

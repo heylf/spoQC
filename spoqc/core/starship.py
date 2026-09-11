@@ -19,6 +19,20 @@ from .. import priors
 class Enterpise:
     def __init__(self, kwargs):
         self.args = _config.Args(kwargs)
+        self.cargo = None
+
+        self.hqcr_metricset = None
+        self.hqpr_metricset = None
+        self.hqtr_metricset = None
+
+        self.hqcr_priorset = None
+        self.hqpr_priorset = None
+        self.hqtr_priorset = None
+
+        self.hqcr_set = None
+        self.hqpr_set = None
+        self.hqtr_set = None
+
         _output_structure.create_output_structure(self.args)
 
     def load_cargo_data(self):
@@ -69,6 +83,7 @@ class Enterpise:
                 self.args.output_dir,
                 self.args.tmp_dir,
                 self.args.overwrite,
+                self.args.chunk_size,
             )
 
 
@@ -216,7 +231,7 @@ class Enterpise:
     def load_metric_sets(self):
         self.hqcr_metricset = self._load_metricset("hqcr", "hqcr")
         self.hqpr_metricset = self._load_metricset("hqpr", "hqpr")
-        # self.hqtr_metricset = self._load_metricset("hqtr", "segmentation")
+        self.hqtr_metricset = self._load_metricset("hqtr", "hqtr")
 
 
     def _load_priorset(self, name, modality):
@@ -236,6 +251,7 @@ class Enterpise:
         priorset = prior.PriorSet(name, priorset_list)
         return priorset
 
+
     def _check_prior_metric_match(self, metricset, priorset):
         metric_names = [metric.name for metric in metricset]
         for prior in priorset:
@@ -246,20 +262,37 @@ class Enterpise:
                         The prior for {prior.name} is missing as metric.
                     """)
 
-    def _initialize_hqcr_set(self):
+
+    def initialize_hqcr_set(self):
         hqcr_set = hqr.HqcrSet(self)
         hqcr_set.load_cell_clustering_df(self)
         hqcr_set.load_cell_clustering_adata(self)
         self.hqcr_set = hqcr_set
 
-    def load_prior_sets(self):
-        if self.args.step in ['all', 'unittest', 'hqcr_ident', 'hqcr_celltype']:
-            self._initialize_hqcr_set()
-            self.hqcr_priorset = self._load_priorset("hqcr", "hqcr")
-        # self.hqpr_priorset = self._load_priorset("hqpr", "segmentation")
-        # self.hqtr_priorset = self._load_priorset("hqtr", "segmentation")
 
-        self._check_prior_metric_match(self.hqcr_metricset.metricset, self.hqcr_priorset.priorset)
+    def _initialize_hqpr_set(self):
+        hqpr_set = hqr.HqprSet(self)
+        self.hqpr_set = hqpr_set
+
+
+    def _initialize_hqtr_set(self):
+        hqtr_set = hqr.HqtrSet(self)
+        self.hqtr_set = hqtr_set
+
+
+    def load_prior_sets(self):
+        if self.args.step in ['all', 'unittest', 'hqcr_ident', 'hqcr_celltype', 'hqpr_celltype', 'hqtr_celltype']:
+            self.initialize_hqcr_set()
+            self.hqcr_priorset = self._load_priorset("hqcr", "hqcr")
+            self._check_prior_metric_match(self.hqcr_metricset.metricset, self.hqcr_priorset.priorset)
+        if self.args.step in ['all', 'unittest', 'hqpr', 'hqpr_metrices']:
+            self._initialize_hqpr_set()
+            self.hqpr_priorset = self._load_priorset("hqpr", "hqpr")
+            self._check_prior_metric_match(self.hqpr_metricset.metricset, self.hqpr_priorset.priorset)
+        if self.args.step in ['all', 'unittest', 'hqtr', 'hqtr_metrices']:
+            self._initialize_hqtr_set()
+            self.hqtr_priorset = self._load_priorset("hqtr", "hqtr")
+            self._check_prior_metric_match(self.hqtr_metricset.metricset, self.hqtr_priorset.priorset)
 
 
 

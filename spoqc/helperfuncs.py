@@ -117,7 +117,7 @@ def create_fraction_df(adata: AnnData, group: str, category: str) -> Dict[str, U
     return(d)    
 
 
-def read_data_as_ddf(tmp_files, chunk_size):
+def read_data_as_dda(tmp_files, chunk_size):
     # Preallocate a Dask Array with correct shape and chunks
     col_series = [
         dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
@@ -140,6 +140,31 @@ def read_data_as_ddf(tmp_files, chunk_size):
     # da.to_zarr(dask_array, "dask_array.zarr", overwrite=True); dask_array = da.from_zarr("dask_array.zarr")
 
     return dask_array
+
+
+def read_data_as_ddf(tmp_file, chunk_size):
+
+    # Read parquet
+    ddf = dd.read_parquet(tmp_file).reset_index(drop=True)
+
+    # Compute current partition lengths
+    lengths = tuple(
+        ddf.map_partitions(len).compute()
+    )
+
+    # Convert to Dask Array with known row chunks
+    arr = ddf.to_dask_array(lengths=lengths)
+
+    # Rechunk rows to chunk_size
+    arr = arr.rechunk((chunk_size, -1))
+
+    # Convert back to Dask DataFrame
+    ddf = dd.from_dask_array(
+        arr,
+        columns=ddf.columns,
+    )
+
+    return ddf
 
 
 def plotly_save_as_png(fig, plot_path, w=4, h=3, dpi=300):
@@ -1092,7 +1117,7 @@ def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
             # Check the on-disk schema (cheap, no data read) so files already joined in a
             # previous call are skipped instead of being re-read from disk every time.
             columns = pq.ParquetFile(tmp_file).schema.names
-            if all(col in sdata['table'].obs.columns for col in columns):
+            if any(col in sdata['table'].obs.columns for col in columns):
                 print(f'[NOTE] skip {tmp_file}, already loaded in')
                 continue
             print(f'[NOTE] read in {tmp_file}')
@@ -1293,11 +1318,11 @@ def cell_artefact_assignment(cell_df, sdata):
     cell_df['artefact'] = 'cell'
 
     # Assign artefacts
-    cell_df.loc[cell_df['doublet'] == 1, 'artefact'] = 'doublet'
+    cell_df.loc[cell_df['wdoublet'] == 1, 'artefact'] = 'doublet'
     mean_overlap = cell_df['cell_overlap_area'].mean()
 
     cell_df.loc[(cell_df['nuceli_count'] > 1) & (cell_df['cell_overlap_area'] > mean_overlap), 'artefact'] = 'doublet'
-    cell_df.loc[cell_df['nucleus_free'] == 1, 'artefact'] = 'nucleus_free'
+    cell_df.loc[cell_df['wnucleus_free'] == 1, 'artefact'] = 'nucleus_free'
     sdata['table'].obs['artefact'] = cell_df['artefact']
 
 

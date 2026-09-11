@@ -145,6 +145,7 @@ class CargoSpatialData:
             figure_path_base,
             spoqc_tmp_folder, 
             overwrite,
+            chunk_size,
             *,
             modality="hqtr",
         ):
@@ -167,6 +168,7 @@ class CargoSpatialData:
             self.dim_x,
             self.dim_y,
             overwrite,
+            chunk_size,
         )
         xy_intensities = intensities.reshape(self.dim_x, self.dim_y)
 
@@ -281,6 +283,7 @@ class CelltypeAnnotation:
             'Cluster': [f'leiden_{str(x)}' for x in rna.obs['leiden']]
         })
         annotation_df.to_csv(f'{figure_path}/unsupervised_cell_annotation.tsv', sep='\t', index=False)
+        rna.X = rna.layers["raw"]
 
 
 
