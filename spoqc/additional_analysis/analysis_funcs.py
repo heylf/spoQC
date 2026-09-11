@@ -217,9 +217,9 @@ def map_modality_metrics_to_cells(sdata, imagedim, image_type, resolution, spoqc
             missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, mask_smoothed, "hqtr_mask_mean_smoothed", figure_path, 'mean_values')
             missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, "hqtr_beliefs_smoothed", figure_path, 'mean_values_nonzero')
             missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, beliefs_smoothed, "hqtr_beliefs_mean_informative_smoothed", figure_path, 'mean_values_informative')
-            metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_qv_prob', columns=["qv_density"], engine="pyarrow")
+            metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/qv_density_output_hqtr', columns=["qv_density"], engine="pyarrow")
             missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[f"qv_density"].compute().to_numpy(), "hqtr_qv_density", figure_path, 'mean_values')
-            metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/hqtr_output_ac_prob', columns=["ac_density"], engine="pyarrow")
+            metric_dd = dd.read_parquet(f'{spoqc_tmp_folder}/ac_density_output_hqtr', columns=["ac_density"], engine="pyarrow")
             missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, metric_dd[f"ac_density"].compute().to_numpy(), "hqtr_ac_density", figure_path, 'mean_values')
             metric_dd = dd.read_parquet(
                 f'{spoqc_tmp_folder}/mask_raw_output_hqtr',

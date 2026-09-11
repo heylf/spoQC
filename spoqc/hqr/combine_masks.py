@@ -19,6 +19,7 @@ def start_combining_masks(
         *,
         celltype_refined=False
 ):
+    print("[NOTE] Combining masks")
 
     suffix = 'raw'
     if ( celltype_refined ):
@@ -37,13 +38,13 @@ def start_combining_masks(
         suf = ''
         if type_of_belief == '_smoothed':
            suf = '_smoothed'
-        file_hqcr = f'{spoqc_tmp_folder}/hqcr_output_mask{suf}_{suffix}.parquet'
+        file_hqcr = f'{spoqc_tmp_folder}/mask{suf}_{suffix}_output_hqcr.parquet'
         hqcr_belief_name = f'hqcr_beliefs{type_of_belief}'
         hqcr_mask_name = f'hqcr_mask{type_of_belief}'
-        file_hqpr = f'{spoqc_tmp_folder}/hqpr_{staining}_output_mask{suf}_{suffix}'
+        file_hqpr = f'{spoqc_tmp_folder}/mask{suf}_{suffix}_output_hqpr_{staining}'
         hqpr_belief_name = f"hqpr_{staining}_beliefs{type_of_belief}"
         hqpr_mask_name = f"hqpr_{staining}_mask{type_of_belief}"
-        file_hqtr = f'{spoqc_tmp_folder}/hqtr_output_mask{suf}_{suffix}'
+        file_hqtr = f'{spoqc_tmp_folder}/mask{suf}_{suffix}_output_hqtr'
         hqtr_belief_name = f'hqtr_beliefs{type_of_belief}'
         hqtr_mask_name = f'hqtr_mask{type_of_belief}'
 

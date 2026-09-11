@@ -26,6 +26,7 @@ def start_combining_masks(
         *,
         celltype_refined=False
 ):
+    print("[NOTE] Combining masks zoom")
 
     x_1_org = 18000
     y_1_org = 0

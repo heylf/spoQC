@@ -169,25 +169,25 @@ def main(**kwargs) -> None:
     # In[]
     missions.hqtr.start_exploration(enterprise)
 
+    # In[]
+    missions.combine_masks.run_combine_masks(enterprise)
+
     ########
     # TODO #
     ########
 
     # In[]
-    missions.combine_masks.run_combine_masks(enterprise)
-
-    # In[]
-    missions.qc_transcript.run_qc_transcript(enterprise)
-
-    # In[]
+    from spoqc import additional_analysis
+    importlib.reload(additional_analysis.analysis_funcs)
     missions.qc_additional_analysis.run_qc_additional_analysis(enterprise)
-
-    # In[]
-    missions.final_report.run_final_report(enterprise)
 
     ##################
     # Extra Missions #
     ##################
+
+    # In[]
+    missions.qc_transcript.run_qc_transcript(enterprise)
+
 
     # In[]
     missions.base_images.start_exploration(enterprise)
@@ -203,6 +203,13 @@ def main(**kwargs) -> None:
 
     # In[]
     missions.qc_marker.run_qc_marker(enterprise)
+
+    #################
+    # Final Mission #
+    #################
+
+    # In[]
+    missions.final_report.run_final_report(enterprise)
 
     timer.stop()
     print("[FINISH]")

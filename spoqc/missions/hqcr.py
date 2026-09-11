@@ -254,7 +254,7 @@ def map_values_to_cells(
 
 
 def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution, figure_path, 
-                                        prob_col, res_col, spoqc_tmp_folder, suffix):
+                                        prob_col, res_col, spoqc_tmp_folder, prefix):
     
     polys = create_polygon_dataframe(sdata, imagedim, 'cell_boundaries', prob_col)
     average_cell_probability_image = _create_cell_probability_image(sdata, polys, image_type, resolution, prob_col)
@@ -296,13 +296,13 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
         'hqcr_beliefs_smoothed': beliefs[:].flatten(),
         'hqcr_mask_smoothed': labels[:].flatten(),
     })
-    df_smoothed.to_parquet(f"{spoqc_tmp_folder}/hqcr_output_mask_smoothed_{suffix}.parquet")
+    df_smoothed.to_parquet(f"{spoqc_tmp_folder}/mask_smoothed_{prefix}_output_hqcr.parquet")
 
     df = pd.DataFrame({
         'hqcr_beliefs': average_cell_probability_image.flatten(),
         'hqcr_mask': (average_cell_probability_image.flatten() > 0.5).astype(np.uint8),
     })
-    df.to_parquet(f"{spoqc_tmp_folder}/hqcr_output_mask_{suffix}.parquet")
+    df.to_parquet(f"{spoqc_tmp_folder}/mask_{prefix}_output_hqcr.parquet")
 
     # This is in cell dimension.
     if 'hqcr_traffic_light' in sdata['table'].obs.columns :
