@@ -6,10 +6,7 @@ import numpy as np
 import plotly.express as px
 import functools
 
-from typing import List, Tuple, Any
 from concurrent.futures import ProcessPoolExecutor
-
-from .. import helperfuncs
 
 def measure_stripe_thickness_and_black_area(image_path: str, 
                                             background_color: np.ndarray[3, np.dtype[np.int_]],
@@ -122,19 +119,6 @@ def measure_stripe_thickness_and_black_area(image_path: str,
     #return thicknesses, adjusted_black_area
     return norm_adjusted_black_area
 
-
-def min_distance(coords: Tuple[float, float], compare_coords: List[Tuple[float, float]]) -> float:
-    """
-    Calculate the minimum Euclidean distance between a given coordinate and a list of coordinates.
-
-    Args:
-        coords (Tuple[float, float]): The reference coordinate as a tuple (x, y).
-        compare_coords (List[Tuple[float, float]]): A list of coordinates to compare against.
-
-    Returns:
-        float: The minimum Euclidean distance between `coords` and the coordinates in `compare_coords`.
-    """
-    return np.min([helperfuncs.euclidean_distance(x, coords) for x in compare_coords])
 
 def generate_input(sdata, figure_path, CONST):
     ax = sdata.pl.render_images(CONST.IMAGE_TYPE).pl.show(

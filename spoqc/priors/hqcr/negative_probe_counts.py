@@ -7,9 +7,11 @@ from scipy.stats import norm
 from sklearn.mixture import GaussianMixture
 from dask_ml.preprocessing import MinMaxScaler
 
-def calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=1, std=1, tail="right"):
+def calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=1, std=1, tail="right", *, seed, n_init):
     values = np.array(df["control_probe_counts"])
-    mix = GaussianMixture(n_components=gmm_mod, tol=1e-8, max_iter=int(1e4))
+    # seeded: the fit neither reads nor advances numpy's global RNG, so it is independent of step order
+    # n_init starts (--gmm_n_init); the fit with the highest likelihood is kept
+    mix = GaussianMixture(n_components=gmm_mod, tol=1e-8, max_iter=int(1e4), n_init=n_init, random_state=seed)
     mix.fit(values.reshape(-1, 1))
     means = mix.means_
     cov = mix.covariances_

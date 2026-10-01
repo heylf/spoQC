@@ -4,15 +4,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import plotly.graph_objects as go
-import geopandas as gpd
 import scanpy as sc
 import shutil
 
 from plotly.subplots import make_subplots
-from esda.moran import Moran
-from libpysal.weights import Queen
 
 from .. import helperfuncs
+from spoqc.core.moran import moran as moran_test, queen_weights
 
 
 
@@ -78,18 +76,16 @@ def plot_spatial_vs_exression_variance(sdata, figure_path, df, nPCs):
 
     rna_adata = sdata['table']
 
+    # Spatial-neighbor weights using queen contiguity; the coordinates, and therefore
+    # the weights, are the same for every PC.
+    w = queen_weights(df[['x', 'y']].to_numpy())
+
     for i in range(0, nPCs):
-
-        # Convert to GeoDataFrame which is needed to take sparsity of spatial data into account.
-        gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.x, df.y))
-
-        # Create spatial-neighbor weights using queen contiguity
-        w = Queen.from_dataframe(gdf)
 
         # Calculate Moran's I with spatial weights.
         # P-value of 0.01 with 99 permutations is not necessarily more significant than a result with 
         # a p-value of 0.001 with 999 permutations. Is is recommended to do 999 permutation. 9999 for more precision.
-        moran = Moran(df['PC' + str(i)], w, permutations=999)
+        moran = moran_test(df['PC' + str(i)], w, permutations=999)
 
         # p_norm = This is the p-value based on the assumption that the statistic follows a normal distribution.
         # p_sim = This is the p-value based on the permutation test, which is a non-parametric method.

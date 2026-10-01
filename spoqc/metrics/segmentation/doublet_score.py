@@ -5,6 +5,67 @@ import pandas as pd
 import numpy as np
 
 from ... import helperfuncs
+from ... import _ovrlpy_fast
+from ...core import spatial, transcripts
+
+# Initial doublet_distance of every cell, kept where no doublet is closer.
+NO_DOUBLET_DISTANCE = 100_000.0
+
+
+def flag_transcripts_near_doublets(
+    transcript_coordinates_df, corrected_doublet_df, distance_thresh, threads
+):
+    """
+    Flag transcripts within distance_thresh of any doublet.
+
+    The original per-doublet pandas expression ran in the transcripts' float32, with each
+    doublet coordinate cast to float32; pairs_within evaluates exactly that. (With numexpr
+    installed, pandas would have evaluated the original's full-length arithmetic in float64.)
+    """
+    transcript_xy = transcript_coordinates_df[["x", "y"]].to_numpy()
+    transcript_pos, _ = spatial.pairs_within(
+        transcript_xy,
+        corrected_doublet_df[["x", "y"]].to_numpy(),
+        distance_thresh,
+        threads,
+        dtype=transcript_xy.dtype,
+    )
+    transcript_doublet = np.zeros(len(transcript_xy), dtype=bool)
+    transcript_doublet[transcript_pos] = True
+    return transcript_doublet, transcript_doublet.astype(int)
+
+
+def write_transcript_doublets(sdata, corrected_doublet_df, distance_thresh, threads, spoqc_tmp_folder):
+    """Flag the transcripts near a doublet and write them, indexed like the transcripts element.
+
+    The coordinates come from the run's transcripts (ovrlpy never changes the caller's frame,
+    so the original second .compute() was not needed).
+    """
+    # Detect transcript that might belong to doublets
+    transcript_doublet, transcript_wdoublet = flag_transcripts_near_doublets(
+        transcripts.load_transcripts(sdata, ['x', 'y']).to_pandas(), corrected_doublet_df, distance_thresh, threads
+    )
+
+    # Write out transcript doublet information for later usage
+    transcript_doublet_df = pd.DataFrame({
+        'doublet': transcript_doublet,
+        'wdoublet': transcript_wdoublet,
+    })
+    transcript_doublet_df.index = transcripts.transcript_index(sdata)  # labels, not 0..n-1 after a crop
+
+    helperfuncs.df_to_parquet(transcript_doublet_df, 'doublet', spoqc_tmp_folder, [], 'transcripts')
+
+
+def flag_cells_near_doublets(cell_xy, doublet_xy, distance_thresh, threads):
+    """
+    Distance of every cell to its nearest doublet (capped at NO_DOUBLET_DISTANCE), and
+    whether a doublet lies within distance_thresh. The minimum is exact (spatial.nearest),
+    and min <= thresh holds exactly when some doublet is within thresh.
+    """
+    _, distance = spatial.nearest(cell_xy, doublet_xy, threads)
+    doublet = distance <= distance_thresh
+    return doublet, doublet.astype(int), np.minimum(NO_DOUBLET_DISTANCE, distance)
+
 
 # window_sizes = for plotting. You can selected more windowsizes. This is just to zoom in or out for double plots.
 # num_doublet = is just the amount of doublet that will be plottet as examples.
@@ -41,6 +102,11 @@ def calc_doublet_score(
         n_components = 10
     if ( sdata['table'].n_obs < 100 ):
         n_components = 2
+
+    # Accumulate ovrlpy's per-gene embedding over each gene's nonzero rows only, rather
+    # than a fresh (n_pixels, n_components) temporary per gene. Bit-identical; raises on
+    # any ovrlpy this shim was not written against. See spoqc/_ovrlpy_fast.py.
+    _ovrlpy_fast.install()
 
     ovrlp = ovrlpy.Ovrlp(
         transcript_coordinates_df,
@@ -149,28 +215,26 @@ def calc_doublet_score(
 
     # Link doublet detection back to spatial.
     # Based on a distance parameter say if a cell might be a doublet or not.
-    cell_dobulet_df = pd.DataFrame({
-        'x': [poly.centroid.x for poly in sdata['cell_boundaries']['geometry']],
-        'y': [poly.centroid.y for poly in sdata['cell_boundaries']['geometry']],
-        'doublet': [False] * sdata['table'].n_obs,
-        'wdoublet': [0] * sdata['table'].n_obs,
-        'doublet_distance': [100_000.0] * sdata['table'].n_obs
-    })
-
     corrected_doublet_df = doublet_df.copy()
 
     # Bring doublets back to the original coordinate system.
     corrected_doublet_df['x'] = doublet_df['x'] + min_x
     corrected_doublet_df['y'] = doublet_df['y'] + min_y
 
-    final_distances = np.array([100_000.0] * sdata['table'].n_obs)
-    for i, doublet in corrected_doublet_df.iterrows():
-        x1, y1 = doublet['x'], doublet['y']
-        distances = np.sqrt((cell_dobulet_df['x'] - x1)**2 + (cell_dobulet_df['y'] - y1)**2)
-        final_distances = np.minimum(final_distances, distances) 
-        cell_dobulet_df.loc[distances <= distance_thresh, 'doublet'] = True
-        cell_dobulet_df.loc[distances <= distance_thresh, 'wdoublet'] = 1
-    cell_dobulet_df['doublet_distance'] = final_distances
+    cell_dobulet_df = pd.DataFrame({
+        'x': [poly.centroid.x for poly in sdata['cell_boundaries']['geometry']],
+        'y': [poly.centroid.y for poly in sdata['cell_boundaries']['geometry']],
+    })
+    (
+        cell_dobulet_df['doublet'],
+        cell_dobulet_df['wdoublet'],
+        cell_dobulet_df['doublet_distance'],
+    ) = flag_cells_near_doublets(
+        cell_dobulet_df[['x', 'y']].to_numpy(),
+        corrected_doublet_df[['x', 'y']].to_numpy(),
+        distance_thresh,
+        threads,
+    )
 
     # Plot doublet density
     helperfuncs.plot_scatter_density_df(
@@ -188,23 +252,4 @@ def calc_doublet_score(
     sdata['table'].obs['wdoublet'] = np.array(cell_dobulet_df['wdoublet'])
     sdata['table'].obs['doublet_distance'] = np.array(cell_dobulet_df['doublet_distance'])
 
-    # Have to call this again because overlpy corrects also the transcript coordinates
-    transcript_coordinates_df = sdata.points[key_transcripts].compute()
-
-    # Detect transcript that might belong to doublets
-    transcript_doublet = np.array([False] * len(transcript_coordinates_df))
-    transcript_wdoublet = np.array([0] * len(transcript_coordinates_df))
-    for i, doublet in corrected_doublet_df.iterrows():
-        x1, y1 = doublet['x'], doublet['y']
-        distances = np.sqrt((transcript_coordinates_df['x'] - x1)**2 + (transcript_coordinates_df['y'] - y1)**2)
-        transcript_doublet[distances <= distance_thresh] = True
-        transcript_wdoublet[distances <= distance_thresh] = 1
-
-    # Write out transcript doublet information for later usage
-    transcript_doublet_df = pd.DataFrame({
-        'doublet': transcript_doublet,
-        'wdoublet': transcript_wdoublet,
-    })
-    transcript_doublet_df.index = transcript_coordinates_df.index
-
-    helperfuncs.df_to_parquet(transcript_doublet_df, 'doublet', spoqc_tmp_folder, [], 'transcripts')
+    write_transcript_doublets(sdata, corrected_doublet_df, distance_thresh, threads, spoqc_tmp_folder)

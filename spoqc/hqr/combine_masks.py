@@ -1,13 +1,54 @@
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import dask.dataframe as dd
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib_venn import venn3
 
 from .. import helperfuncs
+from spoqc.core import raster
+
+_CHUNK = 1 << 20  # pixels per task: the chunk's temporaries stay in cache
+
+
+def _chunks(n):
+    return [slice(i, min(i + _CHUNK, n)) for i in range(0, n, _CHUNK)]
+
+
+def _venn_counts(c, p, t, threads):
+    """origin/dev's 7 Venn region counts and the uncovered count, in one pass.
+
+    The same numpy expressions origin/dev evaluated on whole pandas columns (same dtypes,
+    so the same promotions and wrap-around), evaluated per chunk on a thread pool; the
+    integer counts add up exactly.
+    """
+    def count(sl):
+        c_, p_, t_ = c[sl], p[sl], t[sl]
+        return np.array([
+            np.sum(((c_ - p_ - t_) == 1).astype(np.uint8)),
+            np.sum(((p_ - c_ - t_) == 1).astype(np.uint8)),
+            np.sum(((t_ - p_ - c_) == 1).astype(np.uint8)),
+            np.sum(((c_ + p_ - t_) == 2).astype(np.uint8)),
+            np.sum(((c_ - p_ + t_) == 2).astype(np.uint8)),
+            np.sum(((- c_ + p_ + t_) == 2).astype(np.uint8)),
+            np.sum(((c_ + p_ + t_) == 3).astype(np.uint8)),
+            np.sum(((c_ + p_ + t_) == 0).astype(np.uint8)),
+        ], dtype=np.int64)
+    with ThreadPoolExecutor(threads) as pool:
+        return sum(pool.map(count, _chunks(len(c))))
+
+
+def _mean_of_three(a, b, c, threads):
+    """(a + b + c) / 3 elementwise as origin/dev's pandas expression computed it, per chunk on a pool."""
+    out = np.empty(len(a), dtype=np.result_type(a, b, c))
+    def mean(sl):
+        v = a[sl] + b[sl] + c[sl]
+        v /= 3
+        out[sl] = v
+    with ThreadPoolExecutor(threads) as pool:
+        list(pool.map(mean, _chunks(len(a))))
+    return out
 
 def start_combining_masks(
         figure_path,
@@ -17,7 +58,8 @@ def start_combining_masks(
         dim_y,
         staining,
         *,
-        celltype_refined=False
+        celltype_refined=False,
+        threads=1
 ):
 
     figure_path = f"{figure_path}/combine_masks/{staining}"
@@ -49,38 +91,31 @@ def start_combining_masks(
         hqtr_belief_name = f'hqtr_beliefs{type_of_belief}'
         hqtr_mask_name = f'hqtr_mask{type_of_belief}'
 
-        hqcr_mask = pd.read_parquet(file_hqcr)
-        hqcr_mask[hqcr_belief_name] = np.array(hqcr_mask[hqcr_belief_name]).reshape(dim_x, dim_y).flatten()
-        hqcr_mask[hqcr_mask_name] = np.array(hqcr_mask[hqcr_mask_name]).reshape(dim_x, dim_y).flatten()
-        
-        hqpr_mask = dd.read_parquet(
-            file_hqpr, 
-            columns=[hqpr_belief_name,hqpr_mask_name], engine="pyarrow"
-        )
-        hqtr_mask = dd.read_parquet(
-            file_hqtr,
-            columns=[hqtr_belief_name, hqtr_mask_name], engine="pyarrow"
-        )
+        # Each file is read once for both of its columns, straight into numpy (origin/dev
+        # computed each dask column separately and copied every column into two DataFrames).
+        hqcr = raster.read_pixel_columns(file_hqcr, [hqcr_mask_name, hqcr_belief_name], dim_x * dim_y, threads)
+        hqpr = raster.read_pixel_columns(file_hqpr, [hqpr_mask_name, hqpr_belief_name], dim_x * dim_y, threads)
+        hqtr = raster.read_pixel_columns(file_hqtr, [hqtr_mask_name, hqtr_belief_name], dim_x * dim_y, threads)
+        mask_df = {
+            'hqcr_mask': hqcr[hqcr_mask_name],
+            f'hqpr_{staining}_mask': hqpr[hqpr_mask_name],
+            'hqtr_mask': hqtr[hqtr_mask_name]
+        }
 
-        mask_df = pd.DataFrame({
-            'hqcr_mask': hqcr_mask[hqcr_mask_name],
-            f'hqpr_{staining}_mask': hqpr_mask[hqpr_mask_name].compute().to_numpy(),
-            'hqtr_mask': hqtr_mask[hqtr_mask_name].compute().to_numpy()
-        })
-
-        beliefs_df = pd.DataFrame({
-            'hqcr_beliefs': hqcr_mask[hqcr_belief_name],
-            f'hqpr_{staining}_beliefs': hqpr_mask[hqpr_belief_name].compute().to_numpy(),
-            'hqtr_beliefs': hqtr_mask[hqtr_belief_name].compute().to_numpy()
-        })
+        beliefs_df = {
+            'hqcr_beliefs': hqcr[hqcr_belief_name],
+            f'hqpr_{staining}_beliefs': hqpr[hqpr_belief_name],
+            'hqtr_beliefs': hqtr[hqtr_belief_name]
+        }
+        del hqcr, hqpr, hqtr
 
         final_mask = np.zeros(dim_x*dim_y)
         for m in ['hqcr', f'hqpr_{staining}', 'hqtr']:
-            final_mask += np.array(mask_df[f'{m}_mask'])
+            final_mask += mask_df[f'{m}_mask']
 
             helperfuncs.plot_pixels(
                 figure_path,
-                np.array(mask_df[f'{m}_mask']).reshape(dim_x, dim_y),
+                mask_df[f'{m}_mask'].reshape(dim_x, dim_y),
                 imagedim,
                 f'{m}_mask{type_of_belief}', 
                 f'{m}_mask{type_of_belief}', 
@@ -92,7 +127,7 @@ def start_combining_masks(
 
             helperfuncs.plot_pixels(
                 figure_path,
-                np.array(beliefs_df[f'{m}_beliefs']).reshape(dim_x, dim_y),
+                beliefs_df[f'{m}_beliefs'].reshape(dim_x, dim_y),
                 imagedim,
                 f'{m}_beliefs{type_of_belief}', 
                 f'{m}_beliefs{type_of_belief}', 
@@ -106,7 +141,7 @@ def start_combining_masks(
             # These are on spatial observation (no cell agglomeration).
             fig = None
             fig, ax = plt.subplots(figsize=(8, 4))
-            ax.hist(np.array(beliefs_df[f'{m}_beliefs']), bins=50)
+            ax.hist(beliefs_df[f'{m}_beliefs'], bins=50)
             ax.set_yscale('log')
             ax.set_xlabel(f'{m}_beliefs')
             ax.set_ylabel('Log count')
@@ -117,7 +152,7 @@ def start_combining_masks(
 
             fig = None
             fig, ax = plt.subplots(figsize=(8, 4))
-            ax.hist(np.array(beliefs_df[f'{m}_beliefs']), bins=50)
+            ax.hist(beliefs_df[f'{m}_beliefs'], bins=50)
             ax.set_xlabel(f'{m}_beliefs')
             ax.set_ylabel('Count')
             ax.set_title(f'Distribution of {m} beliefs')
@@ -148,22 +183,15 @@ def start_combining_masks(
 
         # How much agreement is between the maps?
         # Define the sizes of the three sets and their intersections
-        subsets={
-                '100': np.sum(((mask_df['hqcr_mask'] - mask_df[f'hqpr_{staining}_mask'] - mask_df['hqtr_mask']) == 1).astype(np.uint8)),
-                '010': np.sum(((mask_df[f'hqpr_{staining}_mask'] - mask_df['hqcr_mask'] - mask_df['hqtr_mask']) == 1).astype(np.uint8)),
-                '001': np.sum(((mask_df['hqtr_mask'] - mask_df[f'hqpr_{staining}_mask'] - mask_df['hqcr_mask']) == 1).astype(np.uint8)),
-                '110': np.sum(((mask_df['hqcr_mask'] + mask_df[f'hqpr_{staining}_mask'] - mask_df['hqtr_mask']) == 2).astype(np.uint8)),
-                '101': np.sum(((mask_df['hqcr_mask'] - mask_df[f'hqpr_{staining}_mask'] + mask_df['hqtr_mask']) == 2).astype(np.uint8)),
-                '011': np.sum(((- mask_df['hqcr_mask'] + mask_df[f'hqpr_{staining}_mask'] + mask_df['hqtr_mask']) == 2).astype(np.uint8)),
-                '111': np.sum(((mask_df['hqcr_mask'] + mask_df[f'hqpr_{staining}_mask'] + mask_df['hqtr_mask']) == 3).astype(np.uint8))
-        }
+        counts = _venn_counts(mask_df['hqcr_mask'], mask_df[f'hqpr_{staining}_mask'], mask_df['hqtr_mask'], threads)
+        subsets = dict(zip(['100', '010', '001', '110', '101', '011', '111'], counts[:7]))
 
         covered = 0
         for key in subsets:
             subsets[key] = np.round(subsets[key] / (dim_x * dim_y), 3)
             covered += subsets[key]
 
-        uncovered = np.sum(((mask_df['hqcr_mask'] + mask_df[f'hqpr_{staining}_mask'] + mask_df['hqtr_mask']) == 0).astype(np.uint8))
+        uncovered = counts[7]
         uncovered = np.round(uncovered / (dim_x * dim_y), 3)
 
         # sanity check for venndiagram
@@ -176,12 +204,11 @@ def start_combining_masks(
         plt.savefig(f'{figure_path}/venn_combined_masks{type_of_belief}.pdf', bbox_inches='tight', dpi=300)
         plt.close()
 
-        combined_beliefs = beliefs_df['hqcr_beliefs'] + beliefs_df[f'hqpr_{staining}_beliefs'] + beliefs_df['hqtr_beliefs']
-        combined_beliefs /= 3
+        combined_beliefs = _mean_of_three(beliefs_df['hqcr_beliefs'], beliefs_df[f'hqpr_{staining}_beliefs'], beliefs_df['hqtr_beliefs'], threads)
 
         helperfuncs.plot_pixels(
                 figure_path,
-                np.array(combined_beliefs).reshape(dim_x, dim_y),
+                combined_beliefs.reshape(dim_x, dim_y),
                 imagedim,
                 f'combined_beliefs{type_of_belief}', 
                 f'combined_beliefs{type_of_belief}', 

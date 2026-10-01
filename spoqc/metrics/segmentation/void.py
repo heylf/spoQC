@@ -8,8 +8,10 @@ import pandas as pd
 from matplotlib.collections import PolyCollection
 import seaborn as sns
 import os
+import polars as pl
 
 from ... import helperfuncs
+from ...core import transcripts
 
 def count_stuff_in_triangles_via_delaunay(delaunay, stuff):
     num_triangles = len(delaunay.simplices)
@@ -21,16 +23,11 @@ def count_stuff_in_triangles_via_delaunay(delaunay, stuff):
     # This counts how often a triangle id appears.
     counts = np.bincount(simplex_ids[simplex_ids >= 0], minlength=num_triangles)
 
-    point_idx = np.nonzero(simplex_ids >= 0)[0]
-    order = np.argsort(simplex_ids[point_idx], kind='stable')
-    point_idx = point_idx[order]
-    sorted_simplex_ids = simplex_ids[point_idx]
-    boundaries = np.searchsorted(sorted_simplex_ids, np.arange(num_triangles + 1))
-    indices_list = [
-        (point_idx[boundaries[i]:boundaries[i + 1]],) for i in range(num_triangles)
-    ]
-
-    return counts, indices_list
+    # The per-triangle point-index lists used to be materialised here as a Python
+    # list of num_triangles array slices, on every one of the four call sites. The
+    # only consumer has been commented out since the function was written (see the
+    # disabled triangle_z_var block below), so building them was pure allocation.
+    return counts
 
 
 def build_triangle_graph_using_neighbors(delaunay, points):
@@ -305,7 +302,7 @@ def calc_void(
     ##################################################
     #### Triangle cluster counting (outside cell) ####
     ##################################################
-    transcripts_df = sdata['transcripts'].compute()
+    transcripts_df = transcripts.load_transcripts(sdata, ['x', 'y', 'cell_id', 'feature_name'])
 
     # Doublet information has to be loaded here because I fill filter transcripts_df.
     doublet_check = False
@@ -314,15 +311,18 @@ def calc_void(
     if ( doublet_check ):
         print("[NOTE] Load doublet information for void QC")
         tmp_data = pd.read_parquet(f'{spoqc_tmp_folder}/doublet_output_transcripts.parquet')
-        transcripts_df = transcripts_df.join(tmp_data, how='left')
+        # Same rows in the same order as the transcripts element, so the index join is positional;
+        # a stale parquet from another run in a reused tmp dir fails here.
+        assert np.array_equal(tmp_data.index.to_numpy(), transcripts.transcript_index(sdata))
+        transcripts_df = transcripts_df.hstack(pl.from_pandas(tmp_data))
 
     ###### Count
     # Count transcripts that are outside the cell for each triangle
     print(f'[NOTE] counting transcripts that are outside the cell for {len(triangles_pointcoords)} triangles')
-    transcripts_outside_cell_df = transcripts_df.loc[transcripts_df['cell_id'] == -1]
-    transcript_ocell_coords = np.array(list(zip(transcripts_outside_cell_df['x'], transcripts_outside_cell_df['y'])))
+    transcripts_outside_cell_df = transcripts_df.filter(pl.col('cell_id') == -1)
+    transcript_ocell_coords = transcripts_outside_cell_df.select(pl.col('x', 'y').cast(pl.Float64)).to_numpy()
     timer.start()
-    counts, indices = count_stuff_in_triangles_via_delaunay(delaunay, transcript_ocell_coords)
+    counts = count_stuff_in_triangles_via_delaunay(delaunay, transcript_ocell_coords)
     timer.stop()
     triangles_df['transcripts_counts_outside_cell'] = counts
 
@@ -345,10 +345,10 @@ def calc_void(
     # We just consider transcripts outside the cell.
     if ( doublet_check ):
         print(f'[NOTE] counting transcripts belong to doublet regions for {len(triangles_pointcoords)} triangles')
-        transcripts_doublet_df = transcripts_outside_cell_df.loc[transcripts_outside_cell_df['doublet']]
+        transcripts_doublet_df = transcripts_outside_cell_df.filter(pl.col('doublet'))
         if ( len(transcripts_doublet_df) > 0 ):
-            transcript_doublet_coords = np.array(list(zip(transcripts_doublet_df['x'], transcripts_doublet_df['y'])))
-            counts, indices = count_stuff_in_triangles_via_delaunay(delaunay, transcript_doublet_coords)
+            transcript_doublet_coords = transcripts_doublet_df.select(pl.col('x', 'y').cast(pl.Float64)).to_numpy()
+            counts = count_stuff_in_triangles_via_delaunay(delaunay, transcript_doublet_coords)
             triangles_df['transcripts_counts_doublets'] = counts
         else:
             print(f'[NOTE] no doublets found')
@@ -361,13 +361,12 @@ def calc_void(
         for contaminant in contaminant_list:
             print(f'[NOTE] counting transcripts belong to contaminatn {contaminant} ' + \
                   f'for {len(triangles_pointcoords)} triangles')
-            transcripts_contaminant_df = transcripts_outside_cell_df.loc[
-                transcripts_outside_cell_df['feature_name'] == contaminant
-            ]
+            transcripts_contaminant_df = transcripts_outside_cell_df.filter(pl.col('feature_name') == contaminant)
             if ( len(transcripts_contaminant_df) > 0 ):
-                transcript_contaminant_coords = np.array(list(zip(transcripts_contaminant_df['x'],
-                                                              transcripts_contaminant_df['y'])))
-                counts, indices = count_stuff_in_triangles_via_delaunay(
+                transcript_contaminant_coords = transcripts_contaminant_df.select(
+                    pl.col('x', 'y').cast(pl.Float64)
+                ).to_numpy()
+                counts = count_stuff_in_triangles_via_delaunay(
                     delaunay,
                     transcript_contaminant_coords
                 )
@@ -390,7 +389,7 @@ def calc_void(
         ) 
     )
     timer.stop()
-    counts, indices = count_stuff_in_triangles_via_delaunay(delaunay, nuclei_centoid_coords)
+    counts = count_stuff_in_triangles_via_delaunay(delaunay, nuclei_centoid_coords)
 
     # Lets just consider nulcei_counts > 3 because my triangle consists of 3 cells.
     # Of course this does not consider cells with multi-nucei or multiplets.

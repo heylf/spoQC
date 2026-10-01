@@ -4,6 +4,7 @@ import numpy as np
 
 from .. import helperfuncs
 from .. import metrics
+from ..core import transcripts
 
 def start_image_struc_analyis(
         sdata,
@@ -53,7 +54,7 @@ def start_image_struc_analyis(
 
         # Plot transcript point plot
         helperfuncs.plot_scatter_by_category(
-            sdata.points['transcripts'].compute(),
+            transcripts.load_transcripts(sdata, ['x', 'y']).to_pandas(),
             None, 
             figure_path, 
             'transcript_points',

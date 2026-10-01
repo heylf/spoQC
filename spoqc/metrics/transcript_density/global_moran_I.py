@@ -1,27 +1,32 @@
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import geopandas as gpd
 import scipy.sparse as sp
 
-from libpysal.weights import Queen
 
 from ... import helperfuncs
+from spoqc.core.moran import queen_weights
 
-# Vectorized Moran's I for all genes at once, given a shared weights matrix.
-# Degenerate genes (zero variance) are filled with NaN, matching what
-# ac_image.py expects when it zeroes out bad genes via np.isnan(...).
-def moran_I_all_genes(X_dense: np.ndarray, weights) -> np.ndarray:
+# Vectorized Moran's I for all genes at once, given a shared sparse weights matrix.
+# The one Moran's I implementation: the global ambient (NaN for degenerate genes, which
+# ac_image.py zeroes out via np.isnan(...)) and the local, per-neighbourhood one (-1, float32).
+def moran_I_all_genes(X_dense: np.ndarray, weights, fill=np.nan, dtype=np.float64) -> np.ndarray:
+    """
+    X_dense: (n, num_genes) float array; weights: (n, n) scipy sparse weights.
+    Returns (num_genes,) Moran's I in `dtype`; `fill` for genes with zero variance.
+    """
     n = X_dense.shape[0]
     S0 = weights.sum()
 
+    # center (Moran uses mean-centering, not z-scores)
     z = X_dense - X_dense.mean(axis=0, keepdims=True)
+    # sparse matmul releases the GIL and is fast
     z_weights = weights @ z
 
-    num = np.einsum("ij,ij->j", z, z_weights)
+    num = np.einsum("ij,ij->j", z, z_weights)  # sum over rows
     den = np.einsum("ij,ij->j", z, z)
 
-    morans_I = np.full(X_dense.shape[1], np.nan, dtype=np.float64)
+    morans_I = np.full(X_dense.shape[1], fill, dtype=dtype)
     ok = den > 0
     morans_I[ok] = (n / S0) * (num[ok] / den[ok])
     return morans_I
@@ -33,13 +38,9 @@ def calculate_global_moran_I_values(sdata, figure_path, spoqc_tmp_folder):
 
     genes_list = np.array(rna_adata.var_names)
 
-    coords = rna_adata.obsm['spatial']
-    gdf = gpd.GeoDataFrame({'x': coords[:, 0], 'y': coords[:, 1]},
-                            geometry=gpd.points_from_xy(coords[:, 0], coords[:, 1]))
-
     # Create spatial-neighbor weights using queen contiguity, once for all genes
     # (coordinates, and therefore the weights matrix, don't depend on the gene).
-    w = Queen.from_dataframe(gdf)
+    w = queen_weights(rna_adata.obsm['spatial'])
     w.transform = "r"
     weights = w.sparse
 
