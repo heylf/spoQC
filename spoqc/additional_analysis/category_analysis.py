@@ -14,6 +14,7 @@ from pandas.api.types import is_numeric_dtype
 
 from .. import helperfuncs
 from . import analysis_funcs
+from spoqc.core.figures import save_figure
 
 def cell_category_analysis(
         sdata,
@@ -134,14 +135,7 @@ def cell_category_analysis(
                     )
                 )
 
-                fig.write_image(
-                    f"{figure_path}/{cat}/split_violinplot_{umap_cat}.png",
-                    scale=3,
-                )
-                fig.write_image(
-                    f"{figure_path}/{cat}/split_violinplot_{umap_cat}.pdf",
-                    scale=3,
-                )
+                save_figure(fig, f"{figure_path}/{cat}/split_violinplot_{umap_cat}.png", f"{figure_path}/{cat}/split_violinplot_{umap_cat}.pdf", scale=3)
 
                 # ---- split boxplot plot -------
                 fig = go.Figure()
@@ -184,14 +178,7 @@ def cell_category_analysis(
                     legend=dict(traceorder="normal")
                 )
 
-                fig.write_image(
-                    f"{figure_path}/{cat}/split_boxplot_{umap_cat}.png",
-                    scale=3,
-                )
-                fig.write_image(
-                    f"{figure_path}/{cat}/split_boxplot_{umap_cat}.pdf",
-                    scale=3,
-                )
+                save_figure(fig, f"{figure_path}/{cat}/split_boxplot_{umap_cat}.png", f"{figure_path}/{cat}/split_boxplot_{umap_cat}.pdf", scale=3)
 
 
                 # --- boxplots ---
@@ -219,8 +206,7 @@ def cell_category_analysis(
                 fig = go.Figure(data=[boxplot_trace], layout=layout)
                 helperfuncs.apply_general_plotly_layout(fig, False)
                 fig.write_html(f"{figure_path}/{cat}/boxplot_{umap_cat}.html")
-                fig.write_image(f"{figure_path}/{cat}/boxplot_{umap_cat}.png", scale=3)
-                fig.write_image(f"{figure_path}/{cat}/boxplot_{umap_cat}.pdf", scale=3)
+                save_figure(fig, f"{figure_path}/{cat}/boxplot_{umap_cat}.png", f"{figure_path}/{cat}/boxplot_{umap_cat}.pdf", scale=3)
 
 
                 # --- violin plots ---
@@ -255,8 +241,7 @@ def cell_category_analysis(
                 helperfuncs.apply_general_plotly_layout(fig, False)
 
                 fig.write_html(f"{figure_path}/{cat}/violin_{umap_cat}.html")
-                fig.write_image(f"{figure_path}/{cat}/violin_{umap_cat}.png", scale=3)
-                fig.write_image(f"{figure_path}/{cat}/violin_{umap_cat}.pdf", scale=3)
+                save_figure(fig, f"{figure_path}/{cat}/violin_{umap_cat}.png", f"{figure_path}/{cat}/violin_{umap_cat}.pdf", scale=3)
 
     done_file = open(f"{figure_path}/done.txt", "w")
     done_file.write("its done")

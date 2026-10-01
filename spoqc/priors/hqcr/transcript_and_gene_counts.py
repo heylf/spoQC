@@ -2,16 +2,29 @@ import pandas as pd
 import numpy as np
 
 from ... import helperfuncs
+from ...core import groupreduce, spatial
 
-# For each cell calculate the bad quality probability, which is basically the poportion of 
-# all the cells in a distance beloning to the bad quality cluster.
-def get_bad_quality_probability(x, df, distance_matrix, bad_cluster, qc_cluster):
-    quality_clusters = df.iloc[distance_matrix[x]][qc_cluster]
-    number_of_bad_quality_cells = list(quality_clusters.values).count(bad_cluster)
-    if ( len(quality_clusters) != 0 ):
-        return(number_of_bad_quality_cells/len(quality_clusters))
-    else:
-        return(0.0)
+# Cells closer than this (in obsm['spatial'] units) form a cell's neighbourhood.
+NEIGHBOURHOOD_RADIUS = 30
+
+
+def get_bad_quality_probabilities(df_coords, quality_clusters, bad_cluster, threads):
+    """
+    For each cell, the proportion of the other cells within NEIGHBOURHOOD_RADIUS whose quality
+    cluster equals bad_cluster; 0.0 for a cell without neighbours.
+
+    Parameters:
+        df_coords (pd.DataFrame): 'x' and 'y' of the cells, in cell order.
+        quality_clusters (np.ndarray): quality cluster of each cell, in cell order.
+        bad_cluster: the cluster counted as bad.
+        threads (int): neighbour-search threads.
+    """
+    n_cells = len(df_coords)
+    xy = df_coords[['x', 'y']].to_numpy()
+    cell_pos, neighbour_pos = spatial.pairs_within(xy, xy, NEIGHBOURHOOD_RADIUS, threads, exclude_self=True)
+    n_neighbours = np.bincount(cell_pos, minlength=n_cells)
+    n_bad = groupreduce.group_count(cell_pos, quality_clusters[neighbour_pos] == bad_cluster, n_cells)
+    return np.divide(n_bad, n_neighbours, out=np.zeros(n_cells), where=n_neighbours != 0)
 
 
 def reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
@@ -47,7 +60,7 @@ def reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
     helperfuncs.plot_scatter(qc_domains_adata, figure_path, 'qc_cluster', None, 'qc_cluster', None, None)
 
 
-def calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thres_counts):
+def calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thres_counts, threads):
 
     reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts)
 
@@ -81,14 +94,9 @@ def calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thr
         'y': sdata['table'].obsm['spatial'][:,1],
     })
 
-    distance_matrix = helperfuncs.points_within_radius(df_coords, 30, False)
-    bad_quality_probabilities =  np.array([get_bad_quality_probability(
-        x,
-        cell_df,
-        distance_matrix,
-        bad_cluster,
-        'qc_cluster'
-    ) for x in range(sdata['table'].n_obs)])
+    bad_quality_probabilities = get_bad_quality_probabilities(
+        df_coords, cell_df['qc_cluster'].to_numpy(), bad_cluster, threads
+    )
     good_quality_probabilities = 1 - bad_quality_probabilities
 
     return good_quality_probabilities, cell_df

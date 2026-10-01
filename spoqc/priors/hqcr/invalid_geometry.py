@@ -1,11 +1,7 @@
-import pandas as pd
 import numpy as np
 
 from ... import helperfuncs
 
-from scipy.stats import norm
-from sklearn.mixture import GaussianMixture
-from dask_ml.preprocessing import MinMaxScaler
 
 def calc_probs(sdata, figure_path, obj_type):
 

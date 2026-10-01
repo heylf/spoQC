@@ -1,21 +1,16 @@
-
 # In[]
-import pandas as pd
 import numpy as np
 
-from scipy.stats import norm
 from ... import helperfuncs
+from .. import gaussian
+
 
 def calc_probs_doublet_distance(sdata, figure_path, nstds):
     distances = sdata['table'].obs['doublet_distance']
     max_std = 1.0
-    prob_densities = norm.pdf(distances, loc=0.0, scale=nstds*max_std)
-    probs = np.array([0.0] * len(prob_densities))
-
-    # If you have no doublets then min_max normalization does not matter.
-    if ( len(distances[distances == 100_000]) != len(distances) ):
-        print("[NOTE] Doublets are in data, thus normalize probs.")
-        probs = helperfuncs.min_max_normalize(prob_densities)
+    prob_densities = gaussian.gaussian_density(np.asarray(distances), 0.0, nstds * max_std)
+    # Without doublets (every distance 100,000) all densities are equal and scale to 0.
+    probs = helperfuncs.min_max_normalize(prob_densities)
 
     helperfuncs.plot_histogram_for_array(
         distances,

@@ -1,19 +1,40 @@
 #In[]
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import plotly.graph_objects as go
-import geopandas as gpd
 import scanpy as sc
-import shutil
 
 from plotly.subplots import make_subplots
-from esda.moran import Moran
-from libpysal.weights import Queen
 
 from .. import helperfuncs
+from spoqc.core.figures import save_figure
+from spoqc.core.moran import moran as moran_test, queen_weights
 
+
+
+def scatter_grey_hue(df, hue, s):
+    """
+    `sns.scatterplot(data=df, x='x', y='y', hue=hue, s=s, palette='grey')` on the current axes,
+    without seaborn's per-point colour lookup.
+
+    seaborn maps a numeric hue through a dict keyed by every distinct value, one Python
+    lookup and one to_rgba per point (~0.8 s per 168k-cell plot). The same colours are
+    cmap(norm(value)) element-wise, so all points are drawn in one ax.scatter with
+    seaborn's marker defaults (white edge, linewidth .08 * sqrt(s)); seaborn itself then
+    draws only the two extreme rows, which fixes the same norm limits and produces the
+    same (brief, as seaborn picks for many values) legend entries and axis labels.
+    """
+    ax = plt.gca()
+    values = df[hue].to_numpy()
+    norm = mpl.colors.Normalize()
+    norm(values)  # autoscales to the data's min and max, as seaborn does
+    colors = sns.color_palette('grey', as_cmap=True)(norm(values))
+    ax.scatter(df['x'], df['y'], s=s, c=colors, edgecolor='w', linewidths=.08 * np.sqrt(s))
+    extremes = df.iloc[[int(np.argmin(values)), int(np.argmax(values))]]
+    sns.scatterplot(data=extremes, x='x', y='y', hue=hue, s=s, palette='grey', legend='brief')
 
 
 def plot_pca_scatter(df, figure_path, nPCs, flip=False):
@@ -26,7 +47,7 @@ def plot_pca_scatter(df, figure_path, nPCs, flip=False):
         ax = plt.gca()
         
         # Create a scatter plot with Seaborn
-        sns.scatterplot(data=df, x='x', y='y', hue=f'PC{i}', s=10, palette='grey')
+        scatter_grey_hue(df, f'PC{i}', 10)
 
         # Add labels and title
         plt.title(f'PC{i+1}')
@@ -41,8 +62,7 @@ def plot_pca_scatter(df, figure_path, nPCs, flip=False):
         plt.legend(bbox_to_anchor=(1.15, 1), loc='upper left', borderaxespad=0., markerscale=1)
 
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/scatterplot_PCs.png', bbox_inches='tight')
-    plt.savefig(f'{figure_path}/scatterplot_PCs.pdf', bbox_inches='tight')
+    save_figure(plt.gcf(), f'{figure_path}/scatterplot_PCs.png', f'{figure_path}/scatterplot_PCs.pdf', bbox_inches='tight')
     plt.close()
 
     # Individual PC plots
@@ -51,7 +71,7 @@ def plot_pca_scatter(df, figure_path, nPCs, flip=False):
         ax = plt.gca()
 
         # Create a scatter plot with Seaborn
-        sns.scatterplot(data=df, x='x', y='y', hue=f'PC{i}', s=1, palette='grey')
+        scatter_grey_hue(df, f'PC{i}', 1)
 
         # Add labels and title
         plt.title(f'PC{i+1}')
@@ -66,8 +86,7 @@ def plot_pca_scatter(df, figure_path, nPCs, flip=False):
         plt.legend(bbox_to_anchor=(1.15, 1), loc='upper left', borderaxespad=0., markerscale=1)
 
         plt.tight_layout()
-        plt.savefig(f'{figure_path}/scatterplot_PC{i+1}.png', bbox_inches='tight')
-        plt.savefig(f'{figure_path}/scatterplot_PC{i+1}.pdf', bbox_inches='tight')
+        save_figure(plt.gcf(), f'{figure_path}/scatterplot_PC{i+1}.png', f'{figure_path}/scatterplot_PC{i+1}.pdf', bbox_inches='tight')
         plt.close()
 
 
@@ -78,18 +97,16 @@ def plot_spatial_vs_exression_variance(sdata, figure_path, df, nPCs):
 
     rna_adata = sdata['table']
 
+    # Spatial-neighbor weights using queen contiguity; the coordinates, and therefore
+    # the weights, are the same for every PC.
+    w = queen_weights(df[['x', 'y']].to_numpy())
+
     for i in range(0, nPCs):
-
-        # Convert to GeoDataFrame which is needed to take sparsity of spatial data into account.
-        gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.x, df.y))
-
-        # Create spatial-neighbor weights using queen contiguity
-        w = Queen.from_dataframe(gdf)
 
         # Calculate Moran's I with spatial weights.
         # P-value of 0.01 with 99 permutations is not necessarily more significant than a result with 
         # a p-value of 0.001 with 999 permutations. Is is recommended to do 999 permutation. 9999 for more precision.
-        moran = Moran(df['PC' + str(i)], w, permutations=999)
+        moran = moran_test(df['PC' + str(i)], w, permutations=999)
 
         # p_norm = This is the p-value based on the assumption that the statistic follows a normal distribution.
         # p_sim = This is the p-value based on the permutation test, which is a non-parametric method.
@@ -138,8 +155,7 @@ def plot_spatial_vs_exression_variance(sdata, figure_path, df, nPCs):
     helperfuncs.apply_general_plotly_layout(fig, True)
 
     fig.write_html(f"{figure_path}/pca_evaluation_spatial_variance.html")
-    fig.write_image(f"{figure_path}/pca_evaluation_spatial_variance.png", scale=3)
-    fig.write_image(f"{figure_path}/pca_evaluation_spatial_variance.pdf", scale=3)
+    save_figure(fig, f"{figure_path}/pca_evaluation_spatial_variance.png", f"{figure_path}/pca_evaluation_spatial_variance.pdf", scale=3)
 
     # Create a subplot with secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -170,8 +186,7 @@ def plot_spatial_vs_exression_variance(sdata, figure_path, df, nPCs):
     helperfuncs.apply_general_plotly_layout(fig, True)
 
     fig.write_html(f"{figure_path}/pca_evaluation_moransi.html")
-    fig.write_image(f"{figure_path}/pca_evaluation_moransi.png", scale=3)
-    fig.write_image(f"{figure_path}/pca_evaluation_moransi.pdf", scale=3)
+    save_figure(fig, f"{figure_path}/pca_evaluation_moransi.png", f"{figure_path}/pca_evaluation_moransi.pdf", scale=3)
 
 
 def run_qc_model(sdata, figure_path, CONST):
@@ -197,10 +212,10 @@ def run_qc_model(sdata, figure_path, CONST):
     for i in range(0, npcs):
         df[f'PC{i}'] = X_pca[:,i]
 
-    sc.pl.pca_variance_ratio(rna_adata, n_pcs=n_comps, log=True, save='.png')
-    shutil.move("figures/pca_variance_ratio.png", f"{figure_path}/pca_variance_ratio.png")
-    sc.pl.pca_variance_ratio(rna_adata, n_pcs=n_comps, log=True, save='.pdf')
-    shutil.move("figures/pca_variance_ratio.pdf", f"{figure_path}/pca_variance_ratio.pdf")
+    sc.pl.pca_variance_ratio(rna_adata, n_pcs=n_comps, log=True, show=False)
+    save_figure(plt.gcf(), f"{figure_path}/pca_variance_ratio.png", f"{figure_path}/pca_variance_ratio.pdf",
+                bbox_inches="tight")  # as scanpy's save= wrote them (dpi from rcParams)
+    plt.close()
 
     plot_pca_scatter(df, figure_path, npcs)
     plot_spatial_vs_exression_variance(sdata, figure_path, df, npcs)

@@ -42,6 +42,7 @@ dependencies = [
     "ovrlpy==1.2.0",
     "pandas==2.3.3",
     "plotly==6.8.0",
+    "polars>=1.44.2",
     "pyarrow==24.0.0",
     "rasterio==1.5.0",
     "requests==2.34.2",
@@ -54,6 +55,7 @@ dependencies = [
     "spatialdata==0.7.3",
     "spatialdata-io==0.7.0",
     "spatialdata-plot==0.4.0",
+    "threadpoolctl==3.7.0",
     "tqdm==4.68.3",
     "zarr==3.2.1",
 ]
@@ -88,3 +90,4 @@ spoqc = "spoqc.__main__:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["slow: long-running differential tests (deselect with -m 'not slow')"]

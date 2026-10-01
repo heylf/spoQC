@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import dask.dataframe as dd
-
 from .. import helperfuncs
 from .. import subworkflows
+from spoqc.core import raster, threads
+from spoqc.core.figures import save_figure
 
 def start_image_celltype_analysis(
         sdata,
@@ -33,23 +33,18 @@ def start_image_celltype_analysis(
     # Image df
     qc_metrics = ['as_score', 's_score', 'intensity']
 
-    # You have to read as dask because these paquet files are dask dataframes.
-    # Else you run into partition errors.
-    image_ddf = dd.read_parquet(
-        f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
-        columns=qc_metrics,
-        engine="pyarrow"
+    # One read of mask_raw for all four columns. The frames carry the pixel index 0..n-1 that
+    # dask read back from the parts ('__null_dask_index__').
+    n_pixels = dim_x * dim_y
+    columns = raster.read_pixel_columns(
+        f'{spoqc_tmp_folder}/{prefix}_output_mask_raw', [*qc_metrics, f'{prefix}_mask'], n_pixels, threads.budget()
     )
-    image_df = image_ddf.compute()
-    image_df.index = image_df.index.set_names('index')
+    image_df = pd.DataFrame({metric: columns[metric] for metric in qc_metrics},
+                            index=pd.Index(np.arange(n_pixels), name='index'))
     image_df['intensity'] = np.log10( image_df['intensity'] + 1 )
 
-    mask_ddf = dd.read_parquet(
-        f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
-        columns=[f'{prefix}_mask'],
-        engine="pyarrow"
-    )
-    mask_df = mask_ddf.compute()
+    mask_df = pd.DataFrame({f'{prefix}_mask': columns[f'{prefix}_mask']}, index=pd.Index(np.arange(n_pixels)))
+    del columns
 
     for col in image_df.columns:
         image_df[col] = np.flipud(np.array(image_df[col]).reshape(dim_x, dim_y)).flatten()
@@ -95,8 +90,7 @@ def start_image_celltype_analysis(
             )
             fig.update_layout(width=800, height=2500, violinmode='overlay')
             figures.append(fig)
-            fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}_{object}.png", scale=3)
-            fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}_{object}.pdf", scale=3)
+            save_figure(fig, f"{figure_path}/split_violinplot_{qc_metric}_{object}.png", f"{figure_path}/split_violinplot_{qc_metric}_{object}.pdf", scale=3)
 
         if ( object == 'cell' ):
             subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
@@ -131,8 +125,7 @@ def start_image_celltype_analysis(
             )
             fig_bar.update_layout(barmode="stack", height=2500)
             figures.append(fig_bar)
-            fig_bar.write_image(f"{figure_path}/barplot_celltypes_{modality}.png", scale=3)
-            fig_bar.write_image(f"{figure_path}/barplot_celltypes_{modality}.pdf", scale=3)
+            save_figure(fig_bar, f"{figure_path}/barplot_celltypes_{modality}.png", f"{figure_path}/barplot_celltypes_{modality}.pdf", scale=3)
 
             bar_plot_pct = (
                 bar_plot_df
@@ -154,8 +147,7 @@ def start_image_celltype_analysis(
 
             fig_pct.update_layout(barmode="stack", xaxis_title="Percentage (%)", height=2500)
             figures.append(fig_pct)
-            fig_pct.write_image(f"{figure_path}/barplot_celltypes_pct_{modality}.png", scale=3)
-            fig_pct.write_image(f"{figure_path}/barplot_celltypes_pct_{modality}.pdf", scale=3)
+            save_figure(fig_pct, f"{figure_path}/barplot_celltypes_pct_{modality}.png", f"{figure_path}/barplot_celltypes_pct_{modality}.pdf", scale=3)
 
 
     # Generate plotly HTML

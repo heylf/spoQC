@@ -11,7 +11,6 @@ import dask.dataframe as dd
 import dask.array as da
 import dask
 import time
-import pyarrow as pa
 import pyarrow.parquet as pq
 import shutil
 import scanpy as sc
@@ -20,7 +19,7 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import concurrent.futures
 
-from typing import NamedTuple, Dict, List, Union, Tuple, Any, Optional, Sequence
+from typing import NamedTuple, Dict, List, Union, Tuple, Any, Optional
 from anndata import AnnData
 from tqdm import tqdm
 from sklearn.metrics import silhouette_score
@@ -29,6 +28,8 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from scipy.ndimage import gaussian_filter
 from scipy.stats import norm
+from spoqc.core import figures, parquet, raster, threads
+from spoqc.core.figures import save_figure
 
 class ImageDimStruct(NamedTuple):
     bb_xmin: int
@@ -66,6 +67,7 @@ _CMAP_DENSITY = mcolors.LinearSegmentedColormap.from_list(
 # The list remove_from_moving are files which should not be sorted.
 # The parameter prefix_or_suffix sets if you want to sort by prefix or suffix.
 def sort_files(data_path, prefix_or_suffix, remove_from_moving):
+    figures.wait()  # every figure in data_path must have landed before it is listed and moved
     s = 0
     if ( prefix_or_suffix == 'suffix' ):
         s = 1
@@ -127,29 +129,45 @@ def create_fraction_df(adata: AnnData, group: str, category: str) -> Dict[str, U
     return(d)    
 
 
-def read_data_as_ddf(tmp_files, chunk_size):
-    # Preallocate a Dask Array with correct shape and chunks
-    col_series = [
-        dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
-        for file in tmp_files
-    ]
+# Per-pixel metric columns handed from structure analysis to pixel scoring in memory, keyed by
+# the parquet path nparr_to_parquet wrote them to. They are float32, the dtype pixel scoring
+# clusters and sums them in. read_pixel_features takes each one out, so it is held only until then.
+PIXEL_FEATURES = {}
+FEATURE_COPY_ROWS = 1 << 22  # rows per threaded copy of a handed-off column
 
-    # Compute all per-file partition lengths together (in parallel) instead of
-    # letting to_dask_array(lengths=True) block on each file one at a time.
-    lengths_per_col = dask.compute(*[s.map_partitions(len) for s in col_series])
 
-    array_columns = []
-    for col_ddf, lengths in zip(col_series, lengths_per_col):
-        col_arr = col_ddf.to_dask_array(lengths=tuple(lengths)).rechunk((chunk_size,))
-        array_columns.append(col_arr[:, None])  # make 2D for stacking
+def _copy_rows(source, target, workers):
+    """target[:] = source (cast to target's dtype), FEATURE_COPY_ROWS rows at a time on `workers` threads."""
+    threads.map_slices(lambda rows: target.__setitem__(rows, source[rows]), len(source), FEATURE_COPY_ROWS, workers)
 
-    # Stack columns into 2D Dask Array
-    dask_array = da.hstack(array_columns).astype(np.float32)  # Much cheaper than dd.concat
-    dask_array = dask_array.rechunk((chunk_size, -1))
-    # Optional but recommended to avoid re-reading Parquet each epoch:
-    # da.to_zarr(dask_array, "dask_array.zarr", overwrite=True); dask_array = da.from_zarr("dask_array.zarr")
 
-    return dask_array
+def read_pixel_features(tmp_files, threads):
+    """Stack per-pixel metric files into one (n_pixels, n_files) float32 matrix, column j = tmp_files[j].
+
+    A column comes from PIXEL_FEATURES when structure analysis ran in this process, else from its
+    parquet (column `name` of `{name}_output_{suffix}.parquet`, as nparr_to_parquet writes it),
+    read by row group on `threads` threads. The matrix is Fortran-ordered so filling one column
+    touches only that column's pages, and each handed-off column is freed once copied.
+    """
+    def n_pixels(tmp_file):
+        column = PIXEL_FEATURES.get(os.path.abspath(tmp_file))
+        return raster.pixel_rows(tmp_file) if column is None else len(column)
+
+    n_rows = n_pixels(tmp_files[0])
+    for tmp_file in tmp_files:
+        n_file = n_pixels(tmp_file)
+        if n_file != n_rows:
+            raise ValueError(f"[ERROR] {tmp_file} has {n_file} pixels, {tmp_files[0]} has {n_rows}")
+    features = np.empty((n_rows, len(tmp_files)), dtype=np.float32, order='F')
+    for j, tmp_file in enumerate(tmp_files):
+        column = PIXEL_FEATURES.pop(os.path.abspath(tmp_file), None)
+        if column is None:
+            name = os.path.basename(tmp_file).split('_output_')[0]
+            raster.read_pixel_columns(tmp_file, [name], n_rows, threads, out={name: features[:, j]})
+        else:
+            _copy_rows(column, features[:, j], threads)
+        del column
+    return features
 
 
 def deduplicate_dask_index(ddf: Any) -> Any:
@@ -231,11 +249,11 @@ def image_crop(sdata: Any, bb_xmin: float, bb_ymin: float,
         return None, None, None
 
 
-def plotly_save_as_png(fig, plot_path, w=4, h=3, dpi=300):
+def plotly_save_as_png(fig, *plot_paths, w=4, h=3, dpi=300):
     width_px  = w * dpi
     height_px = h * dpi
     fig.update_layout(margin=dict(l=40, r=20, t=30, b=40))
-    fig.write_image(plot_path, width=width_px, height=height_px, scale=1)
+    save_figure(fig, *plot_paths, width=width_px, height=height_px, scale=1)
     
 
 def generate_distinct_colors(num_colors: int) -> List[str]:
@@ -381,8 +399,7 @@ def plot_density_by_category(df: pd.DataFrame, key: str, figure_path: Union[str,
             plt.gca().invert_yaxis()
 
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/densityplot_{key}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/densityplot_{key}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/densityplot_{key}.png', f'{figure_path}/densityplot_{key}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 # Same as kde but scatter plot
@@ -424,8 +441,7 @@ def plot_scatter_by_category(df: pd.DataFrame, key: str, figure_path: str, suffi
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., markerscale=1)
 
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/scatterplot_{key}_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/scatterplot_{key}_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/scatterplot_{key}_{suffix}.png', f'{figure_path}/scatterplot_{key}_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -504,10 +520,7 @@ def plot_scatter_density_by_category_df(
 
     plt.tight_layout()
     if figure_path is not None:
-        plt.savefig(f'{figure_path}/scatterplot_densityplot_{key}_{suffix}.png',
-                    bbox_inches='tight', dpi=300)
-        plt.savefig(f'{figure_path}/scatterplot_densityplot_{key}_{suffix}.pdf',
-                    bbox_inches='tight', dpi=300)
+        save_figure(plt.gcf(), f'{figure_path}/scatterplot_densityplot_{key}_{suffix}.png', f'{figure_path}/scatterplot_densityplot_{key}_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -561,8 +574,7 @@ def plot_density(adata: AnnData, key: str, figure_path: str, flip=False) -> None
         plt.gca().invert_yaxis()
 
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/densityplot_{key}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/densityplot_{key}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/densityplot_{key}.png', f'{figure_path}/densityplot_{key}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -619,8 +631,7 @@ def plot_scatter(adata: AnnData, figure_path: str, suffix: str, rect: Optional[A
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., markerscale=1)
 
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/scatterplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/scatterplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/scatterplot_{suffix}.png', f'{figure_path}/scatterplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -701,8 +712,7 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
         plt.gca().invert_yaxis()
     
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/scatterplot_densityplot_{suffix}.png', f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -755,15 +765,13 @@ def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
         plt.gca().invert_yaxis()
     
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/scatterplot_densityplot_{suffix}.png', f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
 def plot_original_image_cell_circles(sdata, figure_path, suffix):
     sdata.pl.render_shapes(elements="cell_circles", scale=0.3).pl.show(dpi=300, show=False)
-    plt.savefig(f'{figure_path}/image_cell_circles_{suffix}.png')
-    plt.savefig(f'{figure_path}/image_cell_circles_{suffix}.pdf')
+    save_figure(plt.gcf(), f'{figure_path}/image_cell_circles_{suffix}.png', f'{figure_path}/image_cell_circles_{suffix}.pdf')
     plt.close()
 
 def min_value_shift(data: Union[np.ndarray, list]) -> np.ndarray:
@@ -787,61 +795,6 @@ def min_value_shift(data: Union[np.ndarray, list]) -> np.ndarray:
     else:
         shifted_data = data
     return shifted_data
-
-
-def points_within_radius(df: pd.DataFrame, radius: float, num: bool) -> List[Union[int, List[int]]]:
-    """
-    Get points within a given radius for each point in a DataFrame.
-
-    Parameters:
-    df (pd.DataFrame): DataFrame containing at least two columns, 'x' and 'y', representing coordinates of points.
-    radius (float): The radius within which to search for points.
-    num (bool): If True, return the number of points within the radius for each point. 
-                If False, return the indices of the points within the radius.
-
-    Returns:
-    List[Union[int, List[int]]]:
-        A list where each element corresponds to a point in `df`:
-        - If `num` is True, the element is the count of points within the radius.
-        - If `num` is False, the element is a list of indices of points within the radius.
-    """
-    points_in_radius = []
-    
-    for i, point in df.iterrows():
-        x1, y1 = point['x'], point['y']
-        
-        # Calculate the distance from this point to all other points
-        distances = np.sqrt((df['x'] - x1)**2 + (df['y'] - y1)**2)
-        
-        # Get the indices of points within the given radius (excluding the point itself)
-        close_points = df[distances <= radius].index.tolist()
-        close_points.remove(i)  # Remove the point itself from the list
-        
-        # Append the list of close points to the result.
-        if ( num ):
-            points_in_radius.append(len(close_points))
-        else:
-            points_in_radius.append(close_points)
-    
-    return points_in_radius
-
-
-def euclidean_distance(point1: Sequence[float], point2: Sequence[float]) -> float:
-    """
-    Computes the Euclidean distance between two points in n-dimensional space.
-
-    Args:
-        point1 (Sequence[float]): The first point, represented as a sequence of coordinates (e.g., list, tuple).
-        point2 (Sequence[float]): The second point, represented as a sequence of coordinates (e.g., list, tuple).
-
-    Returns:
-        float: The Euclidean distance between the two points.
-
-    The distance is computed as:
-        sqrt(sum((coord_1 - coord_2)^2 for each pair of coordinates))
-    """
-    return np.sqrt(sum((coord_1 - coord_2) ** 2 for coord_1, coord_2 in zip(point1, point2)))
-
 
 
 def add_manual_legend(legend_dict, points=None):
@@ -890,14 +843,17 @@ def plot_pixels(
         flip=False
 ):
 
+    dpi = 300
     plt.figure(figsize=(12, 6))
     plt.title(title)
 
     if ( flip ):
         image = np.flipud(image)
 
-    plt.imshow(
+    figures.imshow(
+        plt.gca(),
         image , # I need to flip the image
+        dpi=dpi,
         cmap=cmap,
         extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax], # get the bounding box
         aspect='equal'
@@ -915,8 +871,7 @@ def plot_pixels(
     if ( legend_dict ):
         add_manual_legend(legend_dict, points)
 
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/imageplot_{suffix}.png', f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=dpi)
     plt.close()
 
 
@@ -1030,8 +985,7 @@ def test_resolutions_leiden(
     for res_value in ss['res'].unique():  # Assuming 'res' contains the breakpoints
         plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)  # Adding vertical lines
     plt.xticks(ss['res'].unique())  # Ensure all 'res' values are shown on the x-axis
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.png')
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.pdf')
+    save_figure(plt.gcf(), f'{figure_path}/test_resolutions_leiden_clustering_ss.png', f'{figure_path}/test_resolutions_leiden_clustering_ss.pdf')
     plt.close()
 
     if ( annotation_key or k):
@@ -1054,16 +1008,34 @@ def test_resolutions_leiden(
         plt.title(f'Annotation had {title} celltypes')
         plt.xticks(ss['res'].unique())  # ensure all 'res' values appear
         plt.tight_layout()
-        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.png')
-        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.pdf')
+        save_figure(plt.gcf(), f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.png', f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.pdf')
         plt.close()
 
     return win_res
 
 
-def min_max_normalize(array):
-    array = np.array(array)
-    return (array - np.min(array)) / (np.max(array) - np.min(array))
+def min_max_normalize(array, workers=1, out=None):
+    """
+    (x - min) / (max - min), with min and max over the non-NaN values (NaN stays NaN) and a zero
+    range divided by 1, so a constant array scales to 0. Elementwise work runs on `workers`
+    threads; `out` may be `array` itself to scale it in place.
+    """
+    array = np.asarray(array)
+    # slices of at most 2^18 values keep the temporaries small (2 MB of float64)
+    step = max(min(-(-len(array) // workers), 1 << 18), 1)
+    bounds = threads.map_slices(lambda s: (np.nanmin(array[s]), np.nanmax(array[s])), len(array), step, workers)
+    data_min = np.nanmin([b[0] for b in bounds])
+    data_range = np.nanmax([b[1] for b in bounds]) - data_min
+    if data_range == 0:
+        data_range = 1
+    if out is None:
+        out = np.empty(array.shape, dtype=np.true_divide(array[:1] - data_min, data_range).dtype)
+
+    def scale(s):
+        out[s] = (array[s] - data_min) / data_range
+
+    threads.map_slices(scale, len(array), step, workers)
+    return out
 
 
 def get_stuff_from_image_around_coords(pixel_coords, radius, xy_image_feature, imagedim):
@@ -1136,8 +1108,7 @@ def thread_split_list(data, t):
 def dummyplot(figure_path, suffix):
     plt.figure(figsize=(13, 10))
     scatter = sns.scatterplot(x=[1,2], y=[1,2])
-    plt.savefig(f'{figure_path}/dummy_plot_{suffix}.png', bbox_inches='tight')
-    plt.savefig(f'{figure_path}/dummy_plot_{suffix}.pdf', bbox_inches='tight')
+    save_figure(plt.gcf(), f'{figure_path}/dummy_plot_{suffix}.png', f'{figure_path}/dummy_plot_{suffix}.pdf', bbox_inches='tight')
     plt.close()
 
 
@@ -1168,30 +1139,56 @@ def sdata_obs_to_parquet(sdata, figure_path, spoqc_tmp_folder, suffix, obs_colum
     write_df.to_parquet(f"{spoqc_tmp_folder}/{figure_path.split('/')[-2]}_output_{suffix}.parquet")
     return(obs_columns + new_columns)
 
+def _tmp_file_columns(tmp_file):
+    """A tmp parquet's data columns, from its schema (no data read); the stored pandas index
+    ('index', '__index_level_0__') is not one."""
+    schema = pq.read_schema(tmp_file)
+    if schema.pandas_metadata is None:
+        raise ValueError(f"{tmp_file} has no pandas metadata, so its index columns are unknown; "
+                         "spoQC tmp files are written with DataFrame.to_parquet")
+    index_columns = schema.pandas_metadata['index_columns']
+    return [col for col in schema.names if col not in index_columns]
+
+
 def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
-    try:
-        tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder) \
-                     if file.endswith(f'{suffix}.parquet')]
-        sdata['table'].obs.index = [str(x) for x in sdata['table'].obs.index]
-        for tmp_file in tmp_files:
-            # Check the on-disk schema (cheap, no data read) so files already joined in a
-            # previous call are skipped instead of being re-read from disk every time.
-            columns = pq.ParquetFile(tmp_file).schema.names
-            if all(col in sdata['table'].obs.columns for col in columns):
-                print(f'[NOTE] skip {tmp_file}, already loaded in')
-                continue
-            print(f'[NOTE] read in {tmp_file}')
-            tmp_data = pd.read_parquet(tmp_file)
-            tmp_data.index = [str(x) for x in tmp_data.index]
-            sdata['table'].obs = sdata['table'].obs.join(tmp_data, how='left')
-    except Exception as e:
-        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder}: {e}")
-        return None
+    tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder) \
+                 if file.endswith(f'{suffix}.parquet')]
+    sdata['table'].obs.index = [str(x) for x in sdata['table'].obs.index]
+    file_columns = {tmp_file: _tmp_file_columns(tmp_file) for tmp_file in tmp_files}
+    owners = {}
+    for tmp_file, columns in file_columns.items():
+        for col in columns:
+            owners.setdefault(col, []).append(tmp_file)
+    duplicates = {col: files for col, files in owners.items() if len(files) > 1}
+    if duplicates:
+        raise ValueError(f"columns in more than one tmp file of {spoqc_tmp_folder}: {duplicates}")
+    for tmp_file, columns in file_columns.items():
+        # Read only the columns obs does not have yet: files joined in a previous call or
+        # computed in this process are skipped, and columns a step run on its own already
+        # recomputed (the mandatory valid-geometry columns) are kept.
+        missing = [col for col in columns if col not in sdata['table'].obs.columns]
+        if not missing:
+            print(f'[NOTE] skip {tmp_file}, already loaded in')
+            continue
+        print(f'[NOTE] read in {tmp_file}')
+        tmp_data = pd.read_parquet(tmp_file, columns=missing)
+        tmp_data.index = [str(x) for x in tmp_data.index]
+        sdata['table'].obs = sdata['table'].obs.join(tmp_data, how='left')
 
 def nparr_to_parquet(np_arr, prefix, spoqc_tmp_folder, suffix):
+    """Write a per-pixel metric column as the parquet directory {prefix}_output_{suffix}.parquet
+    (parts of core.parquet.PART_ROWS rows, written in parallel; each part is the file pq.write_table
+    writes for its rows) and hand a float32 copy to pixel scoring (PIXEL_FEATURES)."""
     outfile = f"{spoqc_tmp_folder}/{prefix}_output_{suffix}.parquet"
-    table = pa.Table.from_arrays([pa.array(np_arr)], names=[prefix])
-    pq.write_table(table, outfile)
+    workers = threads.budget()
+    parquet.write_parts(outfile, len(np_arr), parquet.columns_of({prefix: np_arr}),
+                        range(0, len(np_arr), parquet.PART_ROWS), workers, dask_index=False)
+    if np_arr.dtype == np.float32:
+        column = np_arr
+    else:
+        column = np.empty(len(np_arr), dtype=np.float32)
+        _copy_rows(np_arr, column, workers)
+    PIXEL_FEATURES[os.path.abspath(outfile)] = column
 
 def df_to_parquet(df, prefix, spoqc_tmp_folder, obs_columns, suffix):
     outfile = f"{spoqc_tmp_folder}/{prefix}_output_{suffix}.parquet"
@@ -1203,155 +1200,42 @@ def df_to_parquet(df, prefix, spoqc_tmp_folder, obs_columns, suffix):
     return(obs_columns + new_columns)
 
 
-def ddf_to_parquet(
-    ddf: "dd.DataFrame",
-    prefix: str,
-    spoqc_tmp_folder: str,
-    obs_columns: Sequence[str],
-    suffix: str,
-    *,
-    partition_on: str = None,
-    include_index: bool = True,
-    overwrite: bool = True,
-    engine: str = "pyarrow",
-) -> List[str]:
-    """
-    Write the non-observation columns of a Dask DataFrame to Parquet.
-
-    Parameters
-    ----------
-    df : dask.dataframe.DataFrame
-        Input Dask DataFrame.
-    prefix, spoqc_tmp_folder, suffix : str
-        Used to form the output path: {spoqc_tmp_folder}/{prefix}_output_{suffix}.parquet
-    obs_columns : Sequence[str]
-        Columns to exclude from the Parquet write.
-    include_index : bool, default True
-        Whether to persist the index into Parquet.
-    partition_on: str, default None
-        Give partition key to make use of directory based disk partition.
-    overwrite : bool, default True
-        Overwrite existing output.
-    engine : str, default "pyarrow"
-        Parquet engine.
-
-    Returns
-    -------
-    List[str]
-        Column order list: obs_columns + new_columns
-    """
-    path = f"{spoqc_tmp_folder}/{prefix}_output_{suffix}"
-
-    # Compute columns to write (Dask-friendly; no data materialized)
-    obs_set = set(obs_columns)
-    new_columns = [c for c in ddf.columns if c not in obs_set]
-
-    # Select only needed columns lazily
-    write_ddf = ddf[new_columns]
-
-    # Write to Parquet (this triggers computation)
-    write_ddf.to_parquet(
-        path,
-        engine=engine,
-        write_index=include_index,
-        overwrite=overwrite,
-        partition_on=partition_on,
-        compute=True,
-    )
-
-
-def read_df_parquet_tmp_files(intensities, spoqc_tmp_folder, suffix):
-    read_image_df = pd.DataFrame({
-        'pid': range(len(intensities)),
-        'intensity': intensities
-    })
-
-    try:
-        tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder) \
-                     if file.endswith(f'{suffix}.parquet')]
-        for tmp_file in tmp_files:
-            print(f'[NOTE] read in {tmp_file}')
-            tmp_data = pd.read_parquet(tmp_file)
-            tmp_data['pid'] = range(len(intensities))
-            read_image_df = pd.merge(read_image_df, tmp_data, on='pid', how='left')
-            del tmp_file
-            del tmp_data
-            gc.collect()
-        return read_image_df
-    except Exception as e:
-        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
-        return None
-
-
-def read_df_parquet_tmp_files_daskified(num_values_image, spoqc_tmp_folder, suffix):
-    try:
-        # Create base DataFrame
-        read_image_df = pd.DataFrame({
-            'pid': np.arange(num_values_image)
-        })
-
-        # Convert to Dask and set 'pid' as index
-        read_image_ddf = dd.from_pandas(read_image_df, npartitions=4).set_index('pid')
-
-        # List all matching parquet files
-        tmp_files = [
-            os.path.join(spoqc_tmp_folder, file)
-            for file in os.listdir(spoqc_tmp_folder)
-            if file.endswith(f'{suffix}.parquet')
-        ]
-
-        for tmp_file in tmp_files:
-            print(f'[NOTE] Reading in {tmp_file}')
-            tmp_ddf = dd.read_parquet(tmp_file)
-            read_image_ddf = read_image_ddf.join(tmp_ddf, how='left')
-
-        return read_image_ddf
-
-    except Exception as e:
-        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
-        return None
-
-
-def read_df_parquet_tmp_files_scorify(cluster_df, spoqc_tmp_folder, suffix):
-    try:
-        tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder) \
-                     if file.endswith(f'{suffix}.parquet')]
-        for tmp_file in tmp_files:
-            print(f'[NOTE] read in {tmp_file}')
-            tmp_data = pd.read_parquet(tmp_file)
-
-            # Ensure tmp_data has the correct number of rows
-            if ( len(tmp_data) != len(cluster_df)) :
-                raise ValueError(f"Row count mismatch: expected {len(cluster_df)}, got {len(tmp_data)}")
-
-            if ( tmp_data.isna().any().sum() ):
-                print("[DEBUG] Number of NaNs in each column:")
-                print(tmp_data.isna().sum().compute())
-
-            # Sum across each row and add to 'score'
-            cluster_df['score'] += tmp_data.sum(axis=1).values
-
-    except Exception as e:
-        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder} because of {e}")
-        return None
+def histogram(array, nbins):
+    """np.histogram of the non-NaN values of `array` into nbins equal bins over their range (the
+    bins sns.histplot(array, bins=nbins) draws), counted on core.threads.N threads."""
+    array = np.asarray(array)
+    value_range = (np.nanmin(array), np.nanmax(array))
+    workers = threads.budget()
+    counts = sum(threads.map_slices(
+        lambda rows: np.histogram(array[rows], bins=nbins, range=value_range)[0],
+        len(array), -(-len(array) // workers), workers,
+    ))
+    return counts, np.histogram_bin_edges(array[:0], bins=nbins, range=value_range)
 
 
 def plot_histogram_for_array(array, nbins, figure_path, title, suffix, t=None, std=None, nstds=1):
-    sns.histplot(array, bins=nbins)
+    if len(array):
+        # seaborn draws the counted bins, not every value (pixel arrays hold ~1e9 values)
+        counts, bin_edges = histogram(array, nbins)
+        sns.histplot(
+            {"value": bin_edges[:-1], "count": counts}, x="value", weights="count",
+            bins=nbins, binrange=(bin_edges[0], bin_edges[-1]),
+        )
+    else:
+        sns.histplot(array, bins=nbins)
+        bin_edges = np.histogram_bin_edges(array, bins=nbins)
     plt.title(title)
     plt.xlabel("value")
     plt.ylabel("frequency")
     if t:
         plt.axvline(x=t, color='red', linestyle='-', alpha=1.0)  # Adding vertical lines
     if t is not None and std is not None:
-        bin_edges = np.histogram_bin_edges(array, bins=nbins)
         bin_width = np.mean(np.diff(bin_edges))
         scale = len(array) * bin_width  # rescale pdf to match histplot's count-based y-axis
         x = np.linspace(np.min(array), np.max(array), 200)
         y = norm.pdf(x, loc=t, scale=nstds * std) * scale
         plt.plot(x, y, color='gray')
-    plt.savefig(f'{figure_path}/histogram_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/histogram_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/histogram_{suffix}.png', f'{figure_path}/histogram_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 

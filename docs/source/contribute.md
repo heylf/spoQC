@@ -31,9 +31,10 @@ Segmentation metrics must be linked back to individual cells and stored in the S
 
 **Image metric**
 
-`spoqc/metrics/image/edge_strength.py`
+`spoqc/metrics/image/pixel_metrics.py` (`edge_strength`)
 
-Image metrics should be saved as a one-dimensional (1D) array.
+Image metrics are kernels that take the 2D image and return a tuple of 2D metric images.
+`pixel_metrics.pixel_metric` runs a kernel once, plots each result and returns it as a one-dimensional (1D) array to save.
 
 **Transcript density metric**
 

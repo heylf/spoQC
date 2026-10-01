@@ -6,10 +6,10 @@ import numpy as np
 import plotly.express as px
 import functools
 
-from typing import List, Tuple, Any
 from concurrent.futures import ProcessPoolExecutor
 
-from .. import helperfuncs
+from spoqc.core import figures
+from spoqc.core.figures import save_figure
 
 def measure_stripe_thickness_and_black_area(image_path: str, 
                                             background_color: np.ndarray[3, np.dtype[np.int_]],
@@ -55,6 +55,7 @@ def measure_stripe_thickness_and_black_area(image_path: str,
             upper_bound_background[i] = 255
 
     # Read the image
+    figures.wait()  # image_path is a figure (generate_input) that may still be in flight
     image = cv2.imread(image_path)
     # Turn background color to white
     mask = cv2.inRange(image, lower_bound_background, upper_bound_background)
@@ -115,26 +116,12 @@ def measure_stripe_thickness_and_black_area(image_path: str,
     plt.imshow(edges, cmap='gray')
     plt.title('Canny Edges')
     
-    plt.savefig(f'{output_path}/domain_thickness_score.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{output_path}/domain_thickness_score.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{output_path}/domain_thickness_score.png', f'{output_path}/domain_thickness_score.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
     #return thicknesses, adjusted_black_area
     return norm_adjusted_black_area
 
-
-def min_distance(coords: Tuple[float, float], compare_coords: List[Tuple[float, float]]) -> float:
-    """
-    Calculate the minimum Euclidean distance between a given coordinate and a list of coordinates.
-
-    Args:
-        coords (Tuple[float, float]): The reference coordinate as a tuple (x, y).
-        compare_coords (List[Tuple[float, float]]): A list of coordinates to compare against.
-
-    Returns:
-        float: The minimum Euclidean distance between `coords` and the coordinates in `compare_coords`.
-    """
-    return np.min([helperfuncs.euclidean_distance(x, coords) for x in compare_coords])
 
 def generate_input(sdata, figure_path, CONST):
     ax = sdata.pl.render_images(CONST.IMAGE_TYPE).pl.show(
@@ -147,6 +134,6 @@ def generate_input(sdata, figure_path, CONST):
     )
     ax.axis('off')
     ax.invert_yaxis()
-    plt.savefig(f'{figure_path}/input_domain_thickness_analysis.png', bbox_inches='tight')
-    plt.savefig(f'{figure_path}/input_domain_thickness_analysis.pdf', bbox_inches='tight')
+    # exact: the PNG is read back to compute norm_adjusted_black_area
+    save_figure(plt.gcf(), f'{figure_path}/input_domain_thickness_analysis.png', f'{figure_path}/input_domain_thickness_analysis.pdf', exact=True, bbox_inches='tight')
     plt.close()

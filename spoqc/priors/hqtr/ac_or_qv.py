@@ -1,56 +1,48 @@
 import numpy as np
-import pandas as pd
 
 from ... import helperfuncs
+from ...core.threads import map_slices
+from .. import gaussian
 
-from dask_ml.preprocessing import MinMaxScaler
+# elementwise work runs on slices of this many pixels, one per thread task: 2 MB float64
+# temporaries, measured 2x faster than 4M-pixel slices on a 64 Mpx image
+ROWS_PER_TASK = 1 << 18
+# Rows per part file of the prior parquets. origin/dev wrote 10,000-row parts (91,295 files per
+# prior on a 913 Mpx slide); measured on a 16 Mpx crop on NFS: 1,600 files 2.4 s -> 16 files 0.35 s
+# to write, 3.0 s -> 0.22 s to read, while a part stays 24 MB in memory.
+PART_ROWS = 1_000_000
 
-def calc_prob_pixel_stuff_v2(image_ddf, figure_path, thresh, std, tail, col):
+
+def calc_prob_pixel_stuff_v2(values, figure_path, thresh, std, tail, col, threads):
+    """
+    The prior of every pixel value in `values` (a 1-D float64 array): the peak of the Gaussian
+    density at `thresh` minus the density (the `tail` side counting as the peak), min-max scaled
+    to [0, 1] (priors.gaussian; norm_p_{col}).
+
+    Returns (norm_p, part_columns): the norm_p_{col} array, and part_columns(start, stop), the
+    columns {col, norm_p_{col}} (what hqtr clustering and the per-cell analysis read) of pixels
+    start..stop-1 for core.parquet.write_parts. Elementwise work runs on slices on `threads`
+    threads; every value is computed exactly as it is for the whole array.
+    """
 
     if std <= 0:
         raise ValueError("std must be > 0")
 
-    inv_std = 1.0 / std
-    norm_const = inv_std / np.sqrt(2.0 * np.pi)
+    # Because the tailing sets values to the peak, peak - density is 0 there: the extreme case of
+    # the worst probability. These are densities, not probabilities, until they are scaled.
+    norm_p = np.empty(len(values), dtype=np.float64)
 
-    def _part(part: pd.DataFrame) -> pd.Series:
-        x = part[col].to_numpy()
-        # Gaussian PDF centered at `thresh`
-        z = (x - thresh) * inv_std
-        pdf = norm_const * np.exp(-0.5 * z * z)
+    def density(s):
+        norm_p[s] = gaussian.gaussian_density(values[s], thresh, std, tail=tail, invert=True)
 
-        # Tail overwrite to norm_const (then we'll invert below).
-        # You have to use norm_const because it is ultimately where the peak height of the Guassian is.
-        # Do not use np.max(pdf) here because we deal with Dask partitions and each partition has its own distribution.
-        # Thus the constant here is given by the Gaussian shape.
-        if tail == "left":
-            pdf = np.where(x < thresh, norm_const, pdf)
-        elif tail == "right":
-            pdf = np.where(x > thresh, norm_const, pdf)
-        # else: no tail tweak
+    map_slices(density, len(values), ROWS_PER_TASK, threads)
+    helperfuncs.min_max_normalize(norm_p, threads, out=norm_p)
 
-        # Because the tailing sets values to norm_const we have substract norm_const
-        # to create 0 which is the extreme case of the worst probability.
-        # Keep in mind that you deal with pdfs here not probabilities.
-        out = norm_const - pdf
-
-        # We have no densities which we still have to turn into probabilities!
-        return pd.Series(out, index=part.index, name=f"d_{col}")
-
-    p_series = image_ddf.map_partitions(_part, meta=(f"d_{col}", "f8"))
-    image_ddf = image_ddf.assign(**{f"d_{col}": p_series})
-
-    # Min-Max normalize using dask-ml
-    scaler = MinMaxScaler()
-    scaled_df = scaler.fit_transform(image_ddf[[f'd_{col}']])
-    scaled_series = scaled_df.iloc[:, 0]
-
-    image_ddf = image_ddf.assign(
-        **{f'norm_p_{col}': scaled_series}
-    )
+    def part_columns(start, stop):
+        return {col: values[start:stop], f"norm_p_{col}": norm_p[start:stop]}
 
     helperfuncs.plot_histogram_for_array(
-        image_ddf[col].compute().to_numpy(),
+        values,
         100,
         figure_path,
         f"{col}: t={np.round(thresh, 3)} with {1} x {np.round(std, 3)} std",
@@ -60,4 +52,4 @@ def calc_prob_pixel_stuff_v2(image_ddf, figure_path, thresh, std, tail, col):
         nstds=1,
     )
 
-    return image_ddf
+    return norm_p, part_columns

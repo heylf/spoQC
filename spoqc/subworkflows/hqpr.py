@@ -1,4 +1,7 @@
+from .. import helperfuncs
 from .. import image_analysis
+
+CLUSTERING_STEPS = ['all', 'unittest', 'hqpr', 'hqpr_clustering']
 
 def get_hqpr(
         sdata,
@@ -14,9 +17,13 @@ def get_hqpr(
     ):
 
     # Memory depends on threads. The more threads you choose the more memory you need.
+    # In-process handoffs between the steps below; a step run on its own reads them back instead.
+    background_intensity = None
+    beliefs = None
+
     if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_metrices'] ):
         
-        image_analysis.structure_analysis.start_image_struc_analyis(
+        background_intensity = image_analysis.structure_analysis.start_image_struc_analyis(
             sdata,
             CONST.FIGURE_PATH,
             spoqc_tmp_folder,
@@ -27,15 +34,20 @@ def get_hqpr(
             dim_x,
             dim_y,
             CONST.OVERWRITE,
+            CONST.THREADS,
             staining=CONST.STAINING,
         )
+
+        if ( CONST.STEP not in CLUSTERING_STEPS ):
+            # No clustering in this process to take the in-memory metric columns.
+            helperfuncs.PIXEL_FEATURES.clear()
 
         print('[finish]')
 
 
-    if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_clustering'] ):
+    if ( CONST.STEP in CLUSTERING_STEPS ):
 
-        image_analysis.pixel_scoring_dask.start_pixel_qc(
+        beliefs = image_analysis.pixel_scoring_dask.start_pixel_qc(
             sdata,
             CONST.FIGURE_PATH,
             spoqc_tmp_folder,
@@ -49,12 +61,14 @@ def get_hqpr(
             CONST.THREADS,
             chunk_size=CONST.PIXEL_QC_CHUNK_SIZE,
             sample_size=CONST.KMEANS_SAMPLE_SIZE,
+            gmm_n_init=CONST.GMM_N_INIT,
             staining=CONST.STAINING,
             thresh_p=thresh_p,
             nstds_p=nstds_p,
+            background_intensity=background_intensity,
         )
 
-        print('[finish]')   
+        print('[finish]')
 
     if ( CONST.STEP in ['all', 'unittest', 'hqpr', 'hqpr_refinement'] ):
 
@@ -67,6 +81,7 @@ def get_hqpr(
                 1.5,
                 15,
                 staining=CONST.STAINING,
+                beliefs_raw=beliefs,
         )
 
         print('[finish]')
@@ -85,6 +100,7 @@ def get_hqpr(
             dim_y,
             imagedim,
             'raw',
+            CONST.THREADS,
             staining=CONST.STAINING,
         )
 

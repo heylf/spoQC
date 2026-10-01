@@ -1,30 +1,12 @@
-import pandas as pd
 import numpy as np
 
 from ... import helperfuncs
+from .. import gaussian
 
-from scipy.stats import norm
-from sklearn.mixture import GaussianMixture
-from dask_ml.preprocessing import MinMaxScaler
 
-def calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=1, std=1, tail="right"):
+def calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=1, std=1, tail="right", *, seed, n_init):
     values = np.array(df["control_probe_counts"])
-    mix = GaussianMixture(n_components=gmm_mod, tol=1e-8, max_iter=int(1e4))
-    mix.fit(values.reshape(-1, 1))
-    means = mix.means_
-    cov = mix.covariances_
-    stds = [ np.sqrt(np.trace(cov[i])) for i in range(0, gmm_mod) ]
-    max_std = stds[np.argmax(means)]
-
-    max_mean = -1
-    if ( t ):
-        max_mean = t
-        max_std = 1.0  # Since mean is hard picked, we will use unit variance.
-    else:
-        max_mean = np.max(means)
-
-    if ( std ):
-        max_std = std
+    max_mean, max_std = gaussian.gmm_parameters(values, gmm_mod, t, std, seed=seed, n_init=n_init)
 
     print(f'Using std {max_std} and mean {max_mean} for pixel prior and tail {tail}')
 
@@ -39,17 +21,7 @@ def calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=1, std=1, tail="right"):
         nstds=nstds,
     )
 
-    pdf = norm.pdf(values, loc=max_mean, scale=nstds*max_std)
-
-    # Just a trick, if values are bigger or smaller based on tail then set those values to t
-    # and thus get the best probability for all those values.
-    # This is basically to enforce 
-    if tail == "left":
-        pdf = np.where(values < max_mean, np.max(pdf), pdf)
-    elif tail == "right":
-        pdf = np.where(values > max_mean, np.max(pdf), pdf)
-
-    out = np.max(pdf) - pdf
-
-    # Calculate the probability at x for each pixel clusters.
+    # Values beyond the mean on the tail side count as good as the mean; the prior falls with
+    # the density, from the peak down.
+    out = gaussian.gaussian_density(values, max_mean, nstds * max_std, tail=tail, invert=True)
     return helperfuncs.min_max_normalize(out)

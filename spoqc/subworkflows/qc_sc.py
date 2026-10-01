@@ -4,6 +4,7 @@ from .. import helperfuncs
 from .. import subworkflows
 from .. import metrics
 from .. import general
+from spoqc.core.figures import save_figure
 
 def quick_viz_images(figure_path, image_names, sdata, flip=True):
 
@@ -11,16 +12,14 @@ def quick_viz_images(figure_path, image_names, sdata, flip=True):
         ax = sdata.pl.render_images(image).pl.show(title=image, dpi=300, return_ax=True, show=False)
         if flip:
             ax.invert_yaxis()
-        plt.savefig(f'{figure_path}/all_images.png')
-        plt.savefig(f'{figure_path}/all_images.pdf')
+        save_figure(plt.gcf(), f'{figure_path}/all_images.png', f'{figure_path}/all_images.pdf')
         plt.close()
 
     for i in image_names:
         ax = sdata.pl.render_images(i).pl.show(title=i, return_ax=True, show=False)
         if flip:
             ax.invert_yaxis()
-        plt.savefig(f'{figure_path}/{i}.png')
-        plt.savefig(f'{figure_path}/{i}.pdf')
+        save_figure(plt.gcf(), f'{figure_path}/{i}.png', f'{figure_path}/{i}.pdf')
         plt.close()
 
 def run_qc_sc(sdata, figure_path, CONST, obs_columns):

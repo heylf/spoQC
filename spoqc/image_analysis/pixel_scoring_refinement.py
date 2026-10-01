@@ -1,10 +1,7 @@
 
 # In[]
-import dask.dataframe as dd
-import pandas as pd
-
-from .. import helperfuncs
 from .. import hqr
+from ..core import parquet, raster, threads
 
 # In[]
 def start_pixel_mask_refinement(
@@ -16,9 +13,10 @@ def start_pixel_mask_refinement(
         beta,
         max_iter,
         *,
-        chunk_size=10000,
-        staining=None
+        staining=None,
+        beliefs_raw=None,
     ):
+    """beliefs_raw: start_pixel_qc's per-pixel beliefs when it ran in this process; None reads them from mask_raw."""
 
 # # In[]
 
@@ -35,7 +33,6 @@ def start_pixel_mask_refinement(
 # modality = 'hqpr'
 # beta = 1.5
 # max_iter = 15
-# chunk_size=10000
 # staining=CONST.STAINING
 
 
@@ -52,14 +49,14 @@ def start_pixel_mask_refinement(
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_refinement/'
 
-    image_ddf = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_raw', columns=[f"{prefix}_beliefs"], engine="pyarrow")
-    beliefs_raw = image_ddf[f"{prefix}_beliefs"].compute().to_numpy()
+    if ( beliefs_raw is None ):
+        beliefs_raw = raster.read_pixel_columns(
+            f'{spoqc_tmp_folder}/{prefix}_output_mask_raw', [f"{prefix}_beliefs"], dim_x * dim_y, threads.budget()
+        )[f"{prefix}_beliefs"]
 
     # Start the refinement of the proability for the pixel score.
     beliefs, labels = hqr.markov_random_field_zarr_parallel.first_version_loopy_belief_propagation_parallel(
         beliefs_raw.reshape((dim_x, dim_y)),
-        spoqc_tmp_folder,
-        modality,
         beta=beta,
         max_iter=max_iter,
         normalize='total'
@@ -79,15 +76,14 @@ def start_pixel_mask_refinement(
     # freshly chunked dask.array against image_ddf.index (unknown divisions,
     # from a parquet read) preserves index-to-value association but not the
     # physical row order returned by .compute()/round-tripped through parquet.
-    out_df = pd.DataFrame({
+    columns = {
         f"{prefix}_beliefs": beliefs_raw,
-        f"{prefix}_beliefs_smoothed": beliefs[:].flatten(),
-        f"{prefix}_mask_smoothed": labels[:].flatten(),
-    })
-    n_partitions = max(1, -(-len(out_df) // chunk_size))
-    image_ddf = dd.from_pandas(out_df, npartitions=n_partitions)
-
-    helperfuncs.ddf_to_parquet(image_ddf, prefix, spoqc_tmp_folder, [], 'mask_smoothed_raw')
+        f"{prefix}_beliefs_smoothed": beliefs.ravel(),
+        f"{prefix}_mask_smoothed": labels.ravel(),
+    }
+    n_rows = len(beliefs_raw)
+    parquet.write_parts(f"{spoqc_tmp_folder}/{prefix}_output_mask_smoothed_raw", n_rows,
+                        parquet.columns_of(columns), range(0, n_rows, parquet.PART_ROWS), threads.budget())
 
 
 # # In[]

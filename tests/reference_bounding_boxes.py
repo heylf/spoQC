@@ -1,0 +1,330 @@
+"""Verbatim reference: spoqc/image_analysis/bounding_boxes.py and
+spoqc/metrics/transcript_density/transcript_density_image.py before this change (numerically identical to origin/dev).
+
+Only the package-relative imports are made absolute; the bodies are unchanged.
+"""
+import spatialdata as sd
+import numpy as np
+import pandas as pd
+
+from scipy.ndimage import convolve
+
+from spoqc import helperfuncs
+
+def generate_transcript_density_image(
+        sdata,
+        figure_path,
+        imagedim,
+        image_type,
+        resolution,
+        *,
+        kernel_radius=3,
+        flip=False
+):
+
+    timer = helperfuncs.Timer()
+
+    # Get general stuff
+    dim_x = len(sdata[image_type][resolution].image.y.values)
+    dim_y = len(sdata[image_type][resolution].image.x.values)
+
+    transcript_coords_df = sd.get_centroids(sdata['transcripts'], coordinate_system='global').compute()
+    transcript_coords_df = transcript_coords_df.astype(int)
+    xy_transcript_coords_df = transcript_coords_df.loc[:,['x','y']]
+
+    # These list I need later because the image matrix has not the same index range as the centroid coords.
+    x_idx = [i for i in range(int(imagedim.bb_xmin), int(imagedim.bb_xmax))]
+    y_idx = [i for i in range(int(imagedim.bb_ymin), int(imagedim.bb_ymax))]
+
+    print("[NOTE] Translate cooridnates")
+    timer.start()
+    counts = (
+        xy_transcript_coords_df
+        .value_counts(subset=['x','y'])      # returns a Series indexed by MultiIndex (x,y)
+        .rename('count')
+    )
+    grid_tuples = [(x, y) for y in y_idx for x in x_idx]
+    grid_mi = pd.MultiIndex.from_tuples(grid_tuples, names=['x', 'y'])
+    idxer = counts.index.get_indexer(grid_mi)  # -1 where (x,y) is missing
+    vals = counts.to_numpy()
+    transcript_density_list = np.where(idxer >= 0, vals[idxer], 0) # fill 0 where it is missing
+    timer.stop()
+
+    xy_transcript_density = np.array(transcript_density_list).reshape(dim_x, dim_y)
+
+    img_extent = sd.get_extent(sdata[image_type], coordinate_system='global')
+    imagedim = helperfuncs.ImageDimStruct(img_extent['x'][0], img_extent['y'][0],
+                                        img_extent['x'][1], img_extent['y'][1])
+    nuclei_centroid_coords = sd.get_centroids(sdata['nucleus_boundaries'], coordinate_system='global').compute()
+
+    # kernel_size = 2 * r + 1
+
+    # Create circular kernel (disk mask)
+    y, x = np.ogrid[-kernel_radius:kernel_radius+1, -kernel_radius:kernel_radius+1]
+    mask = (x**2 + y**2) <= kernel_radius**2
+    kernel = mask.astype(xy_transcript_density.dtype)
+
+    print("[NOTE] Densitiy calculation")
+    timer.start()
+    xy_kernel_transcript_density = convolve(xy_transcript_density, kernel, mode='constant', cval=0)
+    xy_kernel_transcript_density = np.flipud(xy_kernel_transcript_density)
+    timer.stop()
+    # xy_kernel_transcript_density = xy_kernel_transcript_density.astype(np.uint16) # conversion needed for cv2
+
+    if ( figure_path != None ):
+
+        if ( flip ):
+            helperfuncs.plot_pixels(
+                figure_path,
+                xy_kernel_transcript_density,
+                imagedim,
+                'transcript_density',
+                'Transcript Density', 
+                'gray',
+                True,
+                True,
+                points=nuclei_centroid_coords
+            )
+        else:
+            helperfuncs.plot_pixels(
+                figure_path,
+                np.flipud(xy_kernel_transcript_density),
+                imagedim,
+                'transcript_density',
+                'Transcript Density', 
+                'gray',
+                True,
+                True,
+                points=nuclei_centroid_coords
+            )
+
+    return xy_kernel_transcript_density.flatten()
+
+import numpy as np
+import dask.dataframe as dd
+import matplotlib.pyplot as plt
+
+from skimage.measure import label, regionprops
+from skimage.morphology import dilation, disk
+
+from spoqc import helperfuncs
+import types
+metrics = types.SimpleNamespace(transcript_density=types.SimpleNamespace(transcript_density_image=types.SimpleNamespace(generate_transcript_density_image=None)))
+from spoqc.core.figures import save_figure
+
+def _overlap(a, b):
+    # boxes: [min_row, min_col, max_row, max_col]
+    return (a[0] < b[2] and a[2] > b[0] and a[1] < b[3] and a[3] > b[1])
+
+def _merge_two(a, b):
+    return [min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3])]
+
+def _merge_overlapping_boxes(boxes):
+    # Iteratively merge until no overlaps remain
+    boxes = [list(map(int, box)) for box in boxes]
+    changed = True
+    while changed:
+        changed = False
+        used = [False] * len(boxes)
+        new_boxes = []
+        for i in range(len(boxes)):
+            if used[i]:
+                continue
+            curr = boxes[i]
+            for j in range(i + 1, len(boxes)):
+                if used[j]:
+                    continue
+                if _overlap(curr, boxes[j]):
+                    curr = _merge_two(curr, boxes[j])
+                    used[j] = True
+                    changed = True
+            used[i] = True
+            new_boxes.append(curr)
+        boxes = new_boxes
+    return boxes
+
+def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, flip = False):
+    plt.figure(figsize=(12, 6))
+
+    if ( flip ):
+        plt.imshow(
+            np.flipud( np.log10 (image + 1) ),
+            cmap='gray',
+            extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
+            aspect='equal'
+        )
+    else:
+        plt.imshow(
+            np.log10 (image + 1),
+            cmap='gray',
+            extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
+            aspect='equal'
+        )
+    plt.title(f"Refined Image Log10p1 with Subfigures")
+
+    for bbox in bounding_boxes:
+        min_row, min_col, max_row, max_col = bbox
+
+        # Draw the flipped rectangle
+        if ( flip ):
+            plt.plot(
+                [min_col, min_col, max_col, max_col, min_col],
+                [min_row, max_row, max_row, min_row, min_row],
+                color="red",
+                linewidth=2,
+            )
+        else:
+            print("[NOTE] Not flipping red boxes")
+            plt.plot(
+                [min_col, min_col, max_col, max_col, min_col],
+                [imagedim.bb_ymin + imagedim.bb_ymax - min_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - max_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - max_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - min_row,
+                 imagedim.bb_ymin + imagedim.bb_ymax - min_row],
+                color="red",
+                linewidth=2,
+            )
+
+    save_figure(plt.gcf(), f'{figure_path}/imageplot_{suffix}.png', f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    plt.close()
+
+
+def define_bounding_boxes(
+        sdata,
+        figure_path,
+        spoqc_tmp_folder,
+        modality,
+        image_type,
+        resolution,
+        dim_x,
+        dim_y, 
+        imagedim,
+        suffix,
+        *,
+        dilation_radius=10,
+        minum_num_pixel=100_000,
+        staining=None,
+        flip=False
+    ):
+
+    prefix = modality
+    if ( staining ):
+        figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/{staining}/'
+        prefix = f'{modality}_{staining}'
+    else:
+        figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/'
+
+    image = None
+    if ( staining ):
+        image = sdata[image_type][resolution].image.values[int(staining)]
+    else:
+        image = sdata[image_type][resolution].image.values[0]
+    image = np.flipud(image)
+    intensities = image.flatten()
+
+    if ( modality == 'hqtr' ):
+        # Intensities already flipped
+        intensities = metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
+            sdata,
+            figure_path,
+            imagedim,
+            image_type,
+            resolution
+        )
+        image = intensities.reshape(dim_x, dim_y)
+
+    mask = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_smoothed_{suffix}',
+                           columns=[f"{prefix}_mask_smoothed"], engine="pyarrow")
+
+    # Convert DataFrame to a NumPy array for processing
+    binary_image = mask[f"{prefix}_mask_smoothed"].compute().to_numpy().reshape(dim_x, dim_y)
+
+    # Apply dilation to merge nearby regions
+    structuring_element = disk(dilation_radius)
+    dilated_image = dilation(binary_image, structuring_element)
+
+    plt.figure(figsize=(12, 6))
+    if ( flip ):
+        plt.imshow(
+            np.flipud( dilated_image ),
+            cmap='gray',
+            extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
+            aspect='equal'
+        )
+    else:
+        plt.imshow(
+            dilated_image,
+            cmap='gray',
+            extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
+            aspect='equal'
+        )
+    plt.title(f"Dilated image")
+    save_figure(plt.gcf(), f'{figure_path}/imageplot_dilated_image_for_bounding_box.png', f'{figure_path}/imageplot_dilated_image_for_bounding_box.pdf', bbox_inches='tight', dpi=300)
+    plt.close()
+
+
+    # Label connected components in the dilated binary image
+    labeled_image = label(dilated_image)
+
+    # Extract subfigures based on connected components
+    subfigures = []
+    bounding_boxes = []
+    idx = 0
+    for region in regionprops(labeled_image):
+        # Get bounding box for the region
+        min_row, min_col, max_row, max_col = region.bbox
+
+        # Calculate number of pixels
+        num_pixels = (max_row - min_row) * (max_col - min_col)
+
+        if ( num_pixels > minum_num_pixel ):
+            # Extract the subfigure with minimal background
+            subfigure = image[min_row:max_row, min_col:max_col]
+            subfigures.append(subfigure)
+            bounding_boxes.append([min_row, min_col, max_row, max_col])
+            subfigure_imagedim = helperfuncs.ImageDimStruct(min_row, min_col, max_row, max_col)
+            helperfuncs.plot_pixels(
+                f'{figure_path}/subfigures/',
+                subfigure,
+                subfigure_imagedim,
+                f'subfigure{idx+1}',
+                f'Log10p1 Subfigure {idx+1}', 
+                'gray',
+                True,
+                True
+            )
+            idx += 1
+
+    helperfuncs.plot_pixels(
+        f'{figure_path}/subfigures/',
+        image,
+        imagedim,
+        f'subfigure{idx+1}', 
+        f'Log10p1 Subfigure {idx+1}', 
+        'gray',
+        True,
+        False
+    )
+
+    # Correct the coordinates of the bounding box
+    for i, box in enumerate(bounding_boxes):
+        bounding_boxes[i] = [float(box[0]+imagedim.bb_ymin), float(box[1]+imagedim.bb_xmin),
+                             float(box[2]+imagedim.bb_ymin), float(box[3]+imagedim.bb_xmin)]
+
+    # Merge overlapping bounding boxes
+    merged_bounding_boxes = _merge_overlapping_boxes(bounding_boxes)
+
+    # Plots
+    _boudning_box_plot(bounding_boxes, figure_path, 'marked_subfigures', image, imagedim)
+    _boudning_box_plot(merged_bounding_boxes, figure_path, 'marked_merged_subfigures', image, imagedim)
+    
+    # write out txt that can be used later and saved in sdata.attrs or anndata.uns
+    metadata_file = f"{figure_path}/{modality}s.txt"
+    if ( modality == 'hqpr' ):
+        metadata_file = f"{figure_path}/{modality}s_{staining}.txt"
+    with open(metadata_file, "w") as f:
+        f.write(str(bounding_boxes))
+
+    return bounding_boxes
+metrics.transcript_density.transcript_density_image.generate_transcript_density_image = generate_transcript_density_image

@@ -4,6 +4,9 @@ import numpy as np
 
 from .. import helperfuncs
 from .. import metrics
+from ..core import raster, transcripts
+from ..metrics.image import pixel_metrics
+from ._slidingwindow import texture_metrics
 
 def start_image_struc_analyis(
         sdata,
@@ -16,6 +19,7 @@ def start_image_struc_analyis(
         dim_x,
         dim_y,
         overwrite,
+        threads,
         *,
         staining=None
 ):
@@ -53,7 +57,7 @@ def start_image_struc_analyis(
 
         # Plot transcript point plot
         helperfuncs.plot_scatter_by_category(
-            sdata.points['transcripts'].compute(),
+            transcripts.load_transcripts(sdata, ['x', 'y']).to_pandas(),
             None, 
             figure_path, 
             'transcript_points',
@@ -65,9 +69,9 @@ def start_image_struc_analyis(
         helperfuncs.nparr_to_parquet(intensities, 'transcript_density', spoqc_tmp_folder, tmp_suffix)
         texture_intensities = xy_intensities
     else:
-        xy_intensities = sdata[image_type][resolution].image.values[int(staining)]
-        xy_intensities = np.flipud(xy_intensities)
-        intensities = xy_intensities.flatten()
+        xy_intensities = raster.load_intensity_image(
+            sdata, spoqc_tmp_folder, modality, image_type, resolution, dim_x, dim_y, threads, staining=staining
+        )
 
         n_bins = 256
         texture_intensities = np.floor(
@@ -97,9 +101,8 @@ def start_image_struc_analyis(
 
     steps = []
 
-    for step in ['intensity', 'edge_strength', 'lbp', 'energy', 
-                 'relevance', 'homogenity', 'entropy', 'uniformity',
-                 'cluster']:
+    for step in ['intensity', 'edge_strength', 'lbp', 'energy',
+                 'relevance', 'homogenity', 'entropy', 'uniformity']:
         if ( overwrite or not os.path.exists(f"{spoqc_tmp_folder}/{step}_output_{modality}.parquet") ):
             if ( not ( step == 'intensity' and modality == 'hqtr' ) ):
                 steps.append(step)
@@ -110,97 +113,67 @@ def start_image_struc_analyis(
     bin_edges = None
 
     if ( modality == 'hqpr' ):
-        background_intensity, hist, bin_edges = metrics.image.utility.estimate_background_intensity_dask(
-            sdata,
-            image_type,
-            resolution,
-            staining
-        )
+        background_intensity, hist, bin_edges = metrics.image.utility.estimate_background_intensity(xy_intensities)
 
-    step = 'intensity'
-    if ( step in steps and modality == 'hqpr' ):
+    def run(names, kernel, image, plots, **kernel_args):
+        # Every file the metrices folder holds with this suffix is a pixel clustering feature
+        # (pixel_scoring_dask.dask_clustering_mini_batches), so each metric is written under its step name.
+        timer.start()
+        flat = pixel_metrics.pixel_metric(kernel, image, figure_path, imagedim, plots, **kernel_args)
+        timer.stop()
+        for name, values in zip(names, flat, strict=True):
+            helperfuncs.nparr_to_parquet(values, name, spoqc_tmp_folder, tmp_suffix)
+
+    if ( 'intensity' in steps and modality == 'hqpr' ):
         # General Singal/Noise ratio. Is the pixel noise or true positive?
         # Not valid for hqtr because the background is a constant of 0.0.
         print('[NOTE] Evaluate pixel intensity')
-        timer.start()
-        signal_noise_ratio_log2fc = metrics.image.utility.pixel_intensity_qc(figure_path, intensities, 
-                                                                 background_intensity, hist, bin_edges, 
-                                                                 dim_x, dim_y, imagedim)
-        timer.stop()
-        helperfuncs.nparr_to_parquet(signal_noise_ratio_log2fc, step, spoqc_tmp_folder, tmp_suffix)
+        metrics.image.utility.plot_intensity_histogram(figure_path, background_intensity, hist, bin_edges)
+        run(['intensity'], pixel_metrics.signal_noise_ratio, xy_intensities,
+            [('snr', 'Log2 Signal-Noise-Ratio', None)], background_intensity=background_intensity)
 
-    step = 'lbp'
-    if ( step in steps ):
+    if ( 'lbp' in steps ):
         # Pixel pattern information. Does a pixel live in a specific pattern?
         # Mostly useful to identify if windows have specific patterns you want to cluster.
         print('[NOTE] Investigate local binary patterns')
-        timer.start()
-        lbp = metrics.image.lbp.pixel_lbp(figure_path, xy_intensities, 100, 3, imagedim)
-        timer.stop()
-        helperfuncs.nparr_to_parquet(lbp, step, spoqc_tmp_folder, tmp_suffix)
+        run(['lbp'], pixel_metrics.lbp, xy_intensities, [('lbp', 'Local Binary Pattern (LBP)', None)],
+            n_points=100, radius=3)
 
     #######################
     ###### Structure ######
     #######################
 
-    step = 'edge_strength'
-    if ( step in steps ):
+    if ( 'edge_strength' in steps ):
         # EDGE STRENGTH - Edge detection
         print('[NOTE] Calculate edge strength')
-        timer.start()
-        edge_strength = metrics.image.edge_strength.pixel_edge_strength(figure_path, xy_intensities, imagedim)
-        timer.stop()
-        helperfuncs.nparr_to_parquet(edge_strength, step, spoqc_tmp_folder, tmp_suffix)
+        run(['edge_strength'], pixel_metrics.edge_strength, xy_intensities, [('edge_strength', 'Edge Strength', None)])
 
-    step = 'energy'
-    if ( step in steps ):
+    if ( 'energy' in steps ):
         # How much inforamtion has a pixel?
         print('[NOTE] Calculate pixel energy')
-        timer.start()
-        pixel_energy = metrics.image.energy.pixel_energy(figure_path, xy_intensities, 5, imagedim)
-        timer.stop()
-        helperfuncs.nparr_to_parquet(pixel_energy, step, spoqc_tmp_folder, tmp_suffix)
+        run(['energy'], pixel_metrics.energy, xy_intensities, [('energy', 'Log10 Pixel Energy', None)],
+            window_size=5)
 
-    step = 'relevance'
-    if ( step in steps ):
+    if ( 'relevance' in steps ):
         # Just check which pixel are have intensities bigger than background.
         print('[NOTE] Investigate pixel relevance')
-        timer.start()
-        pixel_relevance = metrics.image.relevance.pixel_relevance(figure_path, xy_intensities, 
-                                                                        background_intensity, imagedim)
-        timer.stop()
-        helperfuncs.nparr_to_parquet(pixel_relevance, step, spoqc_tmp_folder, tmp_suffix)
+        run(['relevance'], pixel_metrics.relevance, xy_intensities,
+            [('relevance', 'Pixel Relevance', {"high rel.": "#FFFFFF", "low rel.": "#000000"})],
+            background_intensity=background_intensity)
 
-    step = "entropy"
-    if step in steps:
-        # General Pixel Information. How much information contributes a pixel?
-        # Computational expensive.
-        print("[NOTE] Calculate pixel entropy")
-        timer.start()
-        pixel_entropy = metrics.image.entropy.pixel_entropy(figure_path, texture_intensities, 5, imagedim)
-        timer.stop()
-        helperfuncs.nparr_to_parquet(pixel_entropy, step, spoqc_tmp_folder, tmp_suffix)
+    ###########################################
+    ###### Structure and anti structure ######
+    ###########################################
 
-    ############################
-    ###### Anti structure ######
-    ############################
+    if ( {'entropy', 'uniformity', 'homogenity'} & set(steps) ):
+        # Entropy: how much information contributes a pixel?
+        # Uniformity: is the pixel in a noisy region?
+        # Homogeneity: how much does a pixel disrupt the local neighbourhood?
+        # All three come from the same 5x5 window histograms, built once.
+        print("[NOTE] Calculate pixel entropy, uniformity and homogeneity")
+        run(['entropy', 'uniformity', 'homogenity'], texture_metrics, texture_intensities,
+            [('entropy', 'Pixel Entropy', None), ('uniformity', 'Pixel Uniformity', None),
+             ('homogeneity', 'Pixel Homogeneity', None)],
+            window_size=5)
 
-    step = "uniformity"
-    if step in steps:
-        # Is the pixel in a noisy region?
-        print("[NOTE] Calculate pixel uniformity with")
-        timer.start()
-        pixel_uniformity = metrics.image.uniformity.pixel_uniformity(figure_path, texture_intensities, 5, imagedim)
-        timer.stop()
-        helperfuncs.nparr_to_parquet(pixel_uniformity, step, spoqc_tmp_folder, tmp_suffix)
-
-    step = "homogenity"
-    if step in steps:
-        # How much does a pixel disrupt the local neighbourhood?
-        # Or how homogenous is the pixel around the region?
-        # Computational expensive.
-        print("[NOTE] Calculate pixel homogeneity")
-        timer.start()
-        pixel_homogeneity = metrics.image.homogenity.pixel_homogeneity(figure_path, texture_intensities, imagedim, 5)
-        timer.stop()
-        helperfuncs.nparr_to_parquet(pixel_homogeneity, step, spoqc_tmp_folder, tmp_suffix)
+    return background_intensity

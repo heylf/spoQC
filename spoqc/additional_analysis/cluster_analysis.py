@@ -21,6 +21,7 @@ from pandas.api.types import is_numeric_dtype
 from .. import helperfuncs
 from . import analysis_funcs
 from . import funkyheatmap
+from spoqc.core.figures import save_figure
 
 def celltype_cluster_analysis(
         sdata,
@@ -293,8 +294,7 @@ def celltype_cluster_analysis(
                 ax.set_xlabel(umap_cat)
                 ax.set_ylabel('Count')
                 ax.set_title(f'Distribution of {umap_cat}')
-                fig.savefig(os.path.join(figure_path, f'hist_{umap_cat}.png'), bbox_inches='tight')
-                fig.savefig(os.path.join(figure_path, f'hist_{umap_cat}.pdf'), bbox_inches='tight')
+                save_figure(fig, os.path.join(figure_path, f'hist_{umap_cat}.png'), os.path.join(figure_path, f'hist_{umap_cat}.pdf'), bbox_inches='tight')
                 plt.close(fig)
 
                 if ( umap_cat in ['nuceli_count', 'control_probe_counts']):
@@ -326,8 +326,7 @@ def celltype_cluster_analysis(
 
                     if ( html ):
                         fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}.html")
-                    fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}.png", scale=3)
-                    fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}.pdf", scale=3)
+                    save_figure(fig_pct, f"{figure_path}/barplot_pct_{umap_cat}.png", f"{figure_path}/barplot_pct_{umap_cat}.pdf", scale=3)
 
                 else:
 
@@ -368,8 +367,7 @@ def celltype_cluster_analysis(
 
                     if ( html ):
                         fig.write_html(f"{figure_path}/boxplot_{umap_cat}.html")
-                    fig.write_image(f"{figure_path}/boxplot_{umap_cat}.png", scale=3)
-                    fig.write_image(f"{figure_path}/boxplot_{umap_cat}.pdf", scale=3)
+                    save_figure(fig, f"{figure_path}/boxplot_{umap_cat}.png", f"{figure_path}/boxplot_{umap_cat}.pdf", scale=3)
 
 
                     # --- violin plots ---
@@ -410,8 +408,7 @@ def celltype_cluster_analysis(
 
                     if ( html ):
                         fig.write_html(f"{figure_path}/violin_{umap_cat}.html")
-                    fig.write_image(f"{figure_path}/violin_{umap_cat}.png", scale=3)
-                    fig.write_image(f"{figure_path}/violin_{umap_cat}.pdf", scale=3)
+                    save_figure(fig, f"{figure_path}/violin_{umap_cat}.png", f"{figure_path}/violin_{umap_cat}.pdf", scale=3)
 
             else:
 
@@ -465,8 +462,7 @@ def celltype_cluster_analysis(
                         full_html=False,
                         include_plotlyjs='cdn',
                     )
-                helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.png")
-                helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.pdf")
+                helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.png", f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.pdf")
 
             if ( umap_cat in ['doublet', 'nucleus_free', 'border_cell'] ):
 
@@ -491,8 +487,7 @@ def celltype_cluster_analysis(
 
                     if ( html ):
                         fig_pct.write_html(f"{figure_path}/barplot_pct_{umap_cat}_{x}.html")
-                    fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}_{x}.png", scale=3)
-                    fig_pct.write_image(f"{figure_path}/barplot_pct_{umap_cat}_{x}.pdf", scale=3)
+                    save_figure(fig_pct, f"{figure_path}/barplot_pct_{umap_cat}_{x}.png", f"{figure_path}/barplot_pct_{umap_cat}_{x}.pdf", scale=3)
         timer.stop()
 
         # --- cell composition plot -----
@@ -527,8 +522,7 @@ def celltype_cluster_analysis(
 
         if ( html ):
             fig.write_html(f"{figure_path}/fractions_celltype_leiden.html")
-        fig.write_image(f"{figure_path}/fractions_celltype_leiden.png", scale=3)
-        fig.write_image(f"{figure_path}/fractions_celltype_leiden.pdf", scale=3)
+        save_figure(fig, f"{figure_path}/fractions_celltype_leiden.png", f"{figure_path}/fractions_celltype_leiden.pdf", scale=3)
 
         done_file = open(f"{figure_path}/done.txt", "w")
         done_file.write("its done")
@@ -647,8 +641,7 @@ def celltype_cluster_analysis(
 
         if ( html ):
             fig.write_html(f"{figure_path}/umap_plot_{c}.html")
-        helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.png")
-        helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.pdf")
+        helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.png", f"{figure_path}/umap_plot_{c}.pdf")
 
     c = 'hqr_filtered_out'
     hqpr_cols = [f'hqpr_{staining}_filtered_out' for staining in stainings]
@@ -691,8 +684,7 @@ def celltype_cluster_analysis(
 
     if ( html ):
         fig.write_html(f"{figure_path}/umap_plot_{c}.html")
-    helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.png")
-    helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.pdf")
+    helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{c}.png", f"{figure_path}/umap_plot_{c}.pdf")
     timer.stop()
 
     ####################################################################################################################
@@ -730,8 +722,7 @@ def celltype_cluster_analysis(
             ax.set_aspect('equal', adjustable='box')
 
         plt.tight_layout()
-        fig.savefig(f"{figure_path}/scatterplot_traffic_light_combined.png", bbox_inches='tight', dpi=300)
-        fig.savefig(f"{figure_path}/scatterplot_traffic_light_combined.pdf", bbox_inches='tight', dpi=300)
+        save_figure(fig, f"{figure_path}/scatterplot_traffic_light_combined.png", f"{figure_path}/scatterplot_traffic_light_combined.pdf", bbox_inches='tight', dpi=300)
         plt.close(fig)
 
 
@@ -776,8 +767,7 @@ def celltype_cluster_analysis(
 
         if ( html ):
             fig.write_html(f"{figure_path}/fractions_traffic_light_leiden.html")
-        fig.write_image(f"{figure_path}/fractions_traffic_light_leiden.png", scale=3)
-        fig.write_image(f"{figure_path}/fractions_traffic_light_leiden.pdf", scale=3)
+        save_figure(fig, f"{figure_path}/fractions_traffic_light_leiden.png", f"{figure_path}/fractions_traffic_light_leiden.pdf", scale=3)
 
         # Then a fraction plot (like cell type fractions), x-axis = cell type, y=traffic light factions
         ctf_celltype_tl = analysis_funcs.create_fraction_df(
@@ -804,8 +794,7 @@ def celltype_cluster_analysis(
 
         if ( html ):
             fig.write_html(f"{figure_path}/fractions_traffic_light_celltype.html")
-        fig.write_image(f"{figure_path}/fractions_traffic_light_celltype.png", scale=3)
-        fig.write_image(f"{figure_path}/fractions_traffic_light_celltype.pdf", scale=3)
+        save_figure(fig, f"{figure_path}/fractions_traffic_light_celltype.png", f"{figure_path}/fractions_traffic_light_celltype.pdf", scale=3)
 
         timer.stop()
 

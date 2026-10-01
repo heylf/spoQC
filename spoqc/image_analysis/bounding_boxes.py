@@ -1,13 +1,10 @@
 import numpy as np
-import dask.dataframe as dd
 import matplotlib.pyplot as plt
 
-from skimage.measure import label, regionprops
-from skimage.morphology import dilation, disk
-
 from .. import helperfuncs
-from .. import hqr
-from .. import metrics
+from spoqc.core import raster
+from spoqc.core import figures
+from spoqc.core.figures import save_figure
 
 def _overlap(a, b):
     # boxes: [min_row, min_col, max_row, max_col]
@@ -44,15 +41,19 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
     plt.figure(figsize=(12, 6))
 
     if ( flip ):
-        plt.imshow(
+        figures.imshow(
+            plt.gca(),
             np.flipud( np.log10 (image + 1) ),
+            dpi=300,
             cmap='gray',
             extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
             aspect='equal'
         )
     else:
-        plt.imshow(
+        figures.imshow(
+            plt.gca(),
             np.log10 (image + 1),
+            dpi=300,
             cmap='gray',
             extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
             aspect='equal'
@@ -83,8 +84,7 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
                 linewidth=2,
             )
 
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/imageplot_{suffix}.png', f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -99,6 +99,7 @@ def define_bounding_boxes(
         dim_y, 
         imagedim,
         suffix,
+        threads,
         *,
         dilation_radius=10,
         minum_num_pixel=100_000,
@@ -113,87 +114,62 @@ def define_bounding_boxes(
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/'
 
-    image = None
-    if ( staining ):
-        image = sdata[image_type][resolution].image.values[int(staining)]
-    else:
-        image = sdata[image_type][resolution].image.values[0]
-    image = np.flipud(image)
-    intensities = image.flatten()
+    # Flipped intensity image; for hqtr the transcript density image saved by the metrices step.
+    image = raster.load_intensity_image(
+        sdata, spoqc_tmp_folder, modality, image_type, resolution, dim_x, dim_y, threads, staining=staining
+    )
 
-    if ( modality == 'hqtr' ):
-        # Intensities already flipped
-        intensities = metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
-            sdata,
-            figure_path,
-            imagedim,
-            image_type,
-            resolution
-        )
-        image = intensities.reshape(dim_x, dim_y)
-
-    mask = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_smoothed_{suffix}',
-                           columns=[f"{prefix}_mask_smoothed"], engine="pyarrow")
-
-    # Convert DataFrame to a NumPy array for processing
-    binary_image = mask[f"{prefix}_mask_smoothed"].compute().to_numpy().reshape(dim_x, dim_y)
+    binary_image = raster.read_pixel_columns(
+        f'{spoqc_tmp_folder}/{prefix}_output_mask_smoothed_{suffix}', [f"{prefix}_mask_smoothed"], dim_x * dim_y, threads
+    )[f"{prefix}_mask_smoothed"].reshape(dim_x, dim_y)
 
     # Apply dilation to merge nearby regions
-    structuring_element = disk(dilation_radius)
-    dilated_image = dilation(binary_image, structuring_element)
+    dilated_image = raster.dilate_disk(binary_image, dilation_radius)
 
     plt.figure(figsize=(12, 6))
     if ( flip ):
-        plt.imshow(
+        figures.imshow(
+            plt.gca(),
             np.flipud( dilated_image ),
+            dpi=300,
             cmap='gray',
             extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
             aspect='equal'
         )
     else:
-        plt.imshow(
+        figures.imshow(
+            plt.gca(),
             dilated_image,
+            dpi=300,
             cmap='gray',
             extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
             aspect='equal'
         )
     plt.title(f"Dilated image")
-    plt.savefig(f'{figure_path}/imageplot_dilated_image_for_bounding_box.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/imageplot_dilated_image_for_bounding_box.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/imageplot_dilated_image_for_bounding_box.png', f'{figure_path}/imageplot_dilated_image_for_bounding_box.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
-    # Label connected components in the dilated binary image
-    labeled_image = label(dilated_image)
+    # Bounding boxes of the connected components of the dilated binary image, in label order
+    boxes = raster.component_boxes(dilated_image, threads)
+    num_pixels = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+    kept_boxes = boxes[num_pixels > minum_num_pixel]
 
-    # Extract subfigures based on connected components
-    subfigures = []
-    bounding_boxes = []
-    idx = 0
-    for region in regionprops(labeled_image):
-        # Get bounding box for the region
-        min_row, min_col, max_row, max_col = region.bbox
-
-        # Calculate number of pixels
-        num_pixels = (max_row - min_row) * (max_col - min_col)
-
-        if ( num_pixels > minum_num_pixel ):
-            # Extract the subfigure with minimal background
-            subfigure = image[min_row:max_row, min_col:max_col]
-            subfigures.append(subfigure)
-            bounding_boxes.append([min_row, min_col, max_row, max_col])
-            subfigure_imagedim = helperfuncs.ImageDimStruct(min_row, min_col, max_row, max_col)
-            helperfuncs.plot_pixels(
-                f'{figure_path}/subfigures/',
-                subfigure,
-                subfigure_imagedim,
-                f'subfigure{idx+1}',
-                f'Log10p1 Subfigure {idx+1}', 
-                'gray',
-                True,
-                True
-            )
-            idx += 1
+    # Extract the subfigures with minimal background
+    for idx, (min_row, min_col, max_row, max_col) in enumerate(kept_boxes.tolist()):
+        subfigure = image[min_row:max_row, min_col:max_col]
+        subfigure_imagedim = helperfuncs.ImageDimStruct(min_row, min_col, max_row, max_col)
+        helperfuncs.plot_pixels(
+            f'{figure_path}/subfigures/',
+            subfigure,
+            subfigure_imagedim,
+            f'subfigure{idx+1}',
+            f'Log10p1 Subfigure {idx+1}', 
+            'gray',
+            True,
+            True
+        )
+    idx = len(kept_boxes)
 
     helperfuncs.plot_pixels(
         f'{figure_path}/subfigures/',
@@ -207,9 +183,8 @@ def define_bounding_boxes(
     )
 
     # Correct the coordinates of the bounding box
-    for i, box in enumerate(bounding_boxes):
-        bounding_boxes[i] = [float(box[0]+imagedim.bb_ymin), float(box[1]+imagedim.bb_xmin),
-                             float(box[2]+imagedim.bb_ymin), float(box[3]+imagedim.bb_xmin)]
+    offset = np.array([imagedim.bb_ymin, imagedim.bb_xmin, imagedim.bb_ymin, imagedim.bb_xmin], dtype=np.float64)
+    bounding_boxes = (kept_boxes + offset).tolist()
 
     # Merge overlapping bounding boxes
     merged_bounding_boxes = _merge_overlapping_boxes(bounding_boxes)
