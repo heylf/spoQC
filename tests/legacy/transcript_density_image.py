@@ -5,7 +5,6 @@ import pandas as pd
 from scipy.ndimage import convolve
 
 from ... import helperfuncs
-from ...core import transcripts
 
 def generate_transcript_density_image(
         sdata,
@@ -24,7 +23,7 @@ def generate_transcript_density_image(
     dim_x = len(sdata[image_type][resolution].image.y.values)
     dim_y = len(sdata[image_type][resolution].image.x.values)
 
-    transcript_coords_df = transcripts.global_coordinates(sdata).to_pandas()
+    transcript_coords_df = sd.get_centroids(sdata['transcripts'], coordinate_system='global').compute()
     transcript_coords_df = transcript_coords_df.astype(int)
     xy_transcript_coords_df = transcript_coords_df.loc[:,['x','y']]
 

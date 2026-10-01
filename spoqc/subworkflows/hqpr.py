@@ -49,6 +49,7 @@ def get_hqpr(
             CONST.THREADS,
             chunk_size=CONST.PIXEL_QC_CHUNK_SIZE,
             sample_size=CONST.KMEANS_SAMPLE_SIZE,
+            gmm_n_init=CONST.GMM_N_INIT,
             staining=CONST.STAINING,
             thresh_p=thresh_p,
             nstds_p=nstds_p,

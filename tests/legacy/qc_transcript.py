@@ -2,14 +2,12 @@ import numpy as np
 import pandas as pd
 import gzip
 import re
-import polars as pl
 import plotly.express as px
 import plotly.graph_objects as go
 
 from typing import Any
 
 from .. import helperfuncs
-from ..core import transcripts
 
 # data from https://www.gencodegenes.org/human/
 def parse_gtf(file_path: str) -> None:
@@ -79,15 +77,14 @@ def get_rna_type(gene_symbol: str, gene_biotype_dict: dict) -> str:
     return gene_biotype_dict.get(gene_symbol, "Unknown")
 
 
-def transcriptqc(sdata, figure_path, annotation_file):
+def transcriptqc(sdata, figure_path, annotation_file, key_transcripts):
 
     timer = helperfuncs.Timer()
-    frame = transcripts.load_transcripts(sdata, list(sdata.points['transcripts'].columns))
 
     # If a transcript is NOT associated with a cell, it will get -1. 
     # If it is associated with a cell, this column will have a positive integer cell ID.
-    cell_id = list(frame['cell_id'].to_numpy())
-    in_nucleus = list(frame['overlaps_nucleus'].to_numpy())
+    cell_id = list(sdata.points[key_transcripts]['cell_id'])
+    in_nucleus = list(sdata.points[key_transcripts]['overlaps_nucleus'])
 
     # Where are those transcripts located (more in the nuceus, cytoplasm)?
     # Pie chart for transcripts in cytoplasm, in nucleus, outside cell
@@ -125,7 +122,7 @@ def transcriptqc(sdata, figure_path, annotation_file):
     df['colors'] = transcript_type_colors
 
     rna_types_sdata = np.array([get_rna_type(var, gene_biotype_dict) \
-                                for var in frame['feature_name'].cast(pl.String).to_list()])
+                                for var in list(sdata.points[key_transcripts]['feature_name'])])
 
     # Pie chart for transcript types-
     fig = go.Figure(data=[go.Pie(labels=df.index, values=df['count'], marker=dict(colors=df['colors']))])
@@ -134,7 +131,7 @@ def transcriptqc(sdata, figure_path, annotation_file):
     fig.write_image(f"{figure_path}/transctipt_type_pie.png", scale=3)
     fig.write_image(f"{figure_path}/transctipt_type_pie.pdf", scale=3)
 
-    df = frame.to_pandas()
+    df = sdata[key_transcripts].compute()
 
     df['location'] = location_list
     df['feature_type'] = rna_types_sdata
@@ -153,7 +150,7 @@ def transcriptqc(sdata, figure_path, annotation_file):
     timer.stop()
 
 
-def negativeprobeqc(sdata: Any, figure_path: str) -> None:
+def negativeprobeqc(sdata: Any, figure_path: str, key_transcripts: str) -> None:
     """
     Perform quality control on negative probes by visualizing the density of negative probes 
     on a scatter plot and a kernel density estimate (KDE) plot.
@@ -161,31 +158,31 @@ def negativeprobeqc(sdata: Any, figure_path: str) -> None:
     Args:
         figure_path (str): Path where the generated figure will be saved.
         sdata (Any): Spatial data containing the feature name and coordinates (x, y).
+        key_transcripts (str): The key in the spatial data corresponding to transcript data.
 
     Returns:
         None: Saves the generated plot as a PNG file in the specified path.
     """
 
-    df = transcripts.load_transcripts(sdata, ['x', 'y', 'feature_name'])
+    df = sdata[key_transcripts].compute()
 
-    # The match depends only on the name, so test each category once instead of every transcript.
-    neg_probe_names = [x for x in df['feature_name'].dtype.categories if re.compile('NegControlCodeword').match(x)]
-    df = df.filter(pl.col('feature_name').is_in(neg_probe_names)).to_pandas()
+    match_neg_probes = [bool(re.compile('NegControlCodeword').match(x)) for x in list(df['feature_name'])]
 
-    df['neg_probes'] = True
+    df['neg_probes'] = match_neg_probes
 
-    helperfuncs.plot_scatter_density_df(df, figure_path, 
+    helperfuncs.plot_scatter_density_df(df[df['neg_probes'] == True], figure_path, 
                                         'neg_probes', 'neg_probes', None, ['black'],
                                         'Density of negative probes')
 
 
-def transcriptz(sdata: Any, figure_path: str) -> None:
+def transcriptz(sdata: Any, figure_path: str, key_transcripts: str) -> None:
     """
     Create and save histograms for the distribution of the 'z' values from the spatial transcriptomics data.
 
     Args:
         figure_path (str): Path to save the generated figures in HTML format.
         sdata (Any): Spatial transcriptomics data, containing points with 'x', 'y', 'z' coordinates and associated sample names.
+        key_transcripts (str): The key to access the transcript data in the `sdata`.
 
     Returns:
         None: Saves the generated plots as an HTML file in the specified path.
@@ -193,12 +190,11 @@ def transcriptz(sdata: Any, figure_path: str) -> None:
 
     timer = helperfuncs.Timer()
 
-    frame = transcripts.load_transcripts(sdata, ['x', 'y', 'z'])
     df = pd.DataFrame({
-        'x': frame['x'].cast(pl.Float64).to_numpy(),  # list(...) of float32 gave float64
-        'y': frame['y'].cast(pl.Float64).to_numpy(),  # list(...) of float32 gave float64
-        'z': frame['z'].cast(pl.Float64).to_numpy(),  # list(...) of float32 gave float64
-        'sample': ['sampleone'] * frame.height
+        'x': list(sdata.points[key_transcripts]['x']),
+        'y': list(sdata.points[key_transcripts]['y']),
+        'z': list(sdata.points[key_transcripts]['z']),
+        'sample': ['sampleone'] * len(list(sdata.points[key_transcripts]['z']))
     })
 
     figures = []

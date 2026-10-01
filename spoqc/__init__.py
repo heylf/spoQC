@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import matplotlib
-matplotlib.use("Agg")
+import os
+
+# Select the backend without importing matplotlib (and numpy) before core.threads.configure runs.
+os.environ["MPLBACKEND"] = "Agg"
 
 try:
     from importlib.metadata import version as _version

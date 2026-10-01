@@ -4,10 +4,8 @@ from __future__ import annotations
 
 # In[]
 import sys
-import numba
 
 # Utility imports
-import os
 import random
 import argparse
 import numpy as np
@@ -28,179 +26,23 @@ from spoqc import process_datasets
 from spoqc import folder_structure
 from spoqc import plot_config
 from spoqc import subworkflows
-
-def build_parser() -> argparse.ArgumentParser:
-
-    print("[NOTE] Use arguments")
-
-    tool_description = """
-    """
-
-    # parse command line arguments
-    parser = argparse.ArgumentParser(description=tool_description, formatter_class=argparse.RawDescriptionHelpFormatter)
-
-    # version
-    parser.add_argument("-v", "--version", action="version", version="%(prog)s 0.1.0")
-
-    # mandatory
-    parser.add_argument(
-        "-i", "--input",
-        dest="input",
-        type=str, 
-        help="Path to the input directory containing Xenium data.",
-        required=True
-    )
-    parser.add_argument(
-        "-o", "--output",
-        dest="output",
-        type=str, 
-        help="Path to the output directory containing the report.",
-        required=True
-    )
-    parser.add_argument(
-        "-t",
-        dest="tmp",
-        type=str, 
-        help="Path to the tmp directory where spoQC saves tmp files.",
-        required=True
-    )
-
-    # optional
-    parser.add_argument(
-        "-n", "--threads",
-        dest="threads",
-        type=int,
-        default=1, 
-        help="Number of cores to be used.",
-        required=False
-    )
-    parser.add_argument(
-        "-a", "--annotation",
-        dest="annotation",
-        type=str,
-        help="Path to the annotation file.",
-        required=False
-    )
-    parser.add_argument(
-        "--reference",
-        dest="reference",
-        type=str,
-        help="Path to a transcript reference file for the transcript QC.",
-        required=False
-    )
-    parser.add_argument(
-        "--cellcycle_gene_file",
-        dest="cellcycle_gene_file",
-        type=str,
-        default='',
-        help='Path to a JSON file with "S" and "G2M" keys listing S-phase and G2M-phase gene names.',
-        required=False
-    )
-    parser.add_argument(    
-        "-s", "--step",
-        dest="step",
-        type=str,
-        default="all",
-        help="Steps to run for QC.",
-        required=False
-    )
-    parser.add_argument(
-        "--overwrite",
-        dest="overwrite",
-        action='store_true',
-        help="Overwriting temporary files.",
-        required=False
-    )
-    parser.add_argument(
-        "--dataset",
-        dest="dataset",
-        type=str,
-        help="This is used for to apply standardization to spatial data for the data used in the publication.",
-        required=False
-    )
-    parser.add_argument(
-        "--staining",
-        dest="staining",
-        type=str,
-        help="Number of cores to be used.",
-        default='0',
-        required=False
-    )
-    parser.add_argument(
-        "--thresh_prior_pixel",
-        dest="thresh_prior_pixel",
-        type=float,
-        default=None,
-        help="You can set a prior threshold for the pixel prior distribution. Please read the documentation to understand what this threshold does before you set it.",
-        required=False
-    )
-    parser.add_argument(
-        "--nstds_prior_pixel",
-        dest="nstds_prior_pixel",
-        type=float,
-        default=6,
-        help="You can set the number of stds for the pixel prior distribution. Please read the documentation to understand what this does before you set it.",
-        required=False
-    )
-    parser.add_argument(
-        "--pixel_qc_chunk_size",
-        dest="pixel_qc_chunk_size",
-        type=int,
-        default=200_000,
-        help="Row-chunk size for the pixel-level QC dask arrays/dataframes (hqpr/hqtr clustering and scoring). Larger values reduce dask task-graph overhead but increase peak memory per chunk.",
-        required=False
-    )
-    parser.add_argument(
-        "--kmeans_sample_size",
-        dest="kmeans_sample_size",
-        type=int,
-        default=5_000_000,
-        help="Number of pixels randomly subsampled to fit the pixel-cluster MiniBatchKMeans model (hqpr/hqtr). The full dataset is then labeled in parallel using the fitted model.",
-        required=False
-    )
-    parser.add_argument(
-        "--doublet_prior_std",
-        dest="doublet_prior_std",
-        type=int,
-        default=100,
-        help="The std for the doublet prior estimation. If you increase it then the impact of doublet events increaes, that means doublets events will impact more cells and give them lower quality.",
-        required=False
-    )
-    parser.add_argument(
-        "--cluster_celltype",
-        dest="cluster_celltype",
-        type=str,
-        default=None,
-        help="Name of the cluster cell type you want to specifically analyse.",
-        required=False
-    )
-    parser.add_argument(
-        "--spatial_smoothing",
-        dest="spatial_smoothing",
-        action="store_true",
-        help="Turn on spatial smoothing for prior beliefs.",
-        required=False
-    )
-    parser.add_argument(
-        "--dev_test",
-        dest="dev_test",
-        action="store_true",
-        help="This is just for developing and testing the tool.",
-        required=False
-    )
-    parser.add_argument(
-        "--dev_report",
-        dest="dev_report",
-        action="store_true",
-        help="This is just for developing and testing the tool (report).",
-        required=False
-    )
-    
-
-    return parser
+from spoqc.core import threads
+from spoqc.core import transcripts
 
 # In[]
-def main(argv: list[str] | None = None) -> None:
+def main(args_ns: argparse.Namespace) -> None:
+    """Run spoQC on arguments parsed by `spoqc.cli_args.build_parser()`.
+
+    The entry point is `spoqc.__main__.main(argv)`: it parses argv, calls
+    `spoqc.core.threads.configure` and only then imports this module. `main` itself
+    takes the parsed Namespace (it used to take argv) and refuses to run if the
+    thread budget was never configured.
+    """
+    if threads.N is None:
+        raise RuntimeError(
+            "spoqc.core.threads.configure(n) has not run; start spoQC through "
+            "`spoqc` / `python -m spoqc` or call spoqc.__main__.main(argv)"
+        )
     print("[START]")
 
 # In[]
@@ -208,8 +50,6 @@ def main(argv: list[str] | None = None) -> None:
     # Setting matplot styles
     plot_config.set_pub_style()
 
-    parser = build_parser()
-    args_ns = parser.parse_args(argv)
     args = vars(args_ns)
 
     print(f"[NOTE] Turn on mode testing: {args['dev_test']}")
@@ -230,10 +70,7 @@ def main(argv: list[str] | None = None) -> None:
                 return 0
         @constant
         def THREADS():
-            if args['dev_test'] or args['step'] == 'unittest':
-                return 8
-            else:
-                return int(args['threads'])
+            return threads.N
         @constant
         def OVERWRITE():
             return args['overwrite']
@@ -318,6 +155,9 @@ def main(argv: list[str] | None = None) -> None:
         def KMEANS_SAMPLE_SIZE():
             return args['kmeans_sample_size']
         @constant
+        def GMM_N_INIT():
+            return args['gmm_n_init']
+        @constant
         def THRESHOLD_PRIOR_PIXEL():
             return args['thresh_prior_pixel']
         @constant
@@ -350,20 +190,6 @@ def main(argv: list[str] | None = None) -> None:
     np.random.seed(seed)
     print(f"[NOTE] seed {seed}")
 
-    # ---------------- Environment ----------------
-    # Numba threads
-    print(f"[NOTE] Setting numba threads to {CONST.THREADS}")
-    requested_threads = CONST.THREADS
-    maximum_threads = numba.config.NUMBA_NUM_THREADS
-    active_threads = min(requested_threads, maximum_threads)
-    print(
-        f"[NOTE] Numba thread pool maximum: {maximum_threads}; "
-        f"using: {active_threads}"
-    )
-    numba.set_num_threads(active_threads)
-
-    # Blosc threads (for the Zarr datasets we still write)
-    os.environ["BLOSC_NTHREADS"] = str(CONST.THREADS)
     # Timer
     timer = helperfuncs.Timer()
 
@@ -589,6 +415,50 @@ def main(argv: list[str] | None = None) -> None:
         obs_columns = subworkflows.qc_cell.run_qc_cell(sdata, figure_path, CONST, obs_columns)
 
     # In[]
+    #####################
+    ###### AMBIENT ######
+    #####################
+    if ( CONST.STEP in ['all', 'hqtr', 'unittest', 'ambientqc'] ):
+        figure_path = f'{CONST.FIGURE_PATH}/ambientqc/'
+        _ = subworkflows.qc_ambient.start_qc_ambient(sdata, figure_path, CONST.TMP_PATH)
+
+    # In[]
+    ##################
+    ###### HQTR ######
+    ##################
+    subworkflows.hqtr.get_hqtr(
+        sdata, 
+        CONST.TMP_PATH, 
+        imagedim, 
+        dim_x, 
+        dim_y, 
+        CONST, 
+        seed,
+        thresh_p=CONST.THRESHOLD_PRIOR_PIXEL,
+        nstds_p=CONST.NSTDS_PRIOR_PIXEL,
+    )
+
+    # In[]
+    ###########################
+    ###### TRANSCRIPT QC ######
+    ###########################
+    if ( CONST.STEP in ['all', 'transcriptqc'] ):
+        print('[NOTE] Transcript QC')
+        figure_path = f'{CONST.FIGURE_PATH}/transcriptqc/'
+        # subworkflows.qc_transcript.transcriptqc(
+        #     sdata,
+        #     figure_path,
+        #     f'{CONST.TRANSCRIPT_REFERENCE}',
+        # )
+        subworkflows.qc_transcript.negativeprobeqc(sdata, figure_path)
+        print("[finish]")
+
+    # The transcript consumers (doubletqc .. transcriptqc) run back to back: load once,
+    # compute all, unload before hqcr/hqpr. None of the moved steps (ambientqc, hqtr,
+    # transcriptqc) reads anything hqcr/hqpr produce, and none uses a shared RNG state.
+    transcripts.release(sdata)
+
+    # In[]
     ##################
     ###### HQCR ######
     ##################
@@ -629,30 +499,6 @@ def main(argv: list[str] | None = None) -> None:
         print("[NOTE] No annotation file provided so I will not perform celltype_refinement_of_hqpr")
 
     # In[]
-    #####################
-    ###### AMBIENT ######
-    #####################
-    if ( CONST.STEP in ['all', 'hqtr', 'unittest', 'ambientqc'] ):
-        figure_path = f'{CONST.FIGURE_PATH}/ambientqc/'
-        _ = subworkflows.qc_ambient.start_qc_ambient(sdata, figure_path, CONST.TMP_PATH)
-
-    # In[]
-    ##################
-    ###### HQTR ######
-    ##################
-    subworkflows.hqtr.get_hqtr(
-        sdata, 
-        CONST.TMP_PATH, 
-        imagedim, 
-        dim_x, 
-        dim_y, 
-        CONST, 
-        seed,
-        thresh_p=CONST.THRESHOLD_PRIOR_PIXEL,
-        nstds_p=CONST.NSTDS_PRIOR_PIXEL,
-    )
-
-    # In[]
     if ( CONST.ANNOTATION_FILE ):
         subworkflows.hqtr.celltype_refinement_of_hqtr(sdata, CONST.TMP_PATH, imagedim, dim_x, dim_y, CONST)
     else:
@@ -672,7 +518,8 @@ def main(argv: list[str] | None = None) -> None:
             dim_x,
             dim_y,
             CONST.STAINING,
-            celltype_refined=False
+            celltype_refined=False,
+            threads=CONST.THREADS
         )
 
         print('[finish]')
@@ -694,22 +541,6 @@ def main(argv: list[str] | None = None) -> None:
         )
 
         print('[finish]')
-
-    # In[]
-    ###########################
-    ###### TRANSCRIPT QC ######
-    ###########################
-    if ( CONST.STEP in ['all', 'transcriptqc'] ):
-        print('[NOTE] Transcript QC')
-        figure_path = f'{CONST.FIGURE_PATH}/transcriptqc/'
-        # subworkflows.qc_transcript.transcriptqc(
-        #     sdata,
-        #     figure_path,
-        #     f'{CONST.TRANSCRIPT_REFERENCE}',
-        #     'transcripts'
-        # )
-        subworkflows.qc_transcript.negativeprobeqc(sdata, figure_path, 'transcripts')
-        print("[finish]")
 
     # In[]
     ##########################
@@ -766,6 +597,6 @@ def main(argv: list[str] | None = None) -> None:
     ##########################
     # Low resources, fast
     if ( CONST.STEP in ['all', 'final_report'] ):
-        subworkflows.final_report.create_final_report(CONST.FIGURE_PATH, stainings, CONST.GENERATE_REPORT_DOC)
+        subworkflows.final_report.create_final_report(CONST.FIGURE_PATH, stainings, CONST.GENERATE_REPORT_DOC, bool(CONST.ANNOTATION_FILE))
     print("[FINISH]")
     # %%

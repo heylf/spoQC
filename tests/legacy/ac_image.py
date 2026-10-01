@@ -9,7 +9,6 @@ from scipy.ndimage import convolve
 from ... import helperfuncs
 from ... import priors
 from . import local_moran_I
-from ...core import transcripts
 
 # We are calculating a kernel density at the end so you will not have your usual [-1,1] autocorraltion values.
 def generate_transcript_ambient_density_image(
@@ -31,21 +30,21 @@ def generate_transcript_ambient_density_image(
     dim_x = len(sdata[image_type][resolution].image.y.values)
     dim_y = len(sdata[image_type][resolution].image.x.values)
 
-    transcript_coords_df = transcripts.global_coordinates(sdata).to_pandas()
+    transcript_coords_df = sd.get_centroids(sdata['transcripts'], coordinate_system='global').compute()
     transcript_coords_df = transcript_coords_df.astype(int)
     xy_transcript_coords_df = transcript_coords_df.loc[:,['x','y']]
     xy_transcript_coords_df['morans_I'] = np.zeros(len(xy_transcript_coords_df))
 
     # Attach ambient score to transcript df.
-    features = transcripts.load_transcripts(sdata, ['feature_name'])['feature_name']
+    features = np.array(sdata['transcripts'].compute()['feature_name'])
     global_ambient.index = [i for i in range(0, len(global_ambient))]
     global_ambient.loc[np.isnan(global_ambient['morans_I']),'morans_I'] = 0.0 # Sometimes you have nan for moran's I.
 
     # I will not check for absolute values because negative autocorrelation might be biological meaningful.
-    # Later rows win for a repeated gene; genes absent from the transcripts assign nothing.
-    morans_I_of_gene = dict(zip(global_ambient['genes'], global_ambient['morans_I']))
-    morans_I_by_code = transcripts.lookup_by_code(features, morans_I_of_gene, 0.0, np.float64)
-    xy_transcript_coords_df['morans_I'] = morans_I_by_code[features.to_physical().to_numpy()]
+    for i in range(0, len(global_ambient)):
+        gene = global_ambient.loc[i, 'genes']
+        morans_I = global_ambient.loc[i, 'morans_I']
+        xy_transcript_coords_df.loc[features == gene, 'morans_I'] = morans_I
 
     # Now we will add the local morans I
     xy_transcript_coords_df['local_moran_I'] = local_moran_I.calculate_local_moran_I_values(sdata, threads)
