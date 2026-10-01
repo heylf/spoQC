@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 
 from funkyheatmappy import funky_heatmap
 from IPython.display import Image, display
+from spoqc.core.figures import save_figure
 
 def plot_funkyheatmap(rna, figure_path):
 
@@ -249,6 +250,5 @@ def plot_funkyheatmap(rna, figure_path):
             text.set_fontsize(12)
 
     fig.subplots_adjust(right=0.82)
-    plt.savefig(f'{figure_path}/funkyheatmap_1.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/funkyheatmap_1.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/funkyheatmap_1.png', f'{figure_path}/funkyheatmap_1.pdf', bbox_inches='tight', dpi=300)
     plt.close()

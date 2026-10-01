@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from .. import helperfuncs
+from spoqc.core.figures import save_figure
 
 # I tested geopandas.GeoSeries.make_valid instead of of the convex hull, but it still looked weird.
 # The function obs.is_valid is from shapely.
@@ -79,10 +80,7 @@ def check_for_valid_geometries(sdata, figure_path):
                     ax.fill(x, y, alpha=0.7, fc='red', ec='black')  # fill polygon with blue, outline in black
                     ax.set_aspect('equal')
                     ax.axis('off')
-                    plt.savefig(f"{figure_path}/invalid_{obj_type}_geomtry_{num_invalid_examples}.png",
-                                bbox_inches='tight', pad_inches=0, dpi=300)
-                    plt.savefig(f"{figure_path}/invalid_{obj_type}_geomtry_{num_invalid_examples}.pdf",
-                                bbox_inches='tight', pad_inches=0, dpi=300)
+                    save_figure(plt.gcf(), f"{figure_path}/invalid_{obj_type}_geomtry_{num_invalid_examples}.png", f"{figure_path}/invalid_{obj_type}_geomtry_{num_invalid_examples}.pdf", bbox_inches='tight', pad_inches=0, dpi=300)
                     plt.close()
                     num_invalid_examples += 1
 

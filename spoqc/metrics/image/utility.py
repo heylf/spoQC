@@ -3,6 +3,7 @@ import plotly.express as px
 import dask.array as da
 
 from ... import helperfuncs
+from spoqc.core.figures import save_figure
 
 def turn_into_uint8(arr):
     # normalize to 0–1 if needed
@@ -33,8 +34,7 @@ def pixel_intensity_qc(figure_path, intensities, background_intensity, hist, bin
     timer.stop()
     helperfuncs.apply_general_plotly_layout(fig, True)
     figures.append(fig)
-    fig.write_image(f"{figure_path}/histogram_intensity.png", scale=3)
-    fig.write_image(f"{figure_path}/histogram_intensity.pdf", scale=3)
+    save_figure(fig, f"{figure_path}/histogram_intensity.png", f"{figure_path}/histogram_intensity.pdf", scale=3)
 
     with open(f'{figure_path}/histogram_intensity.html', 'w') as f:
         for fig in figures:

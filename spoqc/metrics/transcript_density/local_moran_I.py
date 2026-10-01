@@ -1,56 +1,141 @@
 import numpy as np
+import polars as pl
 import pandas as pd
 import concurrent.futures
 import scipy.sparse as sp
-import concurrent.futures
 
-from libpysal.weights import KNN
+from numba import njit
 from scipy.spatial import cKDTree
 
 from ... import helperfuncs
+from . import global_moran_I
+from ...core import groupreduce, spatial, transcripts
 
-# Vectorized Moran-I for all genes in a neighborhood
-def moran_I_all_genes(X_dense: np.ndarray, w) -> np.ndarray:
+# Cells within this distance of a cell form its Moran's I neighbourhood.
+NEIGHBOURHOOD_RADIUS = 100
+# Transcripts outside cells take the local Moran's I of the nearest in-cell transcript
+# of the same gene, if one lies closer than this.
+OUTSIDE_NEIGHBOUR_DISTANCE = 100.0
+
+
+def fill_outside_from_nearest_inside(coords, feat, local_I, outside_mask, threads):
     """
-    X_dense: (n, num_genes) float array for selected cells
-    w: libpysal weights object
-    returns: (num_genes,) Moran's I per gene
+    Sets local_I of every outside transcript to that of the nearest inside transcript of the
+    same feature closer than OUTSIDE_NEIGHBOUR_DISTANCE, else to 0.0. Modifies local_I in place.
+
+    Transcripts are grouped by feature once (a stable sort keeps each group's positions
+    ascending, as np.flatnonzero gave them); features then run on `threads` threads, one
+    nearest query each (KD-tree builds and queries release the GIL). Features only read
+    inside values and write disjoint outside positions, so the order does not matter.
     """
-    n = X_dense.shape[0]
-    if n < 3:
-        return np.full((X_dense.shape[1],), -1.0, dtype=np.float32)
+    codes, features = pd.factorize(feat)
+    order = np.argsort(codes, kind="stable")
+    offsets = groupreduce.group_offsets(codes[order], len(features))
 
-    # ensure sparse CSR for W
-    # NOTE: w.sparse is typically CSR; w.transform='r' row-standardizes
-    w.transform = "r"
-    weights = w.sparse  # scipy sparse
+    def nearest_inside_values(members):
+        out_idx = members[outside_mask[members]]
+        in_idx = members[~outside_mask[members]]
+        values = np.zeros(out_idx.size, dtype=local_I.dtype)
+        if out_idx.size and in_idx.size:
+            nn, dists = spatial.nearest(coords[out_idx], coords[in_idx], 1, distance_upper_bound=OUTSIDE_NEIGHBOUR_DISTANCE)
+            has_neighbor = np.isfinite(dists) & (nn < in_idx.size)
+            values[has_neighbor] = local_I[in_idx[nn[has_neighbor]]]
+        return out_idx, values
 
-    # S0 for row-standardized weights is just sum(W)
-    row_standardized_weights = weights.sum()
-    if row_standardized_weights == 0:
-        return np.full((X_dense.shape[1],), -1.0, dtype=np.float32)
+    with concurrent.futures.ThreadPoolExecutor(threads) as executor:
+        for out_idx, values in executor.map(nearest_inside_values, groupreduce.ragged_lists(order, offsets)):
+            local_I[out_idx] = values
+    return local_I
 
-    # center (do NOT standardize by std unless you want "z-scores"; Moran uses mean-centering)
-    z = X_dense - X_dense.mean(axis=0, keepdims=True)
 
-    # sparse matmul releases the GIL and is fast
-    z_weights = weights @ z
+# libpysal.cg.kdtree.KDTree's leaf size, which libpysal's KNN.from_array builds its tree with
+KNN_LEAFSIZE = 10
+# Distance gaps at the k-th neighbour within this many relative ULPs take the KD-tree fallback. A
+# cell's min-distance collects about one rounding (<= 1 ULP of a value no larger than the
+# distance) per tree level, and a neighbourhood of <= 2,560 cells at leaf size 10 is <= 9 levels
+# deep; 64 is 7x that.
+KNN_TIE_ULPS = 64
+EPS = np.finfo(np.float64).eps
 
-    num = np.einsum("ij,ij->j", z, z_weights)         # sum over rows
-    den = np.einsum("ij,ij->j", z, z)
 
-    # protect against constant genes in the neighborhood
-    out = np.full((X_dense.shape[1],), -1.0, dtype=np.float32)
-    ok = den > 0
-    out[ok] = (n / row_standardized_weights) * (num[ok] / den[ok])
+@njit(nogil=True, fastmath=False)
+def _unambiguous_knn(coords, k, neighbours):
+    """
+    For each point, its k nearest other points by squared distance (dx * dx + dy * dy, as
+    scipy's KD-tree computes it), ascending by position, into neighbours. Returns False, leaving
+    neighbours incomplete, when some point's (k + 1)-th and (k + 2)-th smallest distances (itself
+    included) are within KNN_TIE_ULPS relative ULPs of each other.
+
+    Only then can the KD-tree return another set: while a member is not found yet, the tree's
+    heap holds a non-member, so its bound is at least the (k + 2)-th distance, and pruning the
+    member takes a cell min-distance overestimated by more than that gap. scipy updates cell
+    min-distances incrementally (query.cxx, nodeinfo::update_side_distance), one rounding per
+    level; the ties and near-ties it could resolve differently go to libpysal's own query.
+    """
+    n = coords.shape[0]
+    d = np.empty(n)
+    for i in range(n):
+        for j in range(n):
+            dx = coords[i, 0] - coords[j, 0]
+            dy = coords[i, 1] - coords[j, 1]
+            d[j] = dx * dx + dy * dy
+        order = np.argsort(d, kind="mergesort")
+        if k + 1 < n and d[order[k + 1]] - d[order[k]] <= KNN_TIE_ULPS * EPS * d[order[k]]:
+            return False
+        # the k + 1 nearest hold the point itself (distance 0, no tie at the boundary)
+        chosen = np.sort(order[:k + 1])
+        t = 0
+        for j in chosen:
+            if j != i:
+                neighbours[i, t] = j
+                t += 1
+    return True
+
+
+@njit(nogil=True, fastmath=False)
+def _spatial_lag(neighbours, weight, z):
+    """weights @ z for the CSR matrix with `weight` at the sorted columns neighbours[i] of each row i,
+    summed as scipy's csr_matvecs sums (row by row, columns ascending, from 0)."""
+    out = np.zeros(z.shape)
+    for i in range(neighbours.shape[0]):
+        for jj in range(neighbours.shape[1]):
+            j = neighbours[i, jj]
+            for g in range(z.shape[1]):
+                out[i, g] += weight * z[j, g]
     return out
 
-# Choose a fast weights builder for points
-def build_weights(coords_subset: np.ndarray, k):
-    # fixed K neighbors
-    # Take Minimum of k (30) cells if there are that many cells.
-    w = KNN.from_array(coords_subset, k=k)  # tune k
-    return w
+
+class KNNWeights:
+    """
+    libpysal's KNN.from_array(coords, k=k) with w.transform = "r", its w.sparse matrix given
+    as `neighbours`, each point's k nearest other points in ascending position (the sorted
+    column indices of that CSR), all weighted 1.0 / k. .sum() and `@` give the CSR's values.
+
+    The k nearest come from a brute-force search, or, when a distance tie at the k-th neighbour
+    leaves the choice to the KD-tree, from libpysal's own query: the same scipy cKDTree
+    (leafsize 10), k + 1 points, and libpysal's self-drop.
+    """
+
+    def __init__(self, coords, k):
+        n = len(coords)
+        self.neighbours = np.empty((n, k), dtype=np.int64)
+        if not _unambiguous_knn(coords, k, self.neighbours):
+            _, indices = cKDTree(coords, KNN_LEAFSIZE).query(coords, k=k + 1, p=2)
+            # mask the point itself; a point with k + 1 other points at distance 0 (itself not
+            # among them) drops its (k + 1)-th instead
+            not_self_mask = indices != np.arange(n).reshape(-1, 1)
+            has_one_too_many = not_self_mask.sum(axis=1) == (k + 1)
+            not_self_mask[has_one_too_many, -1] &= False
+            self.neighbours = np.sort(indices[not_self_mask].reshape(n, -1), axis=1)
+        self.weight = 1.0 / (sum([1.0] * k) * 1.0)  # libpysal's row standardisation
+
+    def sum(self):
+        # scipy sums a CSR as np.sum of its data array
+        return np.full(self.neighbours.size, self.weight).sum()
+
+    def __matmul__(self, z):
+        return _spatial_lag(self.neighbours, self.weight, z)
+
 
 # Core computation per i (no sdata['table'] slicing, no GeoPandas)
 # This calculate all Moran'Is for all genes for one cell.
@@ -68,8 +153,8 @@ def compute_one_i(i: int, num_genes, distance_matrix, center_cell_ids, coords_al
     # If rna_X is sparse: this makes a dense (m, num_genes) only for the neighborhood (cheap-ish).
     X_sub = rna_X[idx, :].toarray() if sp.issparse(rna_X) else np.asarray(rna_X[idx, :])
 
-    w = build_weights(coords, k)
-    I_all = moran_I_all_genes(X_sub, w)
+    # m > k = 30 cells, and each row of the weights sums to 1: the neighbourhood is never degenerate.
+    I_all = global_moran_I.moran_I_all_genes(X_sub, KNNWeights(coords, k), fill=-1.0, dtype=np.float32)
     return center_cell_id, I_all
 
 
@@ -97,13 +182,7 @@ def calculate_local_moran_I_values(sdata, threads):
     coords_all = np.asarray(sdata['table'].obsm['spatial'], dtype=np.float64)
     center_cell_ids = sdata['table'].obs.index.to_numpy()
 
-    distance_matrix = helperfuncs.points_within_radius(
-        # if it accepts array, give coords_all; otherwise keep your df_coords
-        # df_coords,
-        pd.DataFrame({"x": coords_all[:, 0], "y": coords_all[:, 1]}),
-        100,
-        False
-    )
+    distance_matrix = spatial.neighbour_lists(coords_all, NEIGHBOURHOOD_RADIUS, threads)
 
     # ----------------------------
     # Parallel execution
@@ -139,33 +218,33 @@ def calculate_local_moran_I_values(sdata, threads):
     #   all_ids: (n,) center cell ids
     #   all_I:   (n, num_genes) Moran's I per center cell and gene
     
+    return local_moran_I_per_transcript(sdata, all_ids, all_I, threads)
+
+
+def local_moran_I_per_transcript(sdata, all_ids, all_I, threads):
     # Make sure dtypes match your all_ids / var_names
-    transcripts_df = sdata.points['transcripts'].compute()
-    transcripts_cell_id = transcripts_df["cell_id"].to_numpy()
-    transcripts_feature = transcripts_df["feature_name"].to_numpy()
+    transcripts_df = transcripts.load_transcripts(sdata, ['x', 'y', 'cell_id', 'feature_name'])
+    transcripts_cell_id = transcripts_df["cell_id"]
+    transcripts_feature = transcripts_df["feature_name"].to_physical().to_numpy()  # Enum codes
 
     # Build fast maps -> indices
     cell_to_row = {cid: i for i, cid in enumerate(all_ids)}
     gene_to_col = {g: j for j, g in enumerate(sdata['table'].var_names)}
 
-    # Vectorize mapping via pandas (fast C code) rather than Python loops
-    # (This avoids a Python loop over transcripts.)
-    cell_rows = pd.Index(transcripts_cell_id).map(cell_to_row).to_numpy()
-    gene_cols = pd.Index(transcripts_feature).map(gene_to_col).to_numpy()
+    # Unmatched cells become null and unmatched genes -1, as NaN did in the pandas map.
+    cell_rows = transcripts_cell_id.replace_strict(cell_to_row, default=None, return_dtype=pl.Int64)
+    valid_cell = cell_rows.is_not_null().to_numpy()
+    cell_rows = cell_rows.fill_null(-1).to_numpy()
+    gene_cols = transcripts.lookup_by_code(transcripts_df["feature_name"], gene_to_col, -1, np.int64)[transcripts_feature]
 
     # Initialize output
     loca_morans_I_array = np.full(len(transcripts_feature), -1.0, dtype=np.float32)
 
     # Valid rows are those that found both a cell and a gene
-    valid = (cell_rows != -1) & (gene_cols != -1) & (~pd.isna(cell_rows)) & (~pd.isna(gene_cols))
-
-    # Convert to int for indexing
-    cell_rows = cell_rows.astype(np.int64, copy=False)
-    gene_cols = gene_cols.astype(np.int64, copy=False)
+    valid = valid_cell & (gene_cols != -1)
 
     # One shot gather
     loca_morans_I_array[valid] = all_I[cell_rows[valid], gene_cols[valid]]
-    transcripts_df['local_moran_I'] = loca_morans_I_array
 
     # --------------------------------------------------------
     # Now I have to take care of the transcripts outside cells
@@ -173,50 +252,15 @@ def calculate_local_moran_I_values(sdata, threads):
     # For those transcripts I take the nearest transcripts with the same feature name.
     # If none can be found the local Moran's I will be set to 0.0.
 
-    # Masks
     outside_mask = (loca_morans_I_array == -1)
-    inside_mask  = ~outside_mask
 
     # Pull arrays once (avoid repeated pandas overhead)
-    x = transcripts_df["x"].to_numpy(dtype=np.float64, copy=False)
-    y = transcripts_df["y"].to_numpy(dtype=np.float64, copy=False)
+    x = transcripts_df["x"].cast(pl.Float64).to_numpy()
+    y = transcripts_df["y"].cast(pl.Float64).to_numpy()
     coords = np.column_stack((x, y))
 
-    feat = transcripts_feature  # already a numpy array per your code
-    local_I = transcripts_df["local_moran_I"].to_numpy(dtype=np.float32, copy=False)
+    local_I = loca_morans_I_array
+    fill_outside_from_nearest_inside(coords, transcripts_feature, local_I, outside_mask, threads)
 
-    # Work on outside only, grouped by feature
-    features_outside = np.unique(feat[outside_mask])
-
-    dist_thresh = 100.0  # max distance
-
-    for f in features_outside:
-        # indices for this feature
-        out_idx = np.flatnonzero(outside_mask & (feat == f))
-        if out_idx.size == 0:
-            continue
-
-        in_idx = np.flatnonzero(inside_mask & (feat == f))
-        if in_idx.size == 0:
-            # no inside transcripts of this feature -> keep default behavior
-            # your old code sets 0.0 when it can't find a neighbor within 100
-            local_I[out_idx] = 0.0
-            continue
-
-        # KDTree on inside points of this feature
-        tree = cKDTree(coords[in_idx])
-
-        # Query nearest inside point for each outside point, with cutoff radius
-        dists, nn = tree.query(coords[out_idx], k=1, distance_upper_bound=dist_thresh)
-
-        # nn is an index into in_idx (or == len(in_idx) when no neighbor within R)
-        has_neighbor = np.isfinite(dists) & (nn < in_idx.size)
-
-        # default when no neighbor within R (matches your old win_moran_I init)
-        local_I[out_idx] = 0.0
-        local_I[out_idx[has_neighbor]] = local_I[in_idx[nn[has_neighbor]]]
-
-    # Write back once
-    transcripts_df["local_moran_I"] = local_I
     print('... done calculating local morans I')
-    return np.array(transcripts_df["local_moran_I"])
+    return local_I

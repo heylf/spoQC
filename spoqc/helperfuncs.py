@@ -29,6 +29,8 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from scipy.ndimage import gaussian_filter
 from scipy.stats import norm
+from spoqc.core import figures, threads
+from spoqc.core.figures import save_figure
 
 class ImageDimStruct(NamedTuple):
     bb_xmin: int
@@ -66,6 +68,7 @@ _CMAP_DENSITY = mcolors.LinearSegmentedColormap.from_list(
 # The list remove_from_moving are files which should not be sorted.
 # The parameter prefix_or_suffix sets if you want to sort by prefix or suffix.
 def sort_files(data_path, prefix_or_suffix, remove_from_moving):
+    figures.wait()  # every figure in data_path must have landed before it is listed and moved
     s = 0
     if ( prefix_or_suffix == 'suffix' ):
         s = 1
@@ -231,11 +234,11 @@ def image_crop(sdata: Any, bb_xmin: float, bb_ymin: float,
         return None, None, None
 
 
-def plotly_save_as_png(fig, plot_path, w=4, h=3, dpi=300):
+def plotly_save_as_png(fig, *plot_paths, w=4, h=3, dpi=300):
     width_px  = w * dpi
     height_px = h * dpi
     fig.update_layout(margin=dict(l=40, r=20, t=30, b=40))
-    fig.write_image(plot_path, width=width_px, height=height_px, scale=1)
+    save_figure(fig, *plot_paths, width=width_px, height=height_px, scale=1)
     
 
 def generate_distinct_colors(num_colors: int) -> List[str]:
@@ -381,8 +384,7 @@ def plot_density_by_category(df: pd.DataFrame, key: str, figure_path: Union[str,
             plt.gca().invert_yaxis()
 
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/densityplot_{key}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/densityplot_{key}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/densityplot_{key}.png', f'{figure_path}/densityplot_{key}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 # Same as kde but scatter plot
@@ -424,8 +426,7 @@ def plot_scatter_by_category(df: pd.DataFrame, key: str, figure_path: str, suffi
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., markerscale=1)
 
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/scatterplot_{key}_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/scatterplot_{key}_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/scatterplot_{key}_{suffix}.png', f'{figure_path}/scatterplot_{key}_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -504,10 +505,7 @@ def plot_scatter_density_by_category_df(
 
     plt.tight_layout()
     if figure_path is not None:
-        plt.savefig(f'{figure_path}/scatterplot_densityplot_{key}_{suffix}.png',
-                    bbox_inches='tight', dpi=300)
-        plt.savefig(f'{figure_path}/scatterplot_densityplot_{key}_{suffix}.pdf',
-                    bbox_inches='tight', dpi=300)
+        save_figure(plt.gcf(), f'{figure_path}/scatterplot_densityplot_{key}_{suffix}.png', f'{figure_path}/scatterplot_densityplot_{key}_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -561,8 +559,7 @@ def plot_density(adata: AnnData, key: str, figure_path: str, flip=False) -> None
         plt.gca().invert_yaxis()
 
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/densityplot_{key}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/densityplot_{key}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/densityplot_{key}.png', f'{figure_path}/densityplot_{key}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -619,8 +616,7 @@ def plot_scatter(adata: AnnData, figure_path: str, suffix: str, rect: Optional[A
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0., markerscale=1)
 
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/scatterplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/scatterplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/scatterplot_{suffix}.png', f'{figure_path}/scatterplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -701,8 +697,7 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
         plt.gca().invert_yaxis()
     
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/scatterplot_densityplot_{suffix}.png', f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -755,15 +750,13 @@ def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
         plt.gca().invert_yaxis()
     
     plt.tight_layout()
-    plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/scatterplot_densityplot_{suffix}.png', f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
 def plot_original_image_cell_circles(sdata, figure_path, suffix):
     sdata.pl.render_shapes(elements="cell_circles", scale=0.3).pl.show(dpi=300, show=False)
-    plt.savefig(f'{figure_path}/image_cell_circles_{suffix}.png')
-    plt.savefig(f'{figure_path}/image_cell_circles_{suffix}.pdf')
+    save_figure(plt.gcf(), f'{figure_path}/image_cell_circles_{suffix}.png', f'{figure_path}/image_cell_circles_{suffix}.pdf')
     plt.close()
 
 def min_value_shift(data: Union[np.ndarray, list]) -> np.ndarray:
@@ -787,61 +780,6 @@ def min_value_shift(data: Union[np.ndarray, list]) -> np.ndarray:
     else:
         shifted_data = data
     return shifted_data
-
-
-def points_within_radius(df: pd.DataFrame, radius: float, num: bool) -> List[Union[int, List[int]]]:
-    """
-    Get points within a given radius for each point in a DataFrame.
-
-    Parameters:
-    df (pd.DataFrame): DataFrame containing at least two columns, 'x' and 'y', representing coordinates of points.
-    radius (float): The radius within which to search for points.
-    num (bool): If True, return the number of points within the radius for each point. 
-                If False, return the indices of the points within the radius.
-
-    Returns:
-    List[Union[int, List[int]]]:
-        A list where each element corresponds to a point in `df`:
-        - If `num` is True, the element is the count of points within the radius.
-        - If `num` is False, the element is a list of indices of points within the radius.
-    """
-    points_in_radius = []
-    
-    for i, point in df.iterrows():
-        x1, y1 = point['x'], point['y']
-        
-        # Calculate the distance from this point to all other points
-        distances = np.sqrt((df['x'] - x1)**2 + (df['y'] - y1)**2)
-        
-        # Get the indices of points within the given radius (excluding the point itself)
-        close_points = df[distances <= radius].index.tolist()
-        close_points.remove(i)  # Remove the point itself from the list
-        
-        # Append the list of close points to the result.
-        if ( num ):
-            points_in_radius.append(len(close_points))
-        else:
-            points_in_radius.append(close_points)
-    
-    return points_in_radius
-
-
-def euclidean_distance(point1: Sequence[float], point2: Sequence[float]) -> float:
-    """
-    Computes the Euclidean distance between two points in n-dimensional space.
-
-    Args:
-        point1 (Sequence[float]): The first point, represented as a sequence of coordinates (e.g., list, tuple).
-        point2 (Sequence[float]): The second point, represented as a sequence of coordinates (e.g., list, tuple).
-
-    Returns:
-        float: The Euclidean distance between the two points.
-
-    The distance is computed as:
-        sqrt(sum((coord_1 - coord_2)^2 for each pair of coordinates))
-    """
-    return np.sqrt(sum((coord_1 - coord_2) ** 2 for coord_1, coord_2 in zip(point1, point2)))
-
 
 
 def add_manual_legend(legend_dict, points=None):
@@ -890,14 +828,17 @@ def plot_pixels(
         flip=False
 ):
 
+    dpi = 300
     plt.figure(figsize=(12, 6))
     plt.title(title)
 
     if ( flip ):
         image = np.flipud(image)
 
-    plt.imshow(
+    figures.imshow(
+        plt.gca(),
         image , # I need to flip the image
+        dpi=dpi,
         cmap=cmap,
         extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax], # get the bounding box
         aspect='equal'
@@ -915,8 +856,7 @@ def plot_pixels(
     if ( legend_dict ):
         add_manual_legend(legend_dict, points)
 
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/imageplot_{suffix}.png', f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=dpi)
     plt.close()
 
 
@@ -1030,8 +970,7 @@ def test_resolutions_leiden(
     for res_value in ss['res'].unique():  # Assuming 'res' contains the breakpoints
         plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)  # Adding vertical lines
     plt.xticks(ss['res'].unique())  # Ensure all 'res' values are shown on the x-axis
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.png')
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.pdf')
+    save_figure(plt.gcf(), f'{figure_path}/test_resolutions_leiden_clustering_ss.png', f'{figure_path}/test_resolutions_leiden_clustering_ss.pdf')
     plt.close()
 
     if ( annotation_key or k):
@@ -1054,8 +993,7 @@ def test_resolutions_leiden(
         plt.title(f'Annotation had {title} celltypes')
         plt.xticks(ss['res'].unique())  # ensure all 'res' values appear
         plt.tight_layout()
-        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.png')
-        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.pdf')
+        save_figure(plt.gcf(), f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.png', f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.pdf')
         plt.close()
 
     return win_res
@@ -1136,8 +1074,7 @@ def thread_split_list(data, t):
 def dummyplot(figure_path, suffix):
     plt.figure(figsize=(13, 10))
     scatter = sns.scatterplot(x=[1,2], y=[1,2])
-    plt.savefig(f'{figure_path}/dummy_plot_{suffix}.png', bbox_inches='tight')
-    plt.savefig(f'{figure_path}/dummy_plot_{suffix}.pdf', bbox_inches='tight')
+    save_figure(plt.gcf(), f'{figure_path}/dummy_plot_{suffix}.png', f'{figure_path}/dummy_plot_{suffix}.pdf', bbox_inches='tight')
     plt.close()
 
 
@@ -1168,25 +1105,41 @@ def sdata_obs_to_parquet(sdata, figure_path, spoqc_tmp_folder, suffix, obs_colum
     write_df.to_parquet(f"{spoqc_tmp_folder}/{figure_path.split('/')[-2]}_output_{suffix}.parquet")
     return(obs_columns + new_columns)
 
+def _tmp_file_columns(tmp_file):
+    """A tmp parquet's data columns, from its schema (no data read); the stored pandas index
+    ('index', '__index_level_0__') is not one."""
+    schema = pq.read_schema(tmp_file)
+    if schema.pandas_metadata is None:
+        raise ValueError(f"{tmp_file} has no pandas metadata, so its index columns are unknown; "
+                         "spoQC tmp files are written with DataFrame.to_parquet")
+    index_columns = schema.pandas_metadata['index_columns']
+    return [col for col in schema.names if col not in index_columns]
+
+
 def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
-    try:
-        tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder) \
-                     if file.endswith(f'{suffix}.parquet')]
-        sdata['table'].obs.index = [str(x) for x in sdata['table'].obs.index]
-        for tmp_file in tmp_files:
-            # Check the on-disk schema (cheap, no data read) so files already joined in a
-            # previous call are skipped instead of being re-read from disk every time.
-            columns = pq.ParquetFile(tmp_file).schema.names
-            if all(col in sdata['table'].obs.columns for col in columns):
-                print(f'[NOTE] skip {tmp_file}, already loaded in')
-                continue
-            print(f'[NOTE] read in {tmp_file}')
-            tmp_data = pd.read_parquet(tmp_file)
-            tmp_data.index = [str(x) for x in tmp_data.index]
-            sdata['table'].obs = sdata['table'].obs.join(tmp_data, how='left')
-    except Exception as e:
-        print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder}: {e}")
-        return None
+    tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder) \
+                 if file.endswith(f'{suffix}.parquet')]
+    sdata['table'].obs.index = [str(x) for x in sdata['table'].obs.index]
+    file_columns = {tmp_file: _tmp_file_columns(tmp_file) for tmp_file in tmp_files}
+    owners = {}
+    for tmp_file, columns in file_columns.items():
+        for col in columns:
+            owners.setdefault(col, []).append(tmp_file)
+    duplicates = {col: files for col, files in owners.items() if len(files) > 1}
+    if duplicates:
+        raise ValueError(f"columns in more than one tmp file of {spoqc_tmp_folder}: {duplicates}")
+    for tmp_file, columns in file_columns.items():
+        # Read only the columns obs does not have yet: files joined in a previous call or
+        # computed in this process are skipped, and columns a step run on its own already
+        # recomputed (the mandatory valid-geometry columns) are kept.
+        missing = [col for col in columns if col not in sdata['table'].obs.columns]
+        if not missing:
+            print(f'[NOTE] skip {tmp_file}, already loaded in')
+            continue
+        print(f'[NOTE] read in {tmp_file}')
+        tmp_data = pd.read_parquet(tmp_file, columns=missing)
+        tmp_data.index = [str(x) for x in tmp_data.index]
+        sdata['table'].obs = sdata['table'].obs.join(tmp_data, how='left')
 
 def nparr_to_parquet(np_arr, prefix, spoqc_tmp_folder, suffix):
     outfile = f"{spoqc_tmp_folder}/{prefix}_output_{suffix}.parquet"
@@ -1336,22 +1289,42 @@ def read_df_parquet_tmp_files_scorify(cluster_df, spoqc_tmp_folder, suffix):
         return None
 
 
+def histogram(array, nbins):
+    """np.histogram of the non-NaN values of `array` into nbins equal bins over their range (the
+    bins sns.histplot(array, bins=nbins) draws), counted on core.threads.N threads."""
+    array = np.asarray(array)
+    value_range = (np.nanmin(array), np.nanmax(array))
+    workers = threads.budget()
+    counts = sum(threads.map_slices(
+        lambda rows: np.histogram(array[rows], bins=nbins, range=value_range)[0],
+        len(array), -(-len(array) // workers), workers,
+    ))
+    return counts, np.histogram_bin_edges(array[:0], bins=nbins, range=value_range)
+
+
 def plot_histogram_for_array(array, nbins, figure_path, title, suffix, t=None, std=None, nstds=1):
-    sns.histplot(array, bins=nbins)
+    if len(array):
+        # seaborn draws the counted bins, not every value (pixel arrays hold ~1e9 values)
+        counts, bin_edges = histogram(array, nbins)
+        sns.histplot(
+            {"value": bin_edges[:-1], "count": counts}, x="value", weights="count",
+            bins=nbins, binrange=(bin_edges[0], bin_edges[-1]),
+        )
+    else:
+        sns.histplot(array, bins=nbins)
+        bin_edges = np.histogram_bin_edges(array, bins=nbins)
     plt.title(title)
     plt.xlabel("value")
     plt.ylabel("frequency")
     if t:
         plt.axvline(x=t, color='red', linestyle='-', alpha=1.0)  # Adding vertical lines
     if t is not None and std is not None:
-        bin_edges = np.histogram_bin_edges(array, bins=nbins)
         bin_width = np.mean(np.diff(bin_edges))
         scale = len(array) * bin_width  # rescale pdf to match histplot's count-based y-axis
         x = np.linspace(np.min(array), np.max(array), 200)
         y = norm.pdf(x, loc=t, scale=nstds * std) * scale
         plt.plot(x, y, color='gray')
-    plt.savefig(f'{figure_path}/histogram_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/histogram_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/histogram_{suffix}.png', f'{figure_path}/histogram_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 

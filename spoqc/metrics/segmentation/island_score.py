@@ -1,79 +1,39 @@
 import numpy as np
 
-from scipy.spatial import KDTree
-from typing import Tuple, List
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import connected_components
 
 from ... import helperfuncs
+from ...core import spatial
 
-def find_connected_groups_iterative(points: List[Tuple[float, float]], distance_threshold: float) -> List[List[int]]:
+
+def find_connected_groups(points: np.ndarray, distance_threshold: float, threads: int) -> np.ndarray:
     """
-    Identifies connected groups of points based on a distance threshold using an iterative approach.
+    Labels connected groups of points: points are connected if they are within
+    distance_threshold of each other, directly or through other points.
 
     Args:
-        points (List[Tuple[float, float]]): A list of 2D points represented as tuples of (x, y) coordinates.
+        points (np.ndarray): (n, 2) coordinates.
         distance_threshold (float): The maximum distance within which points are considered connected.
+        threads (int): neighbour-search threads.
 
     Returns:
-        List[List[int]]: A list of groups, where each group is represented by a list of indices 
-                         of points belonging to that group.
-    
-    Notes:
-        - Points are connected if the distance between them is less than or equal to `distance_threshold`.
-        - The algorithm uses a k-d tree for efficient neighbor queries and a breadth-first search (BFS) 
-          to determine connected groups.
+        np.ndarray: the group of each point; groups are numbered in the order of their
+        lowest-positioned point.
     """
-    # Convert points to a numpy array
-    points_array = np.array(points)
-
-    # Build the k-d tree
-    tree = KDTree(points_array)
-
-    # Find neighbors for each point within the distance threshold
-    neighbors = tree.query_ball_point(points_array, distance_threshold)
-
-    # Perform a connected components search iteratively
-    visited = set()
-    connected_groups = []
-
-    # Go over each cell and check if you have neighbours in the distance threshold.
-    # Check for those neighbours again if you have neighbours in the distance threshold and add them
-    # to the group.
-    for i in range(len(points)):
-        if i not in visited:
-            # Start a new group and a queue for BFS
-            group = []
-            queue = [i]
-
-            while queue:
-                node = queue.pop(0)  # Dequeue the first element
-                if node not in visited:
-                    visited.add(node)
-                    group.append(node)
-                    # Add unvisited neighbors to the queue
-                    queue.extend([neighbor for neighbor in neighbors[node] if neighbor not in visited])
-
-            connected_groups.append(group)
-
-    return connected_groups
+    n_points = len(points)
+    # The original decided with scipy's KDTree.query_ball_point (leafsize 10).
+    pos_a, pos_b = spatial.pairs_within(points, points, distance_threshold, threads, decide="tree", leafsize=10)
+    adjacency = coo_matrix((np.ones(len(pos_a), dtype=bool), (pos_a, pos_b)), shape=(n_points, n_points))
+    _, labels = connected_components(adjacency, directed=False)
+    _, first_point = np.unique(labels, return_index=True)
+    return np.argsort(np.argsort(first_point))[labels]
 
 
-def calc_island_score(sdata, figure_path, distance_threshold, min_group_count):
+def calc_island_score(sdata, figure_path, distance_threshold, min_group_count, threads):
 
-    # coordinated of the cells
-    adata_x = sdata['table'].obsm['spatial'][:,0]
-    adata_y = sdata['table'].obsm['spatial'][:,1]
-
-    # Create a list of tuples. x and y should technically be the same since it is a pixel / intensity point.
-    adata_coordinates = list(zip(adata_x, adata_y))
-
-    groups = find_connected_groups_iterative(adata_coordinates, distance_threshold)
-
-    island_indices = np.array([-1] * sdata['table'].n_obs)
-    island_scores = np.array([-1] * sdata['table'].n_obs)
-
-    for i,group in enumerate(groups):
-        island_indices[group] = i
-        island_scores[group] = len(group)
+    island_indices = find_connected_groups(sdata['table'].obsm['spatial'][:, :2], distance_threshold, threads)
+    island_scores = np.bincount(island_indices)[island_indices]
 
     sdata['table'].obs['island_index'] = island_indices
     sdata['table'].obs['island_score'] = island_scores

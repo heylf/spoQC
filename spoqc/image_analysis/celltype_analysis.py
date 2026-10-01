@@ -5,6 +5,7 @@ import dask.dataframe as dd
 
 from .. import helperfuncs
 from .. import subworkflows
+from spoqc.core.figures import save_figure
 
 def start_image_celltype_analysis(
         sdata,
@@ -95,8 +96,7 @@ def start_image_celltype_analysis(
             )
             fig.update_layout(width=800, height=2500, violinmode='overlay')
             figures.append(fig)
-            fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}_{object}.png", scale=3)
-            fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}_{object}.pdf", scale=3)
+            save_figure(fig, f"{figure_path}/split_violinplot_{qc_metric}_{object}.png", f"{figure_path}/split_violinplot_{qc_metric}_{object}.pdf", scale=3)
 
         if ( object == 'cell' ):
             subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
@@ -131,8 +131,7 @@ def start_image_celltype_analysis(
             )
             fig_bar.update_layout(barmode="stack", height=2500)
             figures.append(fig_bar)
-            fig_bar.write_image(f"{figure_path}/barplot_celltypes_{modality}.png", scale=3)
-            fig_bar.write_image(f"{figure_path}/barplot_celltypes_{modality}.pdf", scale=3)
+            save_figure(fig_bar, f"{figure_path}/barplot_celltypes_{modality}.png", f"{figure_path}/barplot_celltypes_{modality}.pdf", scale=3)
 
             bar_plot_pct = (
                 bar_plot_df
@@ -154,8 +153,7 @@ def start_image_celltype_analysis(
 
             fig_pct.update_layout(barmode="stack", xaxis_title="Percentage (%)", height=2500)
             figures.append(fig_pct)
-            fig_pct.write_image(f"{figure_path}/barplot_celltypes_pct_{modality}.png", scale=3)
-            fig_pct.write_image(f"{figure_path}/barplot_celltypes_pct_{modality}.pdf", scale=3)
+            save_figure(fig_pct, f"{figure_path}/barplot_celltypes_pct_{modality}.png", f"{figure_path}/barplot_celltypes_pct_{modality}.pdf", scale=3)
 
 
     # Generate plotly HTML

@@ -1,6 +1,7 @@
 import plotly.express as px
 
 from ... import helperfuncs
+from spoqc.core.figures import save_figure
 
 def count_nuclei(sdata, figure_path):
 
@@ -23,8 +24,7 @@ def count_nuclei(sdata, figure_path):
     )
     helperfuncs.apply_general_plotly_layout(fig, True)
     figures.append(fig)
-    fig.write_image(f"{figure_path}/barplot_nuceli_counts.png", scale=3)
-    fig.write_image(f"{figure_path}/barplot_nuceli_counts.pdf", scale=3)
+    save_figure(fig, f"{figure_path}/barplot_nuceli_counts.png", f"{figure_path}/barplot_nuceli_counts.pdf", scale=3)
 
     with open(f'{figure_path}/nuceli_counts.html', 'w') as f:
         for fig in figures:

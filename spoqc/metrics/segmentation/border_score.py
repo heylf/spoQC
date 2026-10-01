@@ -1,67 +1,58 @@
-import pandas as pd
-import numpy as np
-import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
 
-from scipy.spatial import cKDTree
+import numpy as np
+from threadpoolctl import threadpool_limits
 
 from ... import helperfuncs
-
-def compute_border_score_for_point(point_idx, points, rotation_matrices, radius, tree):
-    x1, y1 = points[point_idx]
-
-    # Find nearby points
-    indices = tree.query_ball_point([x1, y1], r=radius)
-    if not indices:
-        return 0, point_idx  # No neighbors found.
-
-    relevant_points = points[indices]
-    diffs = relevant_points - np.array([x1, y1])  # (N,2)
-
-    scores = []
-
-    for rotation_matrix in rotation_matrices:
-        # Rotate points
-        rotated = diffs @ rotation_matrix  # much faster
-
-        # New coords for cell to look at
-        x_coords = rotated[:, 0]
-
-        # Get all positive distances. 
-        # Add one to solve issue with inf.
-        num_left = np.count_nonzero(x_coords > 0) + 1
-
-        # Get all negative distances. 
-        # Add one to solve issue with inf. Both sites have to be treated equally.
-        num_right = np.count_nonzero(x_coords < 0) + 1
-
-        # I am not interested in the direction just the magnitude.
-        score = abs(np.log2(num_left / num_right))
-        scores.append(score)
-
-    return max(scores), point_idx
+from ...core import groupreduce, spatial
 
 
-def get_border_scores_optimized(df, radius, step, threads):
-    points = df[['x', 'y']].values
-    tree = cKDTree(points)
+def get_border_scores(points, radius, step, threads):
+    """
+    Border score of every point: over rotations by multiples of `step` degrees, the largest
+    |log2((1 + #neighbours right of the point) / (1 + #neighbours left of it))|, counting the
+    points within `radius` (the point itself sits at 0 and counts on neither side).
 
-    # Precompute rotation matrices only once
+    The per-point original rotated its (k, 2) neighbour offsets with `diffs @ rotation_matrix`,
+    a BLAS call whose kernel (and so its rounding, e.g. FMA use) can depend on the shape.
+    Points with the same neighbour count k are stacked into one (points, k, 2) matmul: numpy
+    runs it as one (k, 2) @ (2, 2) product per point, with the original's shape, strides and
+    row order (neighbours ascending), so each product is the original's on any BLAS.
+    """
+    n_points = len(points)
+    # The original decided with cKDTree.query_ball_point (leafsize 16).
+    point_pos, neighbour_pos = spatial.pairs_within(points, points, radius, threads, decide="tree", leafsize=16)
+    diffs = points[neighbour_pos] - points[point_pos]  # (pairs, 2), grouped by point
+    offsets = groupreduce.group_offsets(point_pos, n_points)
+    sizes = np.diff(offsets)
+    stacks = []
+    for k in np.unique(sizes[sizes > 0]):
+        same_size = np.flatnonzero(sizes == k)
+        stacks.append((same_size, diffs[offsets[same_size][:, None] + np.arange(k)]))
+
     angles = np.radians(np.arange(0, 360, step))
     rotation_matrices = np.stack([
         np.array([[np.cos(a), -np.sin(a)], [np.sin(a), np.cos(a)]])
         for a in angles
     ])
 
-    # Move args outside to avoid heavy pickling
-    compute_args = (points, rotation_matrices, radius, tree)
+    def rotation_scores(rotation_matrix):
+        # Add one to both sides to avoid inf; both sides are treated equally.
+        num_left = np.ones(n_points, dtype=np.int64)
+        num_right = np.ones(n_points, dtype=np.int64)
+        for same_size, stacked in stacks:
+            x_coords = (stacked @ rotation_matrix)[..., 0]
+            num_left[same_size] += np.count_nonzero(x_coords > 0, axis=1)
+            num_right[same_size] += np.count_nonzero(x_coords < 0, axis=1)
+        # Only the magnitude matters, not the direction. The few distinct ratios go through
+        # the scalar log2, as the per-point original did.
+        ratios, ratio_idx = np.unique(num_left / num_right, return_inverse=True)
+        return np.array([abs(np.log2(ratio)) for ratio in ratios])[ratio_idx]
 
-    def wrapper(idx):
-        return compute_border_score_for_point(idx, *compute_args)
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
-        results = list(executor.map(wrapper, range(len(points))))
-
-    return np.array(results)
+    # One rotation per thread (numpy releases the GIL); BLAS kept to one thread so the
+    # total stays within `threads`.
+    with threadpool_limits(limits=1, user_api="blas"), ThreadPoolExecutor(threads) as executor:
+        return np.max(list(executor.map(rotation_scores, rotation_matrices)), axis=0)
 
 
 def define_border_cells(sdata: dict, figure_path: str, thresh: float,
@@ -86,24 +77,11 @@ def define_border_cells(sdata: dict, figure_path: str, thresh: float,
               Additionally, saves a scatter plot visualization to the specified path.
 
     Notes:
-        - The border scores are computed using `get_border_scores_optimized`.
+        - The border scores are computed using `get_border_scores`.
         - A scatter plot of the border cells is generated using `helperfuncs.plot_scatter`.
     """
 
-    df = pd.DataFrame({
-        'x': sdata['table'].obsm['spatial'][:, 0],
-        'y': sdata['table'].obsm['spatial'][:, 1],
-    })
-
-    # Get scores
-    border_scores_indices = get_border_scores_optimized(df, radius, stepsize, threads)
-
-    # Store scores
-    indices = border_scores_indices[:, 1].astype(int)
-    scores = border_scores_indices[:, 0]
-
-    border_scores = np.full(sdata['table'].n_obs, -1.0)
-    border_scores[indices] = scores
+    border_scores = get_border_scores(np.ascontiguousarray(sdata['table'].obsm['spatial'][:, :2]), radius, stepsize, threads)
 
     border_cells = border_scores >= thresh
 

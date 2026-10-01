@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import scipy.sparse as sp
 import plotly.express as px
 import spatialdata as sd
 import scanpy as sc
@@ -14,6 +15,8 @@ from scipy.stats import median_abs_deviation
 from .. import hqr
 from .. import helperfuncs
 from .. import priors
+from spoqc.core import knn
+from spoqc.core.figures import save_figure
 
 # Function to print all HQCRs
 def plot_hqcr(sdata, figure_path, min_number_good_cells_hqcr, minimum_number_of_total_cells):
@@ -135,8 +138,7 @@ def generate_hqcr_html(figure_path, df_plot, cat, ncat, catnames, qc_metrics):
         helperfuncs.apply_general_plotly_layout(fig, True)
 
         figures.append(fig)
-        fig.write_image(f"{figure_path}/{plotname}_{level}.png", scale=3)
-        fig.write_image(f"{figure_path}/{plotname}_{level}.pdf", scale=3)
+        save_figure(fig, f"{figure_path}/{plotname}_{level}.png", f"{figure_path}/{plotname}_{level}.pdf", scale=3)
 
     with open(f'{figure_path}/hqcr_{cat}.html', 'w') as f:
         for fig in figures:
@@ -473,6 +475,26 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
         df.to_parquet(f"{spoqc_tmp_folder}/traffic_light_output_hqcr.parquet")
 
 
+def qc_values_as_gene_csr(genes, cell_df):
+    """cell_df written into the gene CSR `genes` (cells x len(cell_df.columns)), as the X the
+    clustering has always read: origin/dev set X = cell_df on the view table[:, 0:13], and scipy's
+    CSR assignment zeroes the entries stored there, then stores every non-zero value. So an
+    entry is stored where `genes` stored one or the value is non-zero (NaN included), in row
+    then column order, cast to the gene matrix's dtype."""
+    values = cell_df.to_numpy(dtype=np.float64)  # what anndata made of the DataFrame
+    stored = np.zeros(values.shape, dtype=bool)
+    stored_coo = genes.tocoo()
+    stored[stored_coo.row, stored_coo.col] = True
+    keep = stored | (values != 0)
+    rows, cols = np.nonzero(keep)
+    indptr = np.zeros(values.shape[0] + 1, dtype=genes.indptr.dtype)
+    np.cumsum(keep.sum(axis=1), out=indptr[1:])
+    return sp.csr_matrix(
+        (values[rows, cols].astype(genes.dtype), cols.astype(genes.indices.dtype), indptr),
+        shape=values.shape,
+    )
+
+
 def load_data_for_hqcr(sdata, spoqc_tmp_folder, counts):
     print("[NOTE] Gather cell QC metrices")
     helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
@@ -486,8 +508,10 @@ def load_data_for_hqcr(sdata, spoqc_tmp_folder, counts):
 
     # This I have to do to avoid an error because of the number of features I have selected.
     qc_metrices = list(cell_df.columns)
-    qc_domains_adata = qc_domains_adata[:,0:len(qc_metrices)]
-    qc_domains_adata.X = cell_df
+    # A copy, so the QC values no longer overwrite the first genes of sdata['table'].X (the
+    # normlog layer) for later steps, as setting X on the view did.
+    qc_domains_adata = qc_domains_adata[:,0:len(qc_metrices)].copy()
+    qc_domains_adata.X = qc_values_as_gene_csr(qc_domains_adata.X, cell_df)
 
     return qc_domains_adata, cell_df, qc_metrices
 
@@ -495,10 +519,11 @@ def load_data_for_hqcr(sdata, spoqc_tmp_folder, counts):
 def clustering_for_hqcr(qc_domains_adata, figure_path, CONST, seed, test_res_n_clusters=10, test_res=False):
     # leiden clustering
     print("[NOTE] Cell QC clustering")
-    sc.pp.neighbors(qc_domains_adata, n_neighbors=20, random_state=seed)
-    sc.tl.umap(qc_domains_adata, random_state=seed)
+    knn.neighbors(qc_domains_adata, n_neighbors=20, random_state=seed, threads=CONST.THREADS)
 
     if ( test_res ):
+        # X_umap is read only by test_resolutions_leiden's silhouette scores
+        sc.tl.umap(qc_domains_adata, random_state=seed)
         helperfuncs.test_resolutions_leiden(qc_domains_adata, figure_path, CONST.THREADS, k=test_res_n_clusters)
 
     sc.tl.leiden(qc_domains_adata, resolution=1.2)
@@ -532,7 +557,7 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
     clustering_for_hqcr(qc_domains_adata, figure_path, CONST, seed)
     
     # Here we combine available priors
-    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts, CONST.DOULET_PRIOR_STD)
+    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts, CONST.DOULET_PRIOR_STD, CONST.THREADS, seed, CONST.GMM_N_INIT)
 
     # Cell quality probability refinement
     cell_quality_probability_refinement(
@@ -718,8 +743,7 @@ def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_
                 )
                 fig.update_layout(width=800, height=2500, violinmode='overlay')
                 figures.append(fig)
-                fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.png", scale=3)
-                fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.pdf", scale=3)
+                save_figure(fig, f"{figure_path}/split_violinplot_{qc_metric}.png", f"{figure_path}/split_violinplot_{qc_metric}.pdf", scale=3)
 
                 # Bar plot of artefact scores
                 df_artefact_scores = pd.DataFrame({'celltype': celltypes, 'artefact_scores': artefact_scores })
@@ -731,7 +755,7 @@ def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_
                     title=f'Artefact Scores per Celltype for {qc_metric}'
                 )
                 figures.append(fig_bar)
-                fig_bar.write_image(f"{figure_path}/barplot_artefact_scores_{qc_metric}.png", scale=3)
+                save_figure(fig_bar, f"{figure_path}/barplot_artefact_scores_{qc_metric}.png", scale=3)
 
             elif qc_metric in ['convexity_metric_cell', 'convexity_min_nuceli', 'border_scores',
                             'thinness_score', 'island_score', 'cell_overlap_area',
@@ -746,8 +770,7 @@ def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_
                 )
                 fig.update_layout(width=800, height=2500, violinmode='overlay')
                 figures.append(fig)
-                fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.png", scale=3)
-                fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}.pdf", scale=3)
+                save_figure(fig, f"{figure_path}/split_violinplot_{qc_metric}.png", f"{figure_path}/split_violinplot_{qc_metric}.pdf", scale=3)
 
             else:
                 print(f"[NOTE] {qc_metric} is not implemented yet for doublet and nucelus free cell check.")
@@ -762,8 +785,7 @@ def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_
             title=f'Artefact Scores per Celltype for all considered QC metrices'
         )
         figures.append(fig_bar)
-        fig_bar.write_image(f"{figure_path}/barplot_total_artefact_scores.png", scale=3)
-        fig_bar.write_image(f"{figure_path}/barplot_total_artefact_scores.pdf", scale=3)
+        save_figure(fig_bar, f"{figure_path}/barplot_total_artefact_scores.png", f"{figure_path}/barplot_total_artefact_scores.pdf", scale=3)
 
         # Generate plotly HTML
         html_content = ''.join(fig.to_html(full_html=False) for fig in figures)
@@ -787,7 +809,8 @@ def refine_hqcr_with_celltype_thresholds(
         annotation_key,
         imagedim,
         image_type,
-        resolution
+        resolution,
+        threads
     ):
 
     # Lets first investigate what we can do with the celltype informed threhsholds.
@@ -801,7 +824,8 @@ def refine_hqcr_with_celltype_thresholds(
         threshold_right_dict, 
         annotation_key,
         qc_metric,
-        df_coords
+        df_coords,
+        threads
     )
     sdata['table'].obs['good_quality_probs_celltype'] = good_quality_probs_celltype
     sdata['table'].obs['bad_quality_probs_celltype'] = 1 - good_quality_probs_celltype
@@ -860,5 +884,6 @@ def start_hqcr_celltype(sdata, spoqc_tmp_folder, imagedim, CONST):
         CONST.ANNOTATION_KEY,
         imagedim,
         CONST.IMAGE_TYPE,
-        CONST.RESOLUTION
+        CONST.RESOLUTION,
+        CONST.THREADS
     )

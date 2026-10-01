@@ -8,6 +8,8 @@ from skimage.morphology import dilation, disk
 from .. import helperfuncs
 from .. import hqr
 from .. import metrics
+from spoqc.core import figures
+from spoqc.core.figures import save_figure
 
 def _overlap(a, b):
     # boxes: [min_row, min_col, max_row, max_col]
@@ -44,15 +46,19 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
     plt.figure(figsize=(12, 6))
 
     if ( flip ):
-        plt.imshow(
+        figures.imshow(
+            plt.gca(),
             np.flipud( np.log10 (image + 1) ),
+            dpi=300,
             cmap='gray',
             extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
             aspect='equal'
         )
     else:
-        plt.imshow(
+        figures.imshow(
+            plt.gca(),
             np.log10 (image + 1),
+            dpi=300,
             cmap='gray',
             extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
             aspect='equal'
@@ -83,8 +89,7 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
                 linewidth=2,
             )
 
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/imageplot_{suffix}.png', f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -144,22 +149,25 @@ def define_bounding_boxes(
 
     plt.figure(figsize=(12, 6))
     if ( flip ):
-        plt.imshow(
+        figures.imshow(
+            plt.gca(),
             np.flipud( dilated_image ),
+            dpi=300,
             cmap='gray',
             extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
             aspect='equal'
         )
     else:
-        plt.imshow(
+        figures.imshow(
+            plt.gca(),
             dilated_image,
+            dpi=300,
             cmap='gray',
             extent=[imagedim.bb_xmin, imagedim.bb_xmax, imagedim.bb_ymin, imagedim.bb_ymax],
             aspect='equal'
         )
     plt.title(f"Dilated image")
-    plt.savefig(f'{figure_path}/imageplot_dilated_image_for_bounding_box.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/imageplot_dilated_image_for_bounding_box.pdf', bbox_inches='tight', dpi=300)
+    save_figure(plt.gcf(), f'{figure_path}/imageplot_dilated_image_for_bounding_box.png', f'{figure_path}/imageplot_dilated_image_for_bounding_box.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
