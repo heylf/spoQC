@@ -12,8 +12,8 @@ def combine_priors_hqcr(enterprise):
     enterprise.hqcr_priorset.calculate_priors_df()
     final_prior = enterprise.hqcr_priorset.combine_prior_asymmetric_evidence_aggregation()
     traffic_lights = enterprise.hqcr_priorset.combine_prior_traffic_light_system()
-    enterprise.cargo.sdata['table'].obs['good_quality_probabilities'] = final_prior
-    enterprise.cargo.sdata['table'].obs['hqcr_traffic_light'] = traffic_lights
+    enterprise.cargo.sdata['table'].obs['good_quality_probabilities'] = final_prior.to_numpy()
+    enterprise.cargo.sdata['table'].obs['hqcr_traffic_light'] = traffic_lights.to_numpy()
 
 
 def combine_priors_hqpr(enterprise):
