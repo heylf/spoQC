@@ -118,6 +118,7 @@ def main(**kwargs) -> None:
 
     # Timer class
     timer = helperfuncs.Timer()
+    timer.start()
 
     # In[]
     # Load data
@@ -211,6 +212,6 @@ def main(**kwargs) -> None:
     # In[]
     missions.final_report.run_final_report(enterprise)
 
-    timer.stop()
+    print(f"Final time: {timer.stop()}")
     print("[FINISH]")
     # %%
