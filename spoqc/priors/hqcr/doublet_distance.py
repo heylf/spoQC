@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 
 from scipy.stats import norm
+from sklearn.mixture import GaussianMixture
 
 from ... import helperfuncs
 from ... import core
@@ -32,68 +33,44 @@ def _calc_probs_doublet_distance(sdata, figure_path, nstds = 1.0):
     return probs_good_quality
 
 
-def init_prior(enterprise):
-
-    # These have to be defined.
-    name = "doublet_prior"
-    modality = "hqcr"
-    tmp_path = None
-    needs_metrics = ["doublet_score"]
-
-    # These are given by your prior calc function.
-    args = [enterprise.cargo.sdata, f'{enterprise.args.output_dir}/hqcr/hqcr_ident/']
-    kwargs = {"nstds": enterprise.args.doublet_prior_std}
-
-    prior = core.prior.Prior(
-        _calc_probs_doublet_distance, 
-        name,
-        modality,
-        needs_metrics = needs_metrics,
-        tmp_path = tmp_path,
-        args = args,
-        kwargs = kwargs,
-    )    
-    
-    return prior
-
 # ddd = density divided by distance (relative density)
 # The closer ddd is to 0 the better the quality.
-# The bigger -log10(ddd) is the better the quality.
-def calc_probs_ddd(sdata, figure_path, max_std, nstds = 1.0, tail = "right", mean=None):
+# The bigger log10_ddds is the better the quality.
+def _calc_probs_ddd(sdata, figure_path, max_std, nstds = 1.0, tail = "right", mean=None):
     n_doublets = len(sdata['table'].obs[sdata['table'].obs['doublet_ddd'] != 100_000.0])
     probs = np.array([1.0] * sdata['table'].n_obs)
 
     if n_doublets != 0:
 
-        ddds = -np.log10(np.array(sdata['table'].obs['doublet_ddd']) + 1e-10)
+        log10_ddds = -np.log10(np.array(sdata['table'].obs['doublet_ddd']) + 1e-10)
 
         # There will be 2 peaks.
         # One peak is the added cosntant for the log10 (1e-10), which is basically cells without a doublet event.
         # The actual peak we are looking for is thus the min of all peaks.
         mix = GaussianMixture(n_components=2, tol=1e-8, max_iter=int(1e4))
-        mix.fit(ddds.reshape(-1, 1))
+        mix.fit(log10_ddds.reshape(-1, 1))
         means = mix.means_
         cov = mix.covariances_
 
         if mean == None:
             mean = np.min(means)
 
-        pdf = norm.pdf(ddds, loc=mean, scale=nstds*max_std)
+        pdf = norm.pdf(log10_ddds, loc=mean, scale=nstds*max_std)
 
         # Just a trick, if values are bigger or smaller based on tail then set those values to t and thus get the highest 
         # density for all those values.
         # Here we do not inverse, i.e., values < max_mean or values > max_mean will get the best possible probability.
         if tail == "left":
-            pdf = np.where(ddds < mean, np.max(pdf), pdf)
+            pdf = np.where(log10_ddds < mean, np.max(pdf), pdf)
         elif tail == "right":
-            pdf = np.where(ddds > mean, np.max(pdf), pdf)
+            pdf = np.where(log10_ddds > mean, np.max(pdf), pdf)
 
-        if ( len(ddds[ddds == 100_000]) != len(ddds) ):
+        if ( len(log10_ddds[log10_ddds == 100_000]) != len(log10_ddds) ):
             print("[NOTE] Doublets are in data, thus normalize probs.")
             probs = helperfuncs.min_max_normalize(pdf)
 
         helperfuncs.plot_histogram_for_array(
-            ddds,
+            log10_ddds,
             100,
             figure_path,
             f"""
@@ -108,3 +85,28 @@ def calc_probs_ddd(sdata, figure_path, max_std, nstds = 1.0, tail = "right", mea
 
     probs_good_quality = probs
     return probs_good_quality
+
+
+def init_prior(enterprise):
+
+    # These have to be defined.
+    name = "doublet_prior"
+    modality = "hqcr"
+    tmp_path = None
+    needs_metrics = ["doublet_score"]
+
+    # These are given by your prior calc function.
+    args = [enterprise.cargo.sdata, f'{enterprise.args.output_dir}/hqcr/hqcr_ident/', enterprise.args.doublet_prior_std]
+    kwargs = {"mean": enterprise.args.doublet_prior_mean}
+
+    prior = core.prior.Prior(
+        _calc_probs_ddd, 
+        name,
+        modality,
+        needs_metrics = needs_metrics,
+        tmp_path = tmp_path,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return prior
