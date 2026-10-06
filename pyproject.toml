@@ -43,6 +43,7 @@ dependencies = [
     "pandas==2.3.3",
     "plotly==6.8.0",
     "pyarrow==24.0.0",
+    "rich-click==1.9.8",
     "rasterio==1.5.0",
     "requests==2.34.2",
     "scanpy==1.12.1",

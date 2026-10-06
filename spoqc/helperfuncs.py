@@ -30,16 +30,6 @@ from matplotlib.lines import Line2D
 from scipy.ndimage import gaussian_filter
 from scipy.stats import norm
 
-class ImageDimStruct(NamedTuple):
-    bb_xmin: int
-    bb_ymin: int
-    bb_xmax: int
-    bb_ymax: int
-
-class AnnotationStruct(NamedTuple):
-    ncelltypes: int
-    celltypes: int
-
 class Timer:
     def __init__(self):
         self._start_time = None
@@ -127,7 +117,7 @@ def create_fraction_df(adata: AnnData, group: str, category: str) -> Dict[str, U
     return(d)    
 
 
-def read_data_as_ddf(tmp_files, chunk_size):
+def read_data_as_dda(tmp_files, chunk_size):
     # Preallocate a Dask Array with correct shape and chunks
     col_series = [
         dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
@@ -152,83 +142,29 @@ def read_data_as_ddf(tmp_files, chunk_size):
     return dask_array
 
 
-def deduplicate_dask_index(ddf: Any) -> Any:
-    """
-    Return a copy of a dask DataFrame with a globally unique, monotonically
-    increasing RangeIndex.
+def read_data_as_ddf(tmp_file, chunk_size):
 
-    Some readers (e.g. the Xenium zarr reader) build points partitions that
-    each carry their own locally-scoped 0..n index, so the same index value
-    repeats across partitions. `ddf.reset_index(drop=True)` does not fix this
-    because dask resets the index independently per partition. Here we
-    compute the (cheap) per-partition lengths and offset each partition's
-    index by the cumulative length of the partitions before it.
-    """
-    def _assign_partition_index(df, offsets, partition_info=None):
-        start = offsets[partition_info["number"]]
-        df = df.copy()
-        df.index = pd.RangeIndex(start, start + len(df))
-        return df
+    # Read parquet
+    ddf = dd.read_parquet(tmp_file).reset_index(drop=True)
 
-    lengths = ddf.map_partitions(len).compute().to_numpy()
-    offsets = np.concatenate(([0], np.cumsum(lengths)[:-1]))
-    return ddf.map_partitions(_assign_partition_index, offsets, meta=ddf._meta)
+    # Compute current partition lengths
+    lengths = tuple(
+        ddf.map_partitions(len).compute()
+    )
 
+    # Convert to Dask Array with known row chunks
+    arr = ddf.to_dask_array(lengths=lengths)
 
-def image_crop(sdata: Any, bb_xmin: float, bb_ymin: float,
-               bb_xmax: float, bb_ymax: float, coordsystem: str) -> Tuple[Any, float, float]:
-    """
-    Crop a spatial dataset to a specified bounding box within a given coordinate system.
+    # Rechunk rows to chunk_size
+    arr = arr.rechunk((chunk_size, -1))
 
-    Parameters:
-    sdata (SpatialData): The spatial dataset to crop.
-    bb_xmin (float): Minimum x-coordinate of the bounding box.
-    bb_ymin (float): Minimum y-coordinate of the bounding box.
-    bb_xmax (float): Maximum x-coordinate of the bounding box.
-    bb_ymax (float): Maximum y-coordinate of the bounding box.
-    coordsystem (str): The coordinate system used for cropping.
+    # Convert back to Dask DataFrame
+    ddf = dd.from_dask_array(
+        arr,
+        columns=ddf.columns,
+    )
 
-    Returns:
-    Tuple[SpatialData, float, float]: A tuple containing:
-        - The cropped spatial dataset.
-        - The minimum x-coordinate of the bounding box.
-        - The minimum y-coordinate of the bounding box.
-    """
-
-    sdata_filtered_cs = sdata.filter_by_coordinate_system(coordsystem)
-
-    cropped_sdata = None
-    try:
-        cropped_sdata = sdata_filtered_cs.query.bounding_box(
-            axes=["x", "y"],
-            min_coordinate=[bb_xmin, bb_ymin],
-            max_coordinate=[bb_xmax, bb_ymax],
-            target_coordinate_system=coordsystem,
-        )
-    except: 
-        # This erorr sometimes happen - ValueError: Number of partitions do not match (1 != 8)
-        print(f"[Error] Cropping failed with {bb_xmin}, {bb_ymin}, {bb_xmax}, {bb_ymax}. \
-              Please check the coordinates and try again.")
-        return None, None, None
-
-    if ( 'table' in cropped_sdata._shared_keys ):
-        # This has to be done because else those levels have different cell_ids captures.
-        # I think this happends because the cropping does not capture polygons on the cropping border.
-        ids = cropped_sdata['table'].obs.index
-        ids = ids.astype(type(sdata['cell_boundaries'].index[0])).tolist()
-            
-        for id in ids:
-            if ( id not in sdata['cell_boundaries'].index ):
-                sys.exit(f"[Error] Please check your indexing of sdata['table'].obs.index" + \
-                        f" and sdata['cell_boundaries'].index the index {id} is not in the latter index.")
-
-        cropped_sdata['cell_boundaries'] = sdata['cell_boundaries'].loc[ids]
-        cropped_sdata['nucleus_boundaries'] = sdata['nucleus_boundaries'].loc[ids]
-
-        return cropped_sdata, bb_xmin, bb_ymin
-    else:
-        print("[NOTE] No table in sdata so returning None")
-        return None, None, None
+    return ddf
 
 
 def plotly_save_as_png(fig, plot_path, w=4, h=3, dpi=300):
@@ -260,6 +196,8 @@ def generate_distinct_colors(num_colors: int) -> List[str]:
         colors.append(color)
 
     return colors
+
+
 
 def generate_distinct_colors_with_jitter(num_colors: int) -> List[str]:
     colors = []
@@ -1182,12 +1120,14 @@ def values_to_hex_gradient(values, cmap_name='hot', reverse=False):
     return hex_colors
 
 
-def sdata_obs_to_parquet(sdata, figure_path, spoqc_tmp_folder, suffix, obs_columns):
-    new_columns = [x for x in sdata['table'].obs.columns if x not in obs_columns]
-    write_df = sdata['table'].obs.loc[:,new_columns]
-    write_df.index = sdata['table'].obs.index
-    write_df.to_parquet(f"{spoqc_tmp_folder}/{figure_path.split('/')[-2]}_output_{suffix}.parquet")
-    return(obs_columns + new_columns)
+def sdata_obs_to_parquet(enterprise, step, suffix):
+    adata = enterprise.cargo.sdata["table"]
+    new_columns = [x for x in adata.obs.columns if x not in enterprise.cargo.cols_already_written]
+    write_df = adata.obs.loc[:,new_columns]
+    write_df.index = adata.obs.index
+    write_df.to_parquet(f"{enterprise.args.tmp_dir}/{step}_output_{suffix}.parquet")
+    enterprise.cargo.cols_already_written += new_columns
+
 
 def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
     try:
@@ -1198,7 +1138,7 @@ def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
             # Check the on-disk schema (cheap, no data read) so files already joined in a
             # previous call are skipped instead of being re-read from disk every time.
             columns = pq.ParquetFile(tmp_file).schema.names
-            if all(col in sdata['table'].obs.columns for col in columns):
+            if any(col in sdata['table'].obs.columns for col in columns):
                 print(f'[NOTE] skip {tmp_file}, already loaded in')
                 continue
             print(f'[NOTE] read in {tmp_file}')
@@ -1393,3 +1333,100 @@ def dask_df_add_sequential_index(ddf, index_name="new_index"):
     ddf_with_index = dd.from_delayed(parts, meta=meta)
 
     return ddf_with_index.set_index(index_name)
+
+
+def cell_artefact_assignment(cell_df, sdata):
+    cell_df['artefact'] = 'cell'
+
+    # Assign artefacts
+    cell_df.loc[cell_df['wdoublet'] == 1, 'artefact'] = 'doublet'
+    mean_overlap = cell_df['cell_overlap_area'].mean()
+
+    cell_df.loc[(cell_df['nuceli_count'] > 1) & (cell_df['cell_overlap_area'] > mean_overlap), 'artefact'] = 'doublet'
+    cell_df.loc[cell_df['wnucleus_free'] == 1, 'artefact'] = 'nucleus_free'
+    sdata['table'].obs['artefact'] = cell_df['artefact']
+
+
+def turn_into_uint8(arr):
+    # normalize to 0–1 if needed
+    if int(arr.min()) != 0 or int(arr.max()) != 1:
+        arr = (arr - arr.min()) / (arr.max() - arr.min())
+    # scale to 0–255 and convert to uint8
+    uint8_arr = (arr * 255).astype(np.uint8)
+    return uint8_arr
+
+
+def pixel_intensity_qc(figure_path, intensities, background_intensity, hist, bin_edges, dim_x, dim_y, imagedim):
+
+    timer = Timer()
+
+    figures = []
+
+    # When you plot a histogram via plotly, it stores all the orginal data in the json file 
+    # and makes the bins and counts on the javascript side. 
+    # Thus the plot get quite large.
+    # Use therefore the precomupted histogram data from numpy.
+    bins = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+    print("[NOTE] Barplot")
+    timer.start()
+    fig = px.bar(x=bins, y=hist, labels={'x':'intensity', 'y':'count'})
+    fig.update_layout(
+        title=f"Total distribution intensity with backkground intensity {background_intensity}"
+    )
+    timer.stop()
+    apply_general_plotly_layout(fig, True)
+    figures.append(fig)
+    fig.write_image(f"{figure_path}/histogram_intensity.png", scale=3)
+    fig.write_image(f"{figure_path}/histogram_intensity.pdf", scale=3)
+
+    with open(f'{figure_path}/histogram_intensity.html', 'w') as f:
+        for fig in figures:
+            f.write(fig.to_html(full_html=False, include_plotlyjs='cdn'))
+    
+    signal_noise_ratio_log2fc = np.log2( (intensities + 1) / background_intensity )
+
+    plot_pixels(
+        figure_path,
+        np.array(signal_noise_ratio_log2fc).reshape(dim_x, dim_y),
+        imagedim,
+        'snr', 
+        'Log2 Signal-Noise-Ratio', 
+        'hot',
+        False,
+        False
+    )
+    
+    return signal_noise_ratio_log2fc
+
+
+def estimate_background_intensity_dask(sdata, image_type, resolution, staining, nbins=100, range_=None):
+    """
+    nbins: number of histogram bins
+    range_: optional (min, max); if None, computed lazily with dask
+    """
+    intensities = sdata[image_type][resolution].image.data[int(staining)]
+    intensities.ravel()
+
+    if not hasattr(intensities, "chunks"):
+        raise TypeError("Pass a dask.array for the Dask implementation.")
+
+    # Compute min/max lazily if not supplied (cheap: just scalars)
+    if range_ is None:
+        vmin = da.nanmin(intensities)
+        vmax = da.nanmax(intensities)
+        vmin, vmax = da.compute(vmin, vmax)
+        if not np.isfinite(vmin) or not np.isfinite(vmax):
+            raise ValueError("Non-finite min/max encountered.")
+        if vmin == vmax:
+            vmax = vmin + 1.0
+        range_ = (float(vmin), float(vmax))
+
+    # Dask builds the histogram in a reduction; result is tiny (nbins) -> safe to .compute()
+    hist, bin_edges = da.histogram(intensities, bins=nbins, range=range_)
+    hist, bin_edges = da.compute(hist, bin_edges)
+
+    max_bin_idx = int(np.argmax(hist))
+    # center of the winning bin
+    background = np.round((bin_edges[max_bin_idx] + bin_edges[max_bin_idx + 1]) * 0.5, 3)
+    return background, hist, bin_edges

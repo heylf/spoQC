@@ -61,7 +61,7 @@ For each modality the pixel-level values are aggregated to the cell polygon in t
 | Column | Description |
 |---|---|
 | hqpr_i_intensity | Mean pixel intensity for the cell polygon using staining channel i. |
-| edge_strength_hqpr_i, energy_hqpr_i, relevance_hqpr_i, entropy_hqpr_i, homogenity_hqpr_i, uniformity_hqpr_i | Mean of the respective pixel (anti)structure/texture metric over the cell polygon, using staining channel i. |
+| edge_strength_hqpr_i, energy_hqpr_i, relevance_hqpr_i, entropy_hqpr_i, homogeneity_hqpr_i, uniformity_hqpr_i | Mean of the respective pixel (anti)structure/texture metric over the cell polygon, using staining channel i. |
 
 ### Transcript metrics
 
@@ -70,7 +70,7 @@ For each modality the pixel-level values are aggregated to the cell polygon in t
 | hqtr_intensity | Mean transcript density for the cell polygon. |
 | hqtr_qv_density | Mean transcript quality (QV) density for the cell polygon. |
 | hqtr_ac_density | Mean ambient RNA (AC) density for the cell polygon. |
-| edge_strength_hqtr, energy_hqtr, relevance_hqtr, entropy_hqtr, homogenity_hqtr, uniformity_hqtr | Mean of the respective pixel (anti)structure/texture metric over the cell polygon, computed on the transcript density image. |
+| edge_strength_hqtr, energy_hqtr, relevance_hqtr, entropy_hqtr, homogeneity_hqtr, uniformity_hqtr | Mean of the respective pixel (anti)structure/texture metric over the cell polygon, computed on the transcript density image. |
 
 ### Columns added during additional analysis
 

@@ -4,10 +4,11 @@ import pandas as pd
 import numpy as np
 
 from scipy.stats import norm
-from ... import helperfuncs
-from sklearn.mixture import GaussianMixture
 
-def calc_probs_doublet_distance(sdata, figure_path, nstds):
+from ... import helperfuncs
+from ... import core
+
+def _calc_probs_doublet_distance(sdata, figure_path, nstds = 1.0):
     distances = sdata['table'].obs['doublet_distance']
     probs = np.array([0.0] * sdata['table'].n_obs)
 
@@ -29,6 +30,31 @@ def calc_probs_doublet_distance(sdata, figure_path, nstds):
 
     probs_good_quality = 1 - probs
     return probs_good_quality
+
+
+def init_prior(enterprise):
+
+    # These have to be defined.
+    name = "doublet_prior"
+    modality = "hqcr"
+    tmp_path = None
+    needs_metrics = ["doublet_score"]
+
+    # These are given by your prior calc function.
+    args = [enterprise.cargo.sdata, f'{enterprise.args.output_dir}/hqcr/hqcr_ident/']
+    kwargs = {"nstds": enterprise.args.doublet_prior_std}
+
+    prior = core.prior.Prior(
+        _calc_probs_doublet_distance, 
+        name,
+        modality,
+        needs_metrics = needs_metrics,
+        tmp_path = tmp_path,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return prior
 
 # ddd = density divided by distance (relative density)
 # The closer ddd is to 0 the better the quality.

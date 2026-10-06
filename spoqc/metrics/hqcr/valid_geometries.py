@@ -1,0 +1,38 @@
+from ... import core
+
+# This is kind of a dummy script because valid geometries have to be checked already in the beginning.
+# This script's purpose is for the Metric to Prior framework only.
+# Can be used as a template.
+
+def calc_valid_gemoetries():
+    print("[NOTE] Calculate valid geometries")
+    
+def init_metric(enterprise):
+
+    # These have to be defined.
+    name = "valid_geometries"
+    submetrics = ["wvalid_cell_geometry", "wvalid_nucleus_geometry"]
+    modality = "hqcr"
+    needs_metrics = []
+    step_when_it_is_calculated = ["generalqc", "all"]
+    loaded_for_analysis = True
+    loaded_for_visualization = True
+
+    # These are given my your metric calc function.
+    args = []
+    kwargs = None
+
+    metric = core.metric.Metric(
+        calc_valid_gemoetries, 
+        name,
+        submetrics,
+        modality,
+        needs_metrics = needs_metrics,
+        step_when_it_is_calculated = step_when_it_is_calculated,
+        loaded_for_analysis = loaded_for_analysis,
+        loaded_for_visualization = loaded_for_visualization,
+        args = args,
+        kwargs = kwargs,
+    )    
+    
+    return metric

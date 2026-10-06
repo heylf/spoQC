@@ -231,6 +231,7 @@ readfcs==2.1.0
 referencing==0.37.0
 requests==2.34.2
 rich==15.0.0
+rich-click==1.9.8
 rpds-py==2026.5.1
 s3fs==2026.6.0
 scanpy==1.12.1
