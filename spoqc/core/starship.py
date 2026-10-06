@@ -285,11 +285,11 @@ class Enterpise:
             self.initialize_hqcr_set()
             self.hqcr_priorset = self._load_priorset("hqcr", "hqcr")
             self._check_prior_metric_match(self.hqcr_metricset.metricset, self.hqcr_priorset.priorset)
-        if self.args.step in ['all', 'unittest', 'hqpr', 'hqpr_metrices']:
+        if self.args.step in ['all', 'unittest', 'hqpr', 'hqpr_clustering']:
             self._initialize_hqpr_set()
             self.hqpr_priorset = self._load_priorset("hqpr", "hqpr")
             self._check_prior_metric_match(self.hqpr_metricset.metricset, self.hqpr_priorset.priorset)
-        if self.args.step in ['all', 'unittest', 'hqtr', 'hqtr_metrices']:
+        if self.args.step in ['all', 'unittest', 'hqtr', 'hqtr_clustering']:
             self._initialize_hqtr_set()
             self.hqtr_priorset = self._load_priorset("hqtr", "hqtr")
             self._check_prior_metric_match(self.hqtr_metricset.metricset, self.hqtr_priorset.priorset)

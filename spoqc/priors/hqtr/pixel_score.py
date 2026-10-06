@@ -156,11 +156,17 @@ def _calc_pixel_score(
 
 
 def _calc_probs_pixel_score(pixel_scores, figure_path, gmm_mod=3, nstds=1, t=None, std=None):
-    mix = GaussianMixture(n_components=gmm_mod, tol=1e-8, max_iter=int(1e4))
+    # Sparse data can leave fewer populated pixel clusters than GMM components.
+    n_unique = len(np.unique(pixel_scores))
+    n_comp = min(gmm_mod, n_unique)
+    if ( n_comp < gmm_mod ):
+        print(f'[WARN] Only {n_unique} distinct pixel scores found, using {n_comp} instead of {gmm_mod} GMM components')
+
+    mix = GaussianMixture(n_components=n_comp, tol=1e-8, max_iter=int(1e4))
     mix.fit(pixel_scores.reshape(-1, 1))
     means = mix.means_
     cov = mix.covariances_
-    stds = [ np.sqrt(np.trace(cov[i])) for i in range(0, gmm_mod) ]
+    stds = [ np.sqrt(np.trace(cov[i])) for i in range(0, n_comp) ]
     max_std = stds[np.argmax(means)]
 
     max_mean = -1

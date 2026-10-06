@@ -99,7 +99,7 @@ def init_prior(enterprise):
     needs_metrics = ["qv_density"]
 
     # These are given by your prior calc function.
-    args = [enterprise.args.tmp_dir, f"{enterprise.args.output_dir}/hqtr/hqtr_qv/", 
+    args = [enterprise.args.tmp_dir, f"{enterprise.args.output_dir}/hqtr/hqtr_clustering/", 
             enterprise.cargo.imagedim, enterprise.cargo.dim_x, enterprise.cargo.dim_y, 
             enterprise.args.chunk_size]
     kwargs = None

@@ -49,7 +49,9 @@ class MetricSet:
 
 
     def calculate_metrics(self, step):
+        calculated_metrics = []
         if not self.metrics_calculated:
+
             print(f"[NOTE] Calculate metrics for {step}")
 
             metrics_by_name = {metric.name: metric for metric in self.metricset}
@@ -74,6 +76,9 @@ class MetricSet:
                     metric.calculate()
                     timer.stop()
                     pending.discard(name)
+                    calculated_metrics.append(metric.name)
 
             self.metrics_calculated = True
             print("[finish]")
+        return calculated_metrics
+

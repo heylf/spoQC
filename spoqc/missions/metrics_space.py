@@ -1,14 +1,16 @@
 from .. import helperfuncs
 
 def start_exploration(enterprise):
-    enterprise.hqcr_metricset.calculate_metrics(enterprise.args.step)
+    calculated_metrics = enterprise.hqcr_metricset.calculate_metrics(enterprise.args.step)
     
-    print("[NOTE] Write results")
-    helperfuncs.sdata_obs_to_parquet(
-        enterprise,
-        enterprise.args.step,
-        'hqcr'
-    )
+    # Have to do this for HQCR because some steps of spoQC calculate multiple HQCR metrics
+    if len(calculated_metrics) != 0 :
+        print("[NOTE] Write results")
+        helperfuncs.sdata_obs_to_parquet(
+            enterprise,
+            enterprise.args.step,
+            'hqcr'
+        )
 
-    enterprise.hqpr_metricset.calculate_metrics(enterprise.args.step)
-    enterprise.hqtr_metricset.calculate_metrics(enterprise.args.step)
+    _ = enterprise.hqpr_metricset.calculate_metrics(enterprise.args.step)
+    _ = enterprise.hqtr_metricset.calculate_metrics(enterprise.args.step)
