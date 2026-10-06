@@ -11,6 +11,9 @@
 - Funky heatmap now renders the minimum value as a circle marker
 - Performance improvements across pixel scoring/clustering, void calculation, global Moran's I, prior combination, and Leiden clustering; increased prior bin size
 - The clustering for HQCR now takes all metrics in the `metrics/hqcr` folder into account.
+- Metric calculationg for HQPR now takes all metrics in the `metrics/hqpr` folder into account.
+- Metric calculationg for HQTR now takes all metrics in the `metrics/hqtr` folder into account.
+- Combine priors now takes all metrics in the `priors/` folder into account.
 
 ### `Fixed`
 - `combine_priors`: replaced min/max weighting with an absolute average weighted by number of priors
@@ -27,7 +30,8 @@
 - BIG REDESIGN: spoqc is now object oriented! Metrics and prior can now esiear implemented.
 - Changed names in `metrics` to respective HQR.
 - `subworkflows` are now called `missions`.
-- remove `subworkflows/qc_ambient` as it was merged with metrics calculations 
+- remove `subworkflows/qc_ambient` as it was merged with metrics calculations
+- remove `bubbleqc` as an extra step, it is now part of `cellqc`
 
 
 # 0.0.1
