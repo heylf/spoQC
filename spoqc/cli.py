@@ -41,8 +41,6 @@ from spoqc import core
               help="""Path to the output directory containing the report.""")
 @click.option("-t", "--tmp_dir", type=str, required=True, 
               help="""Path to the tmp directory where spoQC saves tmp files.""")
-@click.option("-t", "--tmp_dir", type=str, required=True, 
-              help="""Path to the tmp directory where spoQC saves tmp files.""")
 @click.option("-s", "--step", type=str, required=True, default="all",
               help="""Steps to run for QC.""")
 @click.option("-d", "--datatype", type=str, required=True, default="xenium",
@@ -110,7 +108,7 @@ from spoqc import core
               help="""This is just for developing and testing the tool (report).""")
 
 def main(**kwargs) -> None:
-    print("[START]")
+    print("[WELCOME] Lets explore the quality of your data!")
 
     # In[]
     importlib.reload(core.starship)
@@ -212,6 +210,7 @@ def main(**kwargs) -> None:
     # In[]
     missions.final_report.run_final_report(enterprise)
 
-    print(f"Final time: {timer.stop()}")
+    print(f"Final time:")
+    timer.stop()
     print("[FINISH]")
     # %%
