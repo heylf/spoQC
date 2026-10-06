@@ -3,7 +3,7 @@
 # 0.0.2
 
 ### `Added`
-- New "cell traffic light" QC level system, with a dedicated summary panel in the final report and subcluster spatial plots
+- New "cell traffic light" QC level system, with a dedicated summary panel in the final report and subcluster spatial plots, adding new tmp data `traffic_light_output_hqcr.parquet`
 - New HQCR priors: invalid geometry and negative probe counts
 - Redesigned transcript count prior, split into a transcript-and-gene-count prior and a cell-type-level transcript-count prior
 - Asymmetric evidence aggregation added for HQCR prior combination
@@ -14,6 +14,7 @@
 - Metric calculationg for HQPR now takes all metrics in the `metrics/hqpr` folder into account.
 - Metric calculationg for HQTR now takes all metrics in the `metrics/hqtr` folder into account.
 - Combine priors now takes all metrics in the `priors/` folder into account.
+- Adding `rich-click` instead of `argparse`
 
 ### `Fixed`
 - `combine_priors`: replaced min/max weighting with an absolute average weighted by number of priors
@@ -21,6 +22,7 @@
 - Fixed two rendering bugs in the funky heatmap
 - Fixed a bug in HQCR combination logic
 - Added edge-case guards and bugfixes in `process_datasets.py`, `cluster_analysis.py`, `final_report.py`, and `helperfuncs.py` (e.g. empty-category and missing-second-page handling)
+- Adding `n_unique = len(np.unique(pixel_scores))` to pixel_score for hqpr and hqtr for small datasets.
 
 ### `Dependencies`
 - No dependency changes in this cycle
@@ -32,7 +34,17 @@
 - `subworkflows` are now called `missions`.
 - remove `subworkflows/qc_ambient` as it was merged with metrics calculations
 - remove `bubbleqc` as an extra step, it is now part of `cellqc`
-
+- Renameding output tmp files:
+    - `hqcr_output_mask_raw.parquet` to `mask_raw_output_hqcr.paruqet`
+    - `mask_smoothed_raw_output_hqcr` to `mask_smoothed_raw_output_hqcr`
+    - `hqcr_output_mask_smoothed_celltype_refined` to `mask_smoothed_celltype_refined_output_hqcr`
+    - `hqcr_output_mask_celltype_refined` to `mask_celltype_refined_output_hqcr`
+    - `hqpr_{channel}_output_mask_raw` to `mask_raw_output_hqpr_{channel}`
+    - `hqpr_{channel}_output_mask_raw` to `mask_smoothed_raw_output_hqpr_{channel}`
+    - `hqtr_output_qv_prob` to `qv_density_output_hqtr`
+    - `hqtr_output_ac_prob` to `ac_density_output_hqtr`
+    - `hqtr_output_mask_raw` to `mask_raw_output_hqtr`
+    - `hqtr_output_mask_smoothed_raw` to `mask_smoothed_raw_output_hqtr`
 
 # 0.0.1
 
