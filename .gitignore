@@ -6,7 +6,7 @@ references
 *.Rhistory
 markov_random_field_zarr_parallel_test.py
 markov_random_field_zarr_gpu.py
-test_argv.py
+test_argv*
 spoQC_tmp
 paper_scripts
 *.egg-info/

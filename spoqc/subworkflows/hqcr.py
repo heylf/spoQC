@@ -268,6 +268,12 @@ def create_cell_probability_image(sdata, polys, img, resolution, prob_col):
     return average_cell_probability_image
 
 
+# This function takes polygons (e.g., cells) and mapps all values from spatial observation (e.g. pixels) falling inside
+# a cell to the cell itself. The function can perform various operation to do something with the value.
+# Currently supported: 
+# mean_values = mean of all values
+# mean_values_nonzero = mean of all values which are not 0
+# mean_values_informative = mean of all values > than a threshold
 def map_values_to_cells(
         sdata,
         polys,
@@ -532,7 +538,7 @@ def start_hqcr(sdata, spoqc_tmp_folder, imagedim, CONST, seed):
     clustering_for_hqcr(qc_domains_adata, figure_path, CONST, seed)
     
     # Here we combine available priors
-    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts, CONST.DOULET_PRIOR_STD)
+    priors.combine_priors.combine_priors_hqcr(sdata, figure_path, cell_df, qc_domains_adata, counts, CONST.DOULET_PRIOR_STD, CONST.DOULET_PRIOR_MEAN)
 
     # Cell quality probability refinement
     cell_quality_probability_refinement(
