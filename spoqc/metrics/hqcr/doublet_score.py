@@ -1,3 +1,5 @@
+
+# In[]
 import ovrlpy
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -159,6 +161,9 @@ def _calc_doublet_score(
         'doublet_distance': [100_000.0] * sdata['table'].n_obs
     })
 
+    n_doublets = len(doublet_df)
+    print(f"Number of doublets: {n_doublets}")
+
     corrected_doublet_df = doublet_df.copy()
 
     # Bring doublets back to the original coordinate system.
@@ -166,16 +171,18 @@ def _calc_doublet_score(
     corrected_doublet_df['y'] = doublet_df['y'] + min_y
 
     final_distances = np.array([100_000.0] * sdata['table'].n_obs)
-    for i, doublet in corrected_doublet_df.iterrows():
-        x1, y1 = doublet['x'], doublet['y']
-        distances = np.sqrt((cell_dobulet_df['x'] - x1)**2 + (cell_dobulet_df['y'] - y1)**2)
-        final_distances = np.minimum(final_distances, distances) 
-        cell_dobulet_df.loc[distances <= distance_thresh, 'doublet'] = True
-        cell_dobulet_df.loc[distances <= distance_thresh, 'wdoublet'] = 1
+    if n_doublets != 0:
+        for i, doublet in corrected_doublet_df.iterrows():
+            x1, y1 = doublet['x'], doublet['y']
+            distances = np.sqrt((cell_dobulet_df['x'] - x1)**2 + (cell_dobulet_df['y'] - y1)**2)
+            final_distances = np.minimum(final_distances, distances) 
+            cell_dobulet_df.loc[distances <= distance_thresh, 'doublet'] = True
+            cell_dobulet_df.loc[distances <= distance_thresh, 'wdoublet'] = 1
     cell_dobulet_df['doublet_distance'] = final_distances
 
     # Plot doublet density
-    helperfuncs.plot_scatter_density_df(
+    # helperfuncs.plot_scatter_density_df(
+    kde_xc, kde_yc, kde_z = helperfuncs.plot_scatter_density_df(
         cell_dobulet_df,
         figure_path,
         'doublet',
@@ -185,10 +192,36 @@ def _calc_doublet_score(
         'Cells close to doublet events'
     )
 
+    # Map the kernel density bin value to a cell.
+    # Do that for all cells.
+    density_to_cell = np.array([100_000.0] * sdata['table'].n_obs)
+    if n_doublets != 0:
+        cells_x = cell_dobulet_df['x'].values
+        cells_y = cell_dobulet_df['y'].values
+
+        # kde_xc/kde_yc are uniformly spaced bin centroids, so the nearest bin along each axis can be found by 
+        # arithmetic instead of an all-pairs distance search (avoids an O(n_cells * n_bins) distance matrix).
+        # So first get the bin size for x and y direction.
+        dx = kde_xc[1] - kde_xc[0] if len(kde_xc) > 1 else 1.0
+        dy = kde_yc[1] - kde_yc[0] if len(kde_yc) > 1 else 1.0
+
+        x_idx = np.clip(np.round((cells_x - kde_xc[0]) / dx).astype(int), 0, len(kde_xc) - 1)
+        y_idx = np.clip(np.round((cells_y - kde_yc[0]) / dy).astype(int), 0, len(kde_yc) - 1)
+
+        density_to_cell = kde_z[y_idx, x_idx]
+
     # Write into sdata
     sdata['table'].obs['doublet'] = np.array(cell_dobulet_df['doublet'])
     sdata['table'].obs['wdoublet'] = np.array(cell_dobulet_df['wdoublet'])
     sdata['table'].obs['doublet_distance'] = np.array(cell_dobulet_df['doublet_distance'])
+    sdata['table'].obs['doublet_density'] = density_to_cell
+    
+    # ddd = density divided by distance (relative density)
+    if n_doublets != 0:
+        sdata['table'].obs['doublet_ddd'] = density_to_cell / ( np.array(cell_dobulet_df['doublet_distance']) + 1e-8 )
+    else:
+        sdata['table'].obs['doublet_ddd'] = np.array([100_000.0] * sdata['table'].n_obs)
+
 
     # Have to call this again because overlpy corrects also the transcript coordinates
     transcript_coordinates_df = sdata.points[key_transcripts].compute()
