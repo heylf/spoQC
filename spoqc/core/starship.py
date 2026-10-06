@@ -202,7 +202,7 @@ class Enterpise:
 
 
     def generate_unsupervised_annotation(self):
-        if self.args.step in ['annotation']:
+        if self.args.step in ["annotation"]:
             print(f'[NOTE] Perform unsuperivsed cell annotation')
             self.cargo.celltype_annotation.perform_unsupervised_celltype_annotation(self.cargo.sdata, self.args)
         print("[finish]")

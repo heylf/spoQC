@@ -79,7 +79,7 @@ def init_metric(enterprise):
     submetrics = ["global_moran_I"] # use the name above or fill in further metrics calculated by this metric
     modality = "hqtr"
     needs_metrics = []
-    step_when_it_is_calculated = ['all', 'hqtr', 'unittest', 'ambientqc']
+    step_when_it_is_calculated = ["all", "hqtr", "unittest", "ambientqc"]
     loaded_for_analysis = True
     loaded_for_visualization = True
 
