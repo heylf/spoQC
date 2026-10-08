@@ -44,6 +44,7 @@ class Args:
         self.thresh_prior_pixel = kwargs['thresh_prior_pixel'] if 'thresh_prior_pixel' in kwargs else None
         self.nstds_prior_pixel = kwargs['nstds_prior_pixel']
         self.doublet_prior_std = kwargs['doublet_prior_std']
+        self.doublet_prior_mean = kwargs['doublet_prior_mean']
         self.num_variable_genes = 5000
         self.npcs = 60
         self.span = 1.0 # Increase if you run into error like ValueError: b'There are other near singularities as well.

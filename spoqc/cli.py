@@ -62,9 +62,15 @@ from spoqc import core
               This is used for to apply standardization to spatial data for the data used in the publication.
               """
               )
-@click.option("--doublet_prior_std", type=int, required=False, default=100,
+@click.option("--doublet_prior_std", type=int, required=False, default=0.125,
               help="""
               The std for the doublet prior estimation. If you increase it then the impact of doublet events increaes,
+              that means doublets events will impact more cells and give them lower quality.
+              """
+              )
+@click.option("--doublet_prior_mean", type=int, required=False, default=None,
+              help="""
+              The mean for the doublet prior estimation. If you increase it then the impact of doublet events increaes,
               that means doublets events will impact more cells and give them lower quality.
               """
               )
@@ -111,7 +117,6 @@ def main(**kwargs) -> None:
     print("[WELCOME] Lets explore the quality of your data!")
 
     # In[]
-    importlib.reload(core.starship)
     enterprise = core.starship.Enterpise(kwargs)
 
     # Timer class
@@ -120,7 +125,6 @@ def main(**kwargs) -> None:
 
     # In[]
     # Load data
-    importlib.reload(core._data)
     enterprise.load_cargo_data()
 
     # In[]
@@ -145,8 +149,6 @@ def main(**kwargs) -> None:
 
     # In[]
     # Load priors
-    importlib.reload(core.prior)
-    importlib.reload(core.hqr)
     enterprise.load_prior_sets()
 
     #######################
@@ -154,12 +156,9 @@ def main(**kwargs) -> None:
     #######################
 
     # In[]
-    importlib.reload(missions.hqcr)
-    importlib.reload(missions.combine_priors)
     missions.hqcr.start_exploration(enterprise)
 
     # In[]
-    importlib.reload(missions.hqcr_celltype)
     missions.hqcr_celltype.start_exploration(enterprise)
 
     # In[]
@@ -176,8 +175,6 @@ def main(**kwargs) -> None:
     ########
 
     # In[]
-    from spoqc import additional_analysis
-    importlib.reload(additional_analysis.analysis_funcs)
     missions.qc_additional_analysis.run_qc_additional_analysis(enterprise)
 
     ##################
