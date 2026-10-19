@@ -26,6 +26,7 @@ def run_qc_additional_analysis(enterprise):
                     enterprise.args.resolution,
                     enterprise.args.canorm,
                     enterprise.args.cluster_celltype,
+                    enterprise.hqcr_metricset.metricset,
             )
             helperfuncs.sort_files(f'{enterprise.args.output_dir}/analysis/overview', 'prefix', ['res.txt', 'done.txt'])
             print(f"[finish] {enterprise.args.step}")
@@ -47,6 +48,7 @@ def run_qc_additional_analysis(enterprise):
                     enterprise.args.resolution,
                     enterprise.args.canorm,
                     enterprise.args.cluster_celltype,
+                    enterprise.hqcr_metricset.metricset,
             )
             helperfuncs.sort_files(f'{enterprise.args.output_dir}/analysis/cluster', 'prefix', ['res.txt', 'done.txt'])
             print(f"[finish] {enterprise.args.step}")
@@ -65,6 +67,6 @@ def run_qc_additional_analysis(enterprise):
                     enterprise.cargo.celltype_annotation,
                     enterprise.args.image_type,
                     enterprise.args.resolution,
-                    enterprise.args.canorm,
+                    enterprise.hqcr_metricset.metricset,
             )
             print(f"[finish] {enterprise.args.step}")

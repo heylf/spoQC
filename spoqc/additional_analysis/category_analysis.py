@@ -28,7 +28,7 @@ def cell_category_analysis(
         annotation,
         image_type,
         resolution,
-        canorm,
+        hqcr_metricset,
     ):
 
     umap_cats = []
@@ -36,7 +36,7 @@ def cell_category_analysis(
     cell_metrices = analysis_funcs.load_cell_metrices(
         sdata,
         spoqc_tmp_folder,
-        canorm
+        hqcr_metricset,
     )
     umap_cats.extend(cell_metrices)
 

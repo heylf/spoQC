@@ -249,12 +249,12 @@ def init_metric(enterprise):
 
     # These have to be defined.
     name = "doublet_score"
-    submetrics = ["doublet_distance", "wdoublet"]
+    submetrics = ["doublet_distance", "wdoublet", "doublet_density", "doublet_ddd"]
     modality = "hqcr"
     needs_metrics = []
     step_when_it_is_calculated = ["doubletqc", "all"]
     loaded_for_analysis = True
-    loaded_for_visualization = True
+    loaded_for_visualization = ["doublet_ddd", "wdoublet"]
 
     # Additional code
     ncelltypes = -1

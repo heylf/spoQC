@@ -106,32 +106,18 @@ def find_resolution_coarse_to_fine(
 def load_cell_metrices(
         sdata,
         spoqc_tmp_folder,
-        canorm,
+        hqcr_metricset,
         *,
         include_nucleus_free=False
     ):
 
-    counts = 'transcript_counts'
-    if canorm:
-        counts = 'canorm_transcript_counts'
     helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
-    cell_metrices = [
-        counts,
-        'control_probe_counts',
-        'n_genes_by_counts',
-        'convexity_metric_cell',
-        'convexity_min_nuceli',
-        'nuceli_count',
-        'border_scores',
-        'thinness_score',
-        'island_score',
-        'doublet',
-        'cell_overlap_area',
-        'convexhull_outside_trnascripts',
-        'num_low_qc_transcript'
-    ]
+    cell_metrices = []
+    for metric in hqcr_metricset:
+        cell_metrices += metric.loaded_for_visualization
+
     if ( include_nucleus_free ):
-        cell_metrices.insert(cell_metrices.index('doublet') + 1, 'nucleus_free')
+        cell_metrices.append('nucleus_free')
     return cell_metrices
 
 

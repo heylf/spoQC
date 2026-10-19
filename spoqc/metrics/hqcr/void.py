@@ -486,6 +486,9 @@ def _calc_void(
     ]
 
     sdata['table'].obs['convexhull_outside_trnascripts'] = convexhull_outside_transcripts
+    sdata['table'].obs['log10p1_convexhull_outside_trnascripts'] =  np.log10(
+        ( np.array(convexhull_outside_transcripts) + 1)
+    )
     timer.stop()
 
     ###### Count
@@ -580,7 +583,7 @@ def init_metric(enterprise):
     needs_metrics = ["doublet_score"]
     step_when_it_is_calculated = ["voidqc", "all"]
     loaded_for_analysis = True
-    loaded_for_visualization = True
+    loaded_for_visualization = ["log10p1_convexhull_outside_trnascripts"]
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/voidqc/", enterprise.args.tmp_dir]

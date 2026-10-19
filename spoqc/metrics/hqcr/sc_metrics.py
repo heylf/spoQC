@@ -435,7 +435,7 @@ def init_metric(enterprise):
     needs_metrics = []
     step_when_it_is_calculated = ["generalqc", "all"]
     loaded_for_analysis = True
-    loaded_for_visualization = True
+    loaded_for_visualization = [transcript_counts, gene_counts, "control_probe_counts"]
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/generalqc/", 

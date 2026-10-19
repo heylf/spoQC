@@ -360,8 +360,8 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
     description_doublet = """
     **Summary:** Percentage of cells classified as being close to a doublet event, per cell cluster. This helps to more clearly identify quality-impacted cell clusters. A higher percentage for a given cluster indicates poorer quality.
     """
-    img_bar_dc = image_to_base64(f"{figure_path}/analysis/overview/barplot/barplot_pct_doublet_celltype.png")
-    img_bar_dl = image_to_base64(f"{figure_path}/analysis/overview/barplot/barplot_pct_doublet_leiden.png")
+    img_bar_dc = image_to_base64(f"{figure_path}/analysis/overview/barplot/barplot_pct_wdoublet_celltype.png")
+    img_bar_dl = image_to_base64(f"{figure_path}/analysis/overview/barplot/barplot_pct_wdoublet_leiden.png")
     html_overview += f"""
     <h2>Doublet counts per cluster</h2>
     {format_description(description_doublet)}
@@ -542,8 +542,8 @@ def create_final_report(figure_path, stainings, generate_report_doc_files):
         <img src="data:image/png;base64,{img_bar_cpc}" style="max-width:45%;">
         """
 
-        img_bar_dc = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_doublet_celltype.png")
-        img_bar_dl = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_doublet_leiden.png")
+        img_bar_dc = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_wdoublet_celltype.png")
+        img_bar_dl = image_to_base64(f"{figure_path}/analysis/cluster/barplot/barplot_pct_wdoublet_leiden.png")
         html_subcluster += f"""
         <h2>Doublet counts per cluster</h2>
         {format_description(description_doublet)}

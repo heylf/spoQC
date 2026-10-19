@@ -38,6 +38,7 @@ def celltype_cluster_analysis(
         resolution,
         canorm,
         cluster_celltype,
+        hqcr_metricset,
         *,
         just_filtering=False,
         html=False,
@@ -53,7 +54,7 @@ def celltype_cluster_analysis(
     cell_metrices = analysis_funcs.load_cell_metrices(
         sdata,
         spoqc_tmp_folder,
-        canorm,
+        hqcr_metricset,
         include_nucleus_free=True
     )
     timer.stop()
@@ -340,10 +341,6 @@ def celltype_cluster_analysis(
 
                 else:
 
-                    if ( umap_cat in ['convexhull_outside_trnascripts']):
-                        rna.obs['log10p1_convexhull_outside_trnascripts'] =  np.log10(( np.array(rna.obs[umap_cat]) + 1) )
-                        umap_cat = 'log10p1_convexhull_outside_trnascripts'
-
                     # --- boxplots ---
                     boxplot_trace = go.Box(
                         x=rna.obs['leiden'],
@@ -477,7 +474,7 @@ def celltype_cluster_analysis(
                 helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.png")
                 helperfuncs.plotly_save_as_png(fig, f"{figure_path}/umap_plot_{umap_cat + plot_suffix}.pdf")
 
-            if ( umap_cat in ['doublet', 'nucleus_free', 'border_cell'] ):
+            if ( umap_cat in ['wdoublet', 'nucleus_free', 'border_cell'] ):
 
                 for x in ['leiden', annotation_key]:
 
@@ -709,7 +706,7 @@ def celltype_cluster_analysis(
     ####################################################################################################################
     print("[NOTE] Generate funky heatmap")
     timer.start()
-    funkyheatmap.plot_funkyheatmap(rna, figure_path)
+    funkyheatmap.plot_funkyheatmap(rna, figure_path, cell_metrices)
     timer.stop()
 
     ####################################################################################################################

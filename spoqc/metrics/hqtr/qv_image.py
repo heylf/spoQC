@@ -127,7 +127,7 @@ def init_metric(enterprise):
     needs_metrics = []
     step_when_it_is_calculated = ['all', 'unittest', 'hqtr', 'hqtr_qv']
     loaded_for_analysis = True
-    loaded_for_visualization = True
+    loaded_for_visualization = []
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f'{enterprise.args.output_dir}/hqtr/hqtr_qv/', enterprise.args.tmp_dir, 'hqtr',

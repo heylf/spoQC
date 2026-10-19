@@ -60,7 +60,7 @@ def init_metric(enterprise):
     needs_metrics = []
     step_when_it_is_calculated = [f"{modality}_metrices", "all"]
     loaded_for_analysis = True
-    loaded_for_visualization = True
+    loaded_for_visualization = []
     should_be_calculated = True
 
     # Do not touch.

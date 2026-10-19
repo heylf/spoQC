@@ -14,7 +14,7 @@ class Metric:
             step_when_it_is_calculated=[],
             needs_metrics = [],
             loaded_for_analysis=False,
-            loaded_for_visualization=False,
+            loaded_for_visualization=[],
             args=None,
             kwargs=None,
         ):

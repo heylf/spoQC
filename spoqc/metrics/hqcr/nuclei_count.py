@@ -50,7 +50,7 @@ def init_metric(enterprise):
     needs_metrics = ["convexity"] # in convexity the nulcei_idcx is caluclated, do not do it again
     step_when_it_is_calculated = ["cellqc", "all"]
     loaded_for_analysis = True
-    loaded_for_visualization = True
+    loaded_for_visualization = ["nuceli_count"]
 
     # These are given my your metric calc function.
     args = [enterprise.cargo.sdata, f"{enterprise.args.output_dir}/cellqc/"]

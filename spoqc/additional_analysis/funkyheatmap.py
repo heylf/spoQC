@@ -11,12 +11,10 @@ import plotly.graph_objects as go
 from funkyheatmappy import funky_heatmap
 from IPython.display import Image, display
 
-def plot_funkyheatmap(rna, figure_path):
-
+def plot_funkyheatmap(rna, figure_path, cell_metrices):
     ####################################################################################################################
     # Setup
     ####################################################################################################################
-
     ids = list(set(rna.obs['leiden']))
     ids = [int(x) for x in ids]
     ids.sort()
@@ -42,21 +40,6 @@ def plot_funkyheatmap(rna, figure_path):
         column_lists.append([col, "beliefs", col, "bar", {"width": 2, "legend": False, "scale": False}, "beliefs"])
 
     # Add cell metrics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    counts = 'transcript_counts'
-    # TODO if ( '' ):
-    counts = 'canorm_transcript_counts'
-    cell_metrices = [
-        counts,
-        'n_genes_by_counts',
-        'convexity_metric_cell',
-        'convexity_min_nuceli',
-        'border_scores',
-        'thinness_score',
-        'island_score',
-        'cell_overlap_area',
-        'log10p1_convexhull_outside_trnascripts',
-        'num_low_qc_transcript'
-    ]
     for col in cell_metrices:
         funky_heatmap_df = funky_heatmap_df.join(rna.obs.groupby('leiden')[col].median(), how='left')
         if col == 'log10p1_convexhull_outside_trnascripts':
