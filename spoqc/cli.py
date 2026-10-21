@@ -170,10 +170,6 @@ def main(**kwargs) -> None:
     # In[]
     missions.combine_masks.run_combine_masks(enterprise)
 
-    ########
-    # TODO #
-    ########
-
     # In[]
     missions.qc_additional_analysis.run_qc_additional_analysis(enterprise)
 
