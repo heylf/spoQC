@@ -9,7 +9,7 @@
 project = 'spoQC'
 copyright = '2026, Florian Heyl, Ezgi Sen'
 author = 'Florian Heyl, Ezgi Sen'
-release = '0.0.1'
+release = '0.1.0'
 
 extensions = [
     "sphinx.ext.autodoc",
