@@ -25,8 +25,8 @@ def generate_transcript_density_image(
 
     timer = helperfuncs.Timer()
 
-    tmp_path = f"{spoqc_tmp_folder}/hqtr_output_transcript_density"
-    if not os.path.exists(tmp_path) and not overwrite:
+    tmp_path = f"{spoqc_tmp_folder}/transcript_density_output_hqtr"
+    if not os.path.exists(tmp_path) or ( os.path.exists(tmp_path) and overwrite ):
 
         print("[NOTE] Generate transcript density image")
 
