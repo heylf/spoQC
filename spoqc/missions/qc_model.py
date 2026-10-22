@@ -201,9 +201,9 @@ def run_qc_model(enterprise):
         for i in range(0, npcs):
             df[f'PC{i}'] = X_pca[:,i]
 
-        sc.pl.pca_variance_ratio(adata, n_pcs=n_comps, log=True, save='.png')
+        sc.pl.pca_variance_ratio(adata, n_pcs=n_comps, log=True, save='.png', show=False)
         shutil.move("figures/pca_variance_ratio.png", f"{figure_path}/pca_variance_ratio.png")
-        sc.pl.pca_variance_ratio(adata, n_pcs=n_comps, log=True, save='.pdf')
+        sc.pl.pca_variance_ratio(adata, n_pcs=n_comps, log=True, save='.pdf', show=False)
         shutil.move("figures/pca_variance_ratio.pdf", f"{figure_path}/pca_variance_ratio.pdf")
 
         plot_pca_scatter(df, figure_path, npcs)
