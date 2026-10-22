@@ -1,6 +1,6 @@
 # Summary of Changes
 
-# 0.0.2
+# 0.1.0
 
 ### `Added`
 - New "cell traffic light" QC level system, with a dedicated summary panel in the final report and subcluster spatial plots, adding new tmp data `traffic_light_output_hqcr.parquet`
@@ -52,6 +52,7 @@
     - `hqtr_output_ac_prob` to `ac_density_output_hqtr`
     - `hqtr_output_mask_raw` to `mask_raw_output_hqtr`
     - `hqtr_output_mask_smoothed_raw` to `mask_smoothed_raw_output_hqtr`
+- Update to Documentation
 
 # 0.0.1
 
