@@ -20,6 +20,7 @@
     - Added parameter: `--pixel_qc_chunk_size`, `--kmeans_sample_size` for that. The default values do not have to be changed.
 - New doublet metrics (ddd = doublet density divided by doublet distance) used for doublet prior estimation.
 - Adding script for a quick version bump of the tool.
+- More comfort functions which will soon replace older functions in helperfuncs: `plot_spatial_density_of_category`, `plot_marker_density_in_spatial_context`, and `plot_marker_boxplot`.
 
 ### `Fixed`
 - `combine_priors`: replaced min/max weighting with an absolute average weighted by number of priors
