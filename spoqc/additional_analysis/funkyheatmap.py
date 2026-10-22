@@ -11,12 +11,10 @@ import plotly.graph_objects as go
 from funkyheatmappy import funky_heatmap
 from IPython.display import Image, display
 
-def plot_funkyheatmap(rna, figure_path):
-
+def plot_funkyheatmap(rna, figure_path, cell_metrices):
     ####################################################################################################################
     # Setup
     ####################################################################################################################
-
     ids = list(set(rna.obs['leiden']))
     ids = [int(x) for x in ids]
     ids.sort()
@@ -39,24 +37,9 @@ def plot_funkyheatmap(rna, figure_path):
     
     for col in cols:
         funky_heatmap_df = funky_heatmap_df.join(rna.obs.groupby('leiden')[col].median(), how='left')
-        column_lists.append([col, "beliefs", col, "bar", {"width": 2, "legend": False}, "beliefs"])
+        column_lists.append([col, "beliefs", col, "bar", {"width": 2, "legend": False, "scale": False}, "beliefs"])
 
     # Add cell metrics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    counts = 'transcript_counts'
-    # TODO if ( '' ):
-    counts = 'canorm_transcript_counts'
-    cell_metrices = [
-        counts,
-        'n_genes_by_counts',
-        'convexity_metric_cell',
-        'convexity_min_nuceli',
-        'border_scores',
-        'thinness_score',
-        'island_score',
-        'cell_overlap_area',
-        'log10p1_convexhull_outside_trnascripts',
-        'num_low_qc_transcript'
-    ]
     for col in cell_metrices:
         funky_heatmap_df = funky_heatmap_df.join(rna.obs.groupby('leiden')[col].median(), how='left')
         if col == 'log10p1_convexhull_outside_trnascripts':
@@ -79,7 +62,7 @@ def plot_funkyheatmap(rna, figure_path):
     pixel_metrices_as = []
     for col in rna.obs.columns:
         if 'hqpr' in col:
-            for m in ['homogenity', 'uniformity']:
+            for m in ['homogeneity', 'uniformity']:
                 if col.startswith(m):
                     pixel_metrices_as.append(col)
 
@@ -103,7 +86,7 @@ def plot_funkyheatmap(rna, figure_path):
         funky_heatmap_df = funky_heatmap_df.join(rna.obs.groupby('leiden')[col].median(), how='left')
         column_lists.append([col, "hqtr_s", col, "circle", {"width": 1, "legend": False}, "hqtr_s"])
 
-    for col in ['homogenity_hqtr', 'uniformity_hqtr']:
+    for col in ['homogeneity_hqtr', 'uniformity_hqtr']:
         funky_heatmap_df = funky_heatmap_df.join(rna.obs.groupby('leiden')[col].median(), how='left')
         column_lists.append([col, "hqtr_as", col, "circle", {"width": 1, "legend": False}, "hqtr_as"])
 
@@ -112,6 +95,34 @@ def plot_funkyheatmap(rna, figure_path):
         column_lists.append([col, "hqtr_others", col, "circle", {"width": 1, "legend": False}, "hqtr_others"])
 
     # Create column info ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    # funkyheatmappy min-max scales each column's value/size/color via. A metric that's identical across every leiden 
+    # cluster (e.g. all-NaN after groupby, or genuinely constant) makes that 0/0 = NaN, giving every circle/bar a NaN 
+    # size and crashing matplotlib's bbox_inches='tight' computation at savefig time. Keep such columns in the plot but
+    # disable their per-column min-max scaling and substitute a fixed neutral value, since the real (constant) value 
+    # carries no differentiating signal across clusters anyway.
+    CIRCLE_SIZE_FLOOR = 0.05
+
+    for row in column_lists[1:]:
+        col = row[0]
+        geom = row[3]
+        if col == "id":
+            continue
+        if funky_heatmap_df[col].nunique(dropna=True) <= 1:
+            funky_heatmap_df[col] = 0.5
+            row[4] = {**row[4], "scale": False}
+        # funkyheatmappy's min-max scaling always maps a column's minimum value to exactly 0. For
+        # "circle" geoms this becomes the circle radius (r = row_height / 2 * size_value), so the
+        # cluster with the lowest value for a metric always gets an invisible, zero-radius circle.
+        # Pre-scale those columns into [CIRCLE_SIZE_FLOOR, 1.0] ourselves and disable the library's
+        # own scaling so the smallest circle in each column stays visibly non-zero.
+        elif geom == "circle":
+            cmin = funky_heatmap_df[col].min()
+            cmax = funky_heatmap_df[col].max()
+            funky_heatmap_df[col] = CIRCLE_SIZE_FLOOR + (1 - CIRCLE_SIZE_FLOOR) * (
+                (funky_heatmap_df[col] - cmin) / (cmax - cmin)
+            )
+            row[4] = {**row[4], "scale": False}
 
     column_info = pd.DataFrame(column_lists[1:], columns=column_lists[0])
     column_info.index = column_info["id"]

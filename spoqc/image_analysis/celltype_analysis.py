@@ -4,7 +4,7 @@ import plotly.express as px
 import dask.dataframe as dd
 
 from .. import helperfuncs
-from .. import subworkflows
+from .. import missions
 
 def start_image_celltype_analysis(
         sdata,
@@ -18,14 +18,15 @@ def start_image_celltype_analysis(
         dim_y,
         annotation_key,
         canorm,
+        cell_df,
         *,
         staining=None
     ):
 
-    prefix = modality
+    suffix = modality
     if ( staining ):
         figure_path = f'{figure_path}/{modality}/{modality}_celltype/{staining}/'
-        prefix = f'{modality}_{staining}'
+        suffix = f'{modality}_{staining}'
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_celltype/'
 
@@ -36,7 +37,7 @@ def start_image_celltype_analysis(
     # You have to read as dask because these paquet files are dask dataframes.
     # Else you run into partition errors.
     image_ddf = dd.read_parquet(
-        f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
+        f'{spoqc_tmp_folder}/mask_raw_output_{suffix}',
         columns=qc_metrics,
         engine="pyarrow"
     )
@@ -45,8 +46,8 @@ def start_image_celltype_analysis(
     image_df['intensity'] = np.log10( image_df['intensity'] + 1 )
 
     mask_ddf = dd.read_parquet(
-        f'{spoqc_tmp_folder}/{prefix}_output_mask_raw',
-        columns=[f'{prefix}_mask'],
+        f'{spoqc_tmp_folder}/mask_raw_output_{suffix}',
+        columns=[f'{suffix}_mask'],
         engine="pyarrow"
     )
     mask_df = mask_ddf.compute()
@@ -66,23 +67,18 @@ def start_image_celltype_analysis(
         False
     )
 
-    counts = 'transcript_counts'
-    if ( canorm ):
-        counts = 'canorm_transcript_counts'
-
     # Cell df
-    helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
-    cell_df = subworkflows.hqcr.load_cell_df(counts, sdata)
     cell_df[annotation_key] = sdata['table'].obs[annotation_key]
     cell_df['nucleus_free'] = sdata['table'].obs['wnucleus_free']
-    subworkflows.hqcr.cell_artefact_assignment(cell_df, sdata)
+    
+    helperfuncs.cell_artefact_assignment(cell_df, sdata)
 
     figures = []
     for object in ['cell']:
-        polys = subworkflows.hqcr.create_polygon_dataframe(sdata, imagedim, f'{object}_boundaries')
+        polys = missions.hqcr.create_polygon_dataframe(sdata, imagedim, f'{object}_boundaries')
 
         for qc_metric in qc_metrics:
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
                                     image_df[qc_metric], qc_metric, figure_path, 'mean_values')
 
             fig = px.violin(
@@ -99,12 +95,12 @@ def start_image_celltype_analysis(
             fig.write_image(f"{figure_path}/split_violinplot_{qc_metric}_{object}.pdf", scale=3)
 
         if ( object == 'cell' ):
-            subworkflows.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
-                                    mask_df[f'{prefix}_mask'], f'{prefix}_class', figure_path, 'markov_labels')
+            missions.hqcr.map_values_to_cells(sdata, polys, image_type, resolution, 
+                                    mask_df[f'{suffix}_mask'], f'{suffix}_class', figure_path, 'markov_labels')
             
             bar_plot_df_1 = (
                 sdata['table'].obs
-                .groupby(annotation_key)[f'{prefix}_class']
+                .groupby(annotation_key)[f'{suffix}_class']
                 .apply(lambda x: (x == 1).sum())
                 .reset_index(name=f'num_class')
             )
@@ -112,7 +108,7 @@ def start_image_celltype_analysis(
 
             bar_plot_df_2 = (
                 sdata['table'].obs
-                .groupby(annotation_key)[f'{prefix}_class']
+                .groupby(annotation_key)[f'{suffix}_class']
                 .apply(lambda x: (x == 0).sum())
                 .reset_index(name=f'num_class')
             )

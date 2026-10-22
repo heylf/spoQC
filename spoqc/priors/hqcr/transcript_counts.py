@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 
 from ... import helperfuncs
+from ... import core
 
 # For each cell calculate the bad quality probability, which is basically the poportion of 
 # all the cells in a distance beloning to the bad quality cluster.
-def get_bad_quality_probability(x, df, distance_matrix, bad_cluster, qc_cluster):
+def _get_bad_quality_probability(x, df, distance_matrix, bad_cluster, qc_cluster):
     quality_clusters = df.iloc[distance_matrix[x]][qc_cluster]
     number_of_bad_quality_cells = list(quality_clusters.values).count(bad_cluster)
     if ( len(quality_clusters) != 0 ):
@@ -14,10 +15,9 @@ def get_bad_quality_probability(x, df, distance_matrix, bad_cluster, qc_cluster)
         return(0.0)
 
 
-def reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
+def _reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
 
     # Identify cluster of lowest quality and cluster of highest quality
-    # df['qc_cluster'] = qc_domains_adata.obs['spatialleiden_3qclvls']
     cell_df['leiden'] = [int(x) for x in qc_domains_adata.obs['leiden']]
     clusters = np.array(list(set(cell_df['leiden'].values)))
     clusters.sort()
@@ -47,9 +47,9 @@ def reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts):
     helperfuncs.plot_scatter(qc_domains_adata, figure_path, 'qc_cluster', None, 'qc_cluster', None, None)
 
 
-def calc_transcript_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts):
+def _calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thres_counts = 1.0):
 
-    reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts)
+    _reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts)
 
     # Get bad cluster
     mean_counts = [np.mean(cell_df.loc[cell_df['qc_cluster'] == c][counts]) for c in [0,1,2]]
@@ -57,19 +57,17 @@ def calc_transcript_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, 
     t = np.min(mean_counts)
 
     # Apply hard threshold just to check if the bad cluster is really bad and not just a specific domain.
-    # We use so far cell area normalized transcript counts.
-    thres_transcript_counts = 1.0
-    if ( np.min(mean_counts) > thres_transcript_counts ):
+    if ( np.min(mean_counts) > thres_counts ):
         print(f"[NOTE] Bad cluster is actually not bad." + \
-            "Switching to hard theshold of {thres_transcript_counts} transcripts per cell")
+            "Switching to hard theshold of {thres_counts} transcripts per cell")
         hard_qc_clusters = np.zeros(len(cell_df))
-        hard_qc_clusters[cell_df[counts] > thres_transcript_counts] = 1
+        hard_qc_clusters[cell_df[counts] > thres_counts] = 1
         cell_df['qc_cluster'] = hard_qc_clusters
-        t = thres_transcript_counts 
+        t = thres_counts 
 
     helperfuncs.plot_histogram_for_array(
         cell_df[counts],
-        20,
+        100,
         figure_path,
         f"{counts}: t={np.round(t, 3)} with {0} x {np.round(0.0, 3)} std",
         f"{counts}_prior",
@@ -84,7 +82,7 @@ def calc_transcript_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, 
     })
 
     distance_matrix = helperfuncs.points_within_radius(df_coords, 30, False)
-    bad_quality_probabilities =  np.array([get_bad_quality_probability(
+    bad_quality_probabilities =  np.array([_get_bad_quality_probability(
         x,
         cell_df,
         distance_matrix,
@@ -93,39 +91,35 @@ def calc_transcript_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, 
     ) for x in range(sdata['table'].n_obs)])
     good_quality_probabilities = 1 - bad_quality_probabilities
 
-    return good_quality_probabilities, cell_df
+    return good_quality_probabilities
 
 
-def calc_celltype_transcript_counts_probs(
-        sdata, 
-        cell_df, 
-        threshold_left_dict, 
-        threshold_right_dict, 
-        annotation_key,
-        qc_metric,
-        df_coords
-):
-    cell_df['qc_celltype_class'] = np.array([0] * len(cell_df))
-    for i, celltype in enumerate(threshold_left_dict['celltypes']):
-        df_check = cell_df[cell_df[annotation_key] == celltype]
+def init_prior(enterprise):
 
-        # Apply left threshold
-        idx_qc = df_check[df_check[qc_metric] < threshold_left_dict[qc_metric][i]].index
-        cell_df['qc_celltype_class'][idx_qc] = 1 # 1 for beeing bad
+    # These have to be defined.
+    name = "transcript_counts_prior"
+    modality = "hqcr"
+    tmp_path = None
+    needs_metrics = ["sc_metrics"]
 
-        # Apply right threshold
-        idx_qc = df_check[df_check[qc_metric] > threshold_right_dict[qc_metric][i]].index
-        cell_df['qc_celltype_class'][idx_qc] = 1 # 1 for beeing bad
+    counts = "transcript_counts"
+    if enterprise.args.canorm:
+        counts = "canorm_transcript_counts"
 
-    # Calculate bad quality probability
-    distance_matrix = helperfuncs.points_within_radius(df_coords, 30, False)
-    bad_quality_probs_celltype =  np.array([get_bad_quality_probability(
-        x,
-        cell_df,
-        distance_matrix,
-        1,
-        'qc_celltype_class'
-    ) for x in range(sdata['table'].n_obs)])
-    good_quality_probabilities = 1 - bad_quality_probs_celltype
+    # These are given by your prior calc function.
+    args = [enterprise.cargo.sdata, f'{enterprise.args.output_dir}/hqcr/hqcr_ident/',
+            enterprise.hqcr_set.cell_clustering_df, enterprise.hqcr_set.cell_clustering_adata,
+            counts]
+    kwargs = None
+
+    prior = core.prior.Prior(
+        _calc_counts_probs, 
+        name,
+        modality,
+        needs_metrics = needs_metrics,
+        tmp_path = tmp_path,
+        args = args,
+        kwargs = kwargs,
+    )    
     
-    return good_quality_probabilities, cell_df
+    return prior

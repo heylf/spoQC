@@ -1,21 +1,21 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "spoqc"
-version = "0.0.1"
+version = "0.1.0"
 description = "spoQC is a modular framework for multimodal quality control (QC) of imaging-based spatially resolved transcriptomics (SRT)."
 readme = "README.md"
 requires-python = ">=3.12"
-license = {file = "LICENSE"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Florian Heyl"},
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
@@ -43,6 +43,7 @@ dependencies = [
     "pandas==2.3.3",
     "plotly==6.8.0",
     "pyarrow==24.0.0",
+    "rich-click==1.9.8",
     "rasterio==1.5.0",
     "requests==2.34.2",
     "scanpy==1.12.1",

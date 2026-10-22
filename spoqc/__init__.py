@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import matplotlib
-matplotlib.use("Agg")
-
 try:
     from importlib.metadata import version as _version
     __version__ = _version("spoqc")
 except Exception:  # pragma: no cover
-    __version__ = "0.0.1"
+    __version__ = "0.1.0"
 
 __all__ = ["__version__"]

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from skimage.measure import label, regionprops
 from skimage.morphology import dilation, disk
 
+from .. import core
 from .. import helperfuncs
 from .. import hqr
 from .. import metrics
@@ -40,7 +41,7 @@ def _merge_overlapping_boxes(boxes):
         boxes = new_boxes
     return boxes
 
-def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, flip = False):
+def _boudning_box_plot(bounding_boxes, figure_path, prefix, image, imagedim, flip = False):
     plt.figure(figsize=(12, 6))
 
     if ( flip ):
@@ -83,8 +84,8 @@ def _boudning_box_plot(bounding_boxes, figure_path, suffix, image, imagedim, fli
                 linewidth=2,
             )
 
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.png', bbox_inches='tight', dpi=300)
-    plt.savefig(f'{figure_path}/imageplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/imageplot_{prefix}.png', bbox_inches='tight', dpi=300)
+    plt.savefig(f'{figure_path}/imageplot_{prefix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
 
 
@@ -95,10 +96,12 @@ def define_bounding_boxes(
         modality,
         image_type,
         resolution,
+        imagedim,
         dim_x,
         dim_y, 
-        imagedim,
-        suffix,
+        prefix,
+        overwrite,
+        chunk_size,
         *,
         dilation_radius=10,
         minum_num_pixel=100_000,
@@ -106,10 +109,10 @@ def define_bounding_boxes(
         flip=False
     ):
 
-    prefix = modality
+    suffix = modality
     if ( staining ):
         figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/{staining}/'
-        prefix = f'{modality}_{staining}'
+        suffix = f'{modality}_{staining}'
     else:
         figure_path = f'{figure_path}/{modality}/{modality}_bounding_box/'
 
@@ -123,20 +126,16 @@ def define_bounding_boxes(
 
     if ( modality == 'hqtr' ):
         # Intensities already flipped
-        intensities = metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
-            sdata,
-            figure_path,
-            imagedim,
-            image_type,
-            resolution
-        )
+        td_file = f'{spoqc_tmp_folder}/metrices/hqtr/transcript_density_output_hqtr.parquet'
+        intensities = helperfuncs.read_data_as_dda([td_file], chunk_size)[:, 0]
+        intensities = intensities.compute()
         image = intensities.reshape(dim_x, dim_y)
 
-    mask = dd.read_parquet(f'{spoqc_tmp_folder}/{prefix}_output_mask_smoothed_{suffix}',
-                           columns=[f"{prefix}_mask_smoothed"], engine="pyarrow")
+    mask = dd.read_parquet(f'{spoqc_tmp_folder}/mask_smoothed_{prefix}_output_{suffix}',
+                           columns=[f"{suffix}_mask_smoothed"], engine="pyarrow")
 
     # Convert DataFrame to a NumPy array for processing
-    binary_image = mask[f"{prefix}_mask_smoothed"].compute().to_numpy().reshape(dim_x, dim_y)
+    binary_image = mask[f"{suffix}_mask_smoothed"].compute().to_numpy().reshape(dim_x, dim_y)
 
     # Apply dilation to merge nearby regions
     structuring_element = disk(dilation_radius)
@@ -182,7 +181,7 @@ def define_bounding_boxes(
             subfigure = image[min_row:max_row, min_col:max_col]
             subfigures.append(subfigure)
             bounding_boxes.append([min_row, min_col, max_row, max_col])
-            subfigure_imagedim = helperfuncs.ImageDimStruct(min_row, min_col, max_row, max_col)
+            subfigure_imagedim = core._data.ImageDimStruct(min_row, min_col, max_row, max_col)
             helperfuncs.plot_pixels(
                 f'{figure_path}/subfigures/',
                 subfigure,
