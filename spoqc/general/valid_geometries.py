@@ -1,9 +1,12 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
 from .. import helperfuncs
 
 # I tested geopandas.GeoSeries.make_valid instead of of the convex hull, but it still looked weird.
+# The function obs.is_valid is from shapely.
+# Each obj is a 'shapely.geometry.polygon.Polygon'.
 def correct_for_valid_geometries(sdata):
     for obj_type in ['cell', 'nucleus']:
         # Because of invalid geometris I have to take for those the convex hull.
@@ -15,10 +18,9 @@ def correct_for_valid_geometries(sdata):
 
 
 def check_for_valid_geometries(sdata, figure_path):
+    print("[NOTE] Check valid geometries")
     for obj_type in ['cell', 'nucleus']:
 
-
-    # In[]
         geometries = np.array(sdata[f'{obj_type}_boundaries']['geometry'])
 
         # This can happen if you have nucleus-free cells
@@ -54,7 +56,6 @@ def check_for_valid_geometries(sdata, figure_path):
             sdata['table'].obs[f'valid_{obj_type}_geometry'] = [True if x.is_valid else False for x in geometries]
             sdata['table'].obs[f'wvalid_{obj_type}_geometry'] = [0 if x.is_valid else 1 for x in geometries]
 
-    # In[]
         helperfuncs.plot_scatter_density(
                 sdata['table'],
                 figure_path,

@@ -19,7 +19,6 @@ def transform_normalize_sc_data(sdata, n_variable_genes, span):
     rna_adata.layers['normlogscale'] = rna_adata.X.copy()
     rna_adata.X = rna_adata.layers['raw'] # raw = counts
 
-
 def cell_area_normalization(sdata):
     for x in ['transcript_counts', 'n_genes_by_counts']:
         sdata['table'].obs[f'canorm_{x}'] = sdata['table'].obs[f'{x}'] / sdata['table'].obs['cell_area']

@@ -4,6 +4,8 @@
 
 Before using spoQC, please make sure your data is stored in the [SpatialData](https://github.com/scverse/spatialdata) format.
 
+The type of the data is set with `-d`/`--datatype` (default: `xenium`). Currently only 10x Xenium data (`xenium`) is supported.
+
 When your SpatialData bundle is loaded in Python, it should look similar to this:
 
 ```
@@ -39,7 +41,7 @@ with coordinate systems:
   - `sdata['table'].obs.index`
   - `sdata['cell_circles'].index`
   - `sdata['cell_boundaries'].index`
-  - `sdata['nucleus_boundaries']['cell_id]`
+  - `sdata['nucleus_boundaries']['cell_id']`
   - `sdata.points['transcripts']['cell_id']`
 
 Matching cell IDs are required so that spoQC can connect transcripts, cell boundaries, cell circles, and the AnnData table correctly.
@@ -65,4 +67,11 @@ cell_3	Macrophage
 
 ## Cell cycle gene file
 
-SpoQC ships with a default cell cycle gene set (see `subworkflows/qc_cellcycle`), but you can supply your own using `--cellcycle_gene_file cellcycle_gene_file.json`. The file should be in JSON format and include the S and G2M genes.
+SpoQC ships with a default cell cycle gene set (see `spoqc/missions/qc_cellcycle.py`), but you can supply your own using `--cellcycle_gene_file cellcycle_gene_file.json`. The file should be in JSON format with the keys `"S"` and `"G2M"` listing the S-phase and G2M-phase genes:
+
+```
+{
+  "S": ["MCM5", "PCNA", "TYMS"],
+  "G2M": ["HMGB2", "CDK1", "NUSAP1"]
+}
+```

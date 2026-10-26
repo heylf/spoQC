@@ -1,4 +1,4 @@
-# Transript (density) metrics
+# Transcript (density) metrics
 
 <img src="./_static/figures/tutorial/metrics_transcript.png" width="200">
 <div style="height: 20px;"></div>
@@ -56,4 +56,16 @@ The global and local Moran's *I* images are multiplied (element-wise product) to
 - Higher values correspond to an agreement between global and local spatial structure.
 - Lower values correspond to a disagreement between global and local spatial structure.
 
-For spoQC, the magnitude of the value is most relevant.
+For spoQC, the magnitude of the value is most relevant, thus the absolute value of the combined image is used as the AC image.
+
+## HQTR priors
+
+The HQTR priors are located in `spoqc/priors/hqtr/` and are calculated in the `hqtr_clustering` step:
+
+| Prior | Description |
+|---|---|
+| `pixel_score` | Pixel score prior on the image metrics of the transcript-density image, calculated in the same way as for the HQPR (see [Image (staining) metrics](metrics_image_layer.md)). |
+| `qv_density` | Gaussian prior on the transcript-quality (QV) image, centered at $0.4$ with left-tail filtering. Pixels with values of $0.4$ or below get the lowest probability, above that the probability increases with the QV density. |
+| `ac_density` | Same as the `qv_density` prior, applied to the combined autocorrelation (AC) image. Pixels with an AC magnitude of $0.4$ or below (ambient-like signal) get the lowest probability. |
+
+Each prior returns a min-max normalized probability (`prob_pixel_score`, `prob_qv_density`, `prob_ac_density`). The HQTR beliefs (`hqtr_beliefs`) are the mean of these probabilities. Pixels with a belief above $0.5$ are labeled as HQTR before the Markov random field smoothing.

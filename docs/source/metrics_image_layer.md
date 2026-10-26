@@ -47,3 +47,14 @@ Uniformity quantifies how close the local intensity distribution is to random no
 ## Homogeneity
 
 Homogeneity measures local similarity of pixel intensities. For a window centered at pixel $i$, the metric evaluates the absolute differences between the center pixel and surrounding pixels. Values close to 1 represent a highly homogeneous region, whereas low values indicate a heterogeneous region. Conceptually, this metric complements uniformity but uses direct intensity differences rather than a probabilistic comparison.
+
+## Pixel score prior
+
+The image metrics are combined into a pixel score prior (`spoqc/priors/hqpr/pixel_score.py`, calculated in the `hqpr_clustering` step):
+
+1. **Pixel clustering:** All pixels are clustered into $100$ clusters based on the image metrics with MiniBatchKMeans. The model is fitted on a random subsample of `--kmeans_sample_size` pixels (default: $5{,}000{,}000$) and then used to label all pixels in parallel.
+2. **Structure and antistructure score:** For each pixel, the structure score (`s_score`) is the sum of edge strength, energy, relevance and entropy, and the antistructure score (`as_score`) is the sum of homogeneity and uniformity.
+3. **Pixel score:** For each pixel cluster, the pixel score is the mean `s_score` minus the mean `as_score` of its pixels.
+4. **Prior:** A Gaussian mixture model (three components) is fitted on the pixel scores of all clusters. The component with the highest mean defines a Gaussian with $n$ times its standard deviation, where $n$ is set with `--nstds_prior_pixel` (default: $6$). Alternatively, the mean can be set with `--thresh_prior_pixel` (unit variance is then used). Each pixel gets the density of its cluster, which is min-max normalized to the probability `prob_pixel_score`.
+
+The HQPR beliefs (`hqpr_{staining}_beliefs`) are the mean over all `prob_*` columns of the HQPR priors in `spoqc/priors/hqpr/`. Pixels with a belief above $0.5$ are labeled as HQPR before the Markov random field smoothing.

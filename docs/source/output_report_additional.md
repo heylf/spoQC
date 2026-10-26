@@ -1,4 +1,4 @@
-# Additioanl reports
+# Additional reports
 
 * HQCR = High quality cell region
 * HQPR = High quality pixel region

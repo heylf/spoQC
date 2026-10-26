@@ -4,9 +4,9 @@
 * HQPR = High quality pixel region
 * HQTR = High quality transcript region
 
-The folder `spoQC_tmp/` (the path passed via `-t`/`--tmp`) contains several
-raw, per-pixel data files and folders that are useful to filter and inspect
-the quality of the spatialdata. These are the pixel-level building blocks
+The folder `spoQC_tmp/` (the path passed via `-t`/`--tmp_dir`) contains several
+raw, per-cell and per-pixel data files and folders that are useful to filter and inspect
+the quality of the spatialdata. The pixel-level files are the building blocks
 that spoQC later aggregates to the cell level in
 `report/analysis/rna_qc_annotated.h5ad` (see [Output Data](output_data.md)).
 
@@ -16,9 +16,13 @@ through Markov random field (loopy belief propagation) smoothing, the same
 smoothing that produces the `*_smoothed` columns documented in
 [Output Data](output_data.md).
 
+```{note}
+The temporary files were renamed in version 0.0.2 (e.g., `hqcr_output_mask_raw.parquet` is now `mask_raw_output_hqcr.parquet`). See `CHANGELOG.md` for the full list.
+```
+
 ## HQCR
 
-### Raw: hqcr_output_mask_raw.parquet
+### Cell metrics: {step}_output_hqcr.parquet
 
 <details>
   <summary>Click to expand</summary><br>
@@ -26,22 +30,66 @@ smoothing that produces the `*_smoothed` columns documented in
 
   ```
   import pandas as pd
-  hqcr_mask = pd.read_parquet('spoQC_tmp/hqcr_output_mask_raw.parquet')
+  cellqc_df = pd.read_parquet('spoQC_tmp/cellqc_output_hqcr.parquet')
+  ```
+
+  Structure:
+
+  * index: cell_id
+  * columns: all HQCR metric columns added to `sdata['table'].obs` in that step
+
+  Explanation:
+
+  After each step that calculates HQCR metrics (e.g., `generalqc`, `doubletqc`, `voidqc`, `cellqc`), spoQC writes the newly added cell columns to `{step}_output_hqcr.parquet`. These files are read in again by later steps. The columns are described in [Output Data](output_data.md).
+
+</details>
+
+### Traffic light: traffic_light_output_hqcr.parquet
+
+<details>
+  <summary>Click to expand</summary><br>
+  Read in with:
+
+  ```
+  import pandas as pd
+  traffic_light = pd.read_parquet('spoQC_tmp/traffic_light_output_hqcr.parquet')
+  ```
+
+  Structure:
+
+  * index: cell_id
+  * columns: hqcr_traffic_light
+
+  Explanation:
+
+  * hqcr_traffic_light: Traffic light QC level of the cell (`green`, `yellow` or `red`), see [Segmentation (cell) metrics](metrics_cell_layer.md).
+
+</details>
+
+### Raw: mask_raw_output_hqcr.parquet
+
+<details>
+  <summary>Click to expand</summary><br>
+  Read in with:
+
+  ```
+  import pandas as pd
+  hqcr_mask = pd.read_parquet('spoQC_tmp/mask_raw_output_hqcr.parquet')
   ```
 
   Structure:
 
   * index: pixel_id
-  * columns: hqcr_mask, hqcr_beliefs
+  * columns: hqcr_beliefs, hqcr_mask
 
   Explanation:
 
-  * hqcr_mask: Binary mask that the pixel belongs to a HQCR (1) or not (0).
-  * hqcr_beliefs: Belief mask for each pixel of the HQCR image.
+  * hqcr_beliefs: Belief mask for each pixel of the HQCR image, i.e., the combined HQCR prior probability of the cell the pixel belongs to.
+  * hqcr_mask: Binary mask that the pixel belongs to a HQCR (1) or not (0), derived by thresholding hqcr_beliefs at 0.5.
 
 </details>
 
-### Smoothed: hqcr_output_mask_smoothed_raw.parquet
+### Smoothed: mask_smoothed_raw_output_hqcr.parquet
 
 <details>
   <summary>Click to expand</summary><br>
@@ -49,7 +97,7 @@ smoothing that produces the `*_smoothed` columns documented in
 
   ```
   import pandas as pd
-  hqcr_mask_smoothed = pd.read_parquet('spoQC_tmp/hqcr_output_mask_smoothed_raw.parquet')
+  hqcr_mask_smoothed = pd.read_parquet('spoQC_tmp/mask_smoothed_raw_output_hqcr.parquet')
   ```
 
   Structure:
@@ -64,7 +112,7 @@ smoothing that produces the `*_smoothed` columns documented in
 
 </details>
 
-### HQCR celltype refined: hqcr_output_mask_celltype_refined.parquet
+### HQCR celltype refined: mask_celltype_refined_output_hqcr.parquet
 
 <details>
   <summary>Click to expand</summary><br>
@@ -72,22 +120,22 @@ smoothing that produces the `*_smoothed` columns documented in
 
   ```
   import pandas as pd
-  hqcr_mask = pd.read_parquet('spoQC_tmp/hqcr_output_mask_celltype_refined.parquet')
+  hqcr_mask = pd.read_parquet('spoQC_tmp/mask_celltype_refined_output_hqcr.parquet')
   ```
 
   Structure:
 
   * index: pixel_id
-  * columns: hqcr_mask, hqcr_beliefs
+  * columns: hqcr_beliefs, hqcr_mask
 
   Explanation:
 
-  * hqcr_mask: Binary mask that the pixel belongs to a HQCR (1) or not (0). **This mask was refined with celltype information.**
   * hqcr_beliefs: Belief mask for each pixel of the HQCR image.
+  * hqcr_mask: Binary mask that the pixel belongs to a HQCR (1) or not (0). **This mask was refined with celltype information.**
 
 </details>
 
-### HQCR celltype refined smoothed: hqcr_output_mask_smoothed_celltype_refined.parquet
+### HQCR celltype refined smoothed: mask_smoothed_celltype_refined_output_hqcr.parquet
 
 <details>
   <summary>Click to expand</summary><br>
@@ -95,7 +143,7 @@ smoothing that produces the `*_smoothed` columns documented in
 
   ```
   import pandas as pd
-  hqcr_mask_smoothed = pd.read_parquet('spoQC_tmp/hqcr_output_mask_smoothed_celltype_refined.parquet')
+  hqcr_mask_smoothed = pd.read_parquet('spoQC_tmp/mask_smoothed_celltype_refined_output_hqcr.parquet')
   ```
 
   Structure:
@@ -116,7 +164,11 @@ Currently spoQC analyses all image channels and uses an integer index because ch
 Therefore, some of the folders and files for the analysis of pixel quality (HQPR) will have integers standing for the individual image channels.
 To know which integer belongs to which channel, please look into `staining_log.txt`.
 
-### Raw: hqpr_*_output_mask_raw
+### Image metrics: metrices/hqpr/{channel}/
+
+The individual image metrics of a channel are stored as 1D arrays (one value per pixel) in `spoQC_tmp/metrices/hqpr/{channel}/{metric}_output_hqpr_{channel}.parquet`, e.g., `edge_strength_output_hqpr_0.parquet`.
+
+### Raw: mask_raw_output_hqpr_{channel}
 
 <details>
   <summary>Click to expand</summary><br>
@@ -125,7 +177,7 @@ To know which integer belongs to which channel, please look into `staining_log.t
   ```
   import dask.dataframe as dd
   channel = 0
-  hqpr_mask_ddf = dd.read_parquet(f'spoQC_tmp/hqpr_{channel}_output_mask_raw', engine="pyarrow")
+  hqpr_mask_ddf = dd.read_parquet(f'spoQC_tmp/mask_raw_output_hqpr_{channel}', engine="pyarrow")
   # If you want to convert it into a pandas data frame use line below.
   # Be aware, doing the line below takes time and consumes lots of memory because you read in all the data at once.
   # hqpr_mask_df = hqpr_mask_ddf.compute()
@@ -134,7 +186,7 @@ To know which integer belongs to which channel, please look into `staining_log.t
   Structure:
 
   * index: pixel_id
-  * columns: cluster, s_score, as_score, intensity, p_informative_pixel, hqpr_*_beliefs, hqpr_*_mask
+  * columns: cluster, s_score, as_score, intensity, p_informative_pixel, prob_pixel_score, mask_pixel_score, hqpr_*_beliefs, hqpr_*_mask
 
   Explanation:
 
@@ -142,13 +194,15 @@ To know which integer belongs to which channel, please look into `staining_log.t
   * s_score: Structure score defining if the pixel contributes to biological important structures. The higher the score the more information the pixel holds for the structure.
   * as_score: Antistructure score defining if the pixel contributes to biological unimportant structures (e.g., bubbles). The higher the score the less information the pixel holds for biological important structures.
   * intensity: Raw pixel intensity of the staining channel.
-  * p_informative_pixel: Probability of a pixel beeing of good quality, based on the pixel's cluster.
-  * hqpr_*_beliefs: Min-max normalized version of p_informative_pixel. A value of 1.0 means 100% certainty that the pixel is of good quality.
+  * p_informative_pixel: Probability density of a pixel being of good quality, based on the pixel's cluster.
+  * prob_pixel_score: Min-max normalized version of p_informative_pixel (pixel score prior).
+  * mask_pixel_score: Binary mask derived by thresholding prob_pixel_score at 0.5.
+  * hqpr_*_beliefs: Mean of all `prob_*` columns of the HQPR priors. A value of 1.0 means 100% certainty that the pixel is of good quality.
   * hqpr_*_mask: Binary mask that the pixel belongs to a HQPR (1) or not (0), derived by thresholding hqpr_*_beliefs at 0.5.
 
 </details>
 
-### Smoothed: hqpr_*_output_mask_smoothed_raw
+### Smoothed: mask_smoothed_raw_output_hqpr_{channel}
 
 <details>
   <summary>Click to expand</summary><br>
@@ -157,7 +211,7 @@ To know which integer belongs to which channel, please look into `staining_log.t
   ```
   import dask.dataframe as dd
   channel = 0
-  hqpr_mask_smoothed_ddf = dd.read_parquet(f'spoQC_tmp/hqpr_{channel}_output_mask_smoothed_raw', engine="pyarrow")
+  hqpr_mask_smoothed_ddf = dd.read_parquet(f'spoQC_tmp/mask_smoothed_raw_output_hqpr_{channel}', engine="pyarrow")
   # If you want to convert it into a pandas data frame use line below.
   # Be aware, doing the line below takes time and consumes lots of memory because you read in all the data at once.
   # hqpr_mask_smoothed_df = hqpr_mask_smoothed_ddf.compute()
@@ -178,7 +232,11 @@ To know which integer belongs to which channel, please look into `staining_log.t
 
 ## HQTR
 
-### Raw: hqtr_output_mask_raw
+### Transcript metrics: metrices/hqtr/
+
+The transcript-density image (`transcript_density_output_hqtr.parquet`) and its image metrics are stored as 1D arrays (one value per pixel) in `spoQC_tmp/metrices/hqtr/`, e.g., `edge_strength_output_hqtr.parquet`.
+
+### Raw: mask_raw_output_hqtr
 
 <details>
   <summary>Click to expand</summary><br>
@@ -186,7 +244,7 @@ To know which integer belongs to which channel, please look into `staining_log.t
 
   ```
   import dask.dataframe as dd
-  hqtr_mask_ddf = dd.read_parquet('spoQC_tmp/hqtr_output_mask_raw', engine="pyarrow")
+  hqtr_mask_ddf = dd.read_parquet('spoQC_tmp/mask_raw_output_hqtr', engine="pyarrow")
   # If you want to convert it into a pandas data frame use line below.
   # Be aware, doing the line below takes time and consumes lots of memory because you read in all the data at once.
   # hqtr_mask_df = hqtr_mask_ddf.compute()
@@ -195,7 +253,7 @@ To know which integer belongs to which channel, please look into `staining_log.t
   Structure:
 
   * index: pixel_id
-  * columns: cluster, s_score, as_score, intensity, p_informative_pixel, hqtr_beliefs, hqtr_mask
+  * columns: cluster, s_score, as_score, intensity, p_informative_pixel, prob_pixel_score, mask_pixel_score, qv_density, prob_qv_density, ac_density, d_ac_density, prob_ac_density, hqtr_beliefs, hqtr_mask
 
   Explanation:
 
@@ -203,13 +261,17 @@ To know which integer belongs to which channel, please look into `staining_log.t
   * s_score: Structure score defining if the pixel contributes to biological important structures. The higher the score the more information the pixel holds for the structure.
   * as_score: Antistructure score defining if the pixel contributes to biological unimportant structures (e.g., bubbles). The higher the score the less information the pixel holds for biological important structures.
   * intensity: Raw transcript-density intensity of the pixel.
-  * p_informative_pixel: Probability of a pixel beeing of good quality, based on the pixel's cluster.
-  * hqtr_beliefs: Min-max normalized combination of p_informative_pixel with the transcript QV and ambient-RNA (AC) probabilities below (see hqtr_output_qv_prob and hqtr_output_ac_prob). A value of 1.0 means 100% certainty that the pixel is of good quality.
+  * p_informative_pixel: Probability density of a pixel being of good quality, based on the pixel's cluster.
+  * prob_pixel_score: Min-max normalized version of p_informative_pixel (pixel score prior).
+  * mask_pixel_score: Binary mask derived by thresholding prob_pixel_score at 0.5.
+  * qv_density, prob_qv_density: Transformed transcript QV density and its min-max normalized probability (QV prior).
+  * ac_density, d_ac_density, prob_ac_density: Ambient RNA (AC) density, its transformed density and its min-max normalized probability (AC prior).
+  * hqtr_beliefs: Mean of prob_pixel_score, prob_qv_density and prob_ac_density. A value of 1.0 means 100% certainty that the pixel is of good quality.
   * hqtr_mask: Binary mask that the pixel belongs to a HQTR (1) or not (0), derived by thresholding hqtr_beliefs at 0.5.
 
 </details>
 
-### Smoothed: hqtr_output_mask_smoothed_raw
+### Smoothed: mask_smoothed_raw_output_hqtr
 
 <details>
   <summary>Click to expand</summary><br>
@@ -217,7 +279,7 @@ To know which integer belongs to which channel, please look into `staining_log.t
 
   ```
   import dask.dataframe as dd
-  hqtr_mask_smoothed_ddf = dd.read_parquet('spoQC_tmp/hqtr_output_mask_smoothed_raw', engine="pyarrow")
+  hqtr_mask_smoothed_ddf = dd.read_parquet('spoQC_tmp/mask_smoothed_raw_output_hqtr', engine="pyarrow")
   # If you want to convert it into a pandas data frame use line below.
   # Be aware, doing the line below takes time and consumes lots of memory because you read in all the data at once.
   # hqtr_mask_smoothed_df = hqtr_mask_smoothed_ddf.compute()
@@ -236,7 +298,7 @@ To know which integer belongs to which channel, please look into `staining_log.t
 
 </details>
 
-### Transcript QV probability: hqtr_output_qv_prob
+### Transcript QV density: qv_density_output_hqtr
 
 <details>
   <summary>Click to expand</summary><br>
@@ -244,23 +306,21 @@ To know which integer belongs to which channel, please look into `staining_log.t
 
   ```
   import dask.dataframe as dd
-  hqtr_qv_ddf = dd.read_parquet('spoQC_tmp/hqtr_output_qv_prob', engine="pyarrow")
+  hqtr_qv_ddf = dd.read_parquet('spoQC_tmp/qv_density_output_hqtr', engine="pyarrow")
   ```
 
   Structure:
 
   * index: pixel_id
-  * columns: qv_density, p_qv_density, norm_p_qv_density
+  * columns: qv_density
 
   Explanation:
 
-  * qv_density: Transcript quality value (QV) density of the pixel.
-  * p_qv_density: Probability that the pixel's QV density indicates good quality (10x Genomics uses a QV threshold of 20).
-  * norm_p_qv_density: Min-max normalized version of p_qv_density. This is one of the components summed into hqtr_beliefs above.
+  * qv_density: Transcript quality value (QV) density of the pixel (transcript-quality image, see [Transcript (density) metrics](metrics_transcript_layer.md)). The QV prior (`prob_qv_density`) is stored in `mask_raw_output_hqtr`.
 
 </details>
 
-### Ambient RNA probability: hqtr_output_ac_prob
+### Ambient RNA density: ac_density_output_hqtr
 
 <details>
   <summary>Click to expand</summary><br>
@@ -268,18 +328,16 @@ To know which integer belongs to which channel, please look into `staining_log.t
 
   ```
   import dask.dataframe as dd
-  hqtr_ac_ddf = dd.read_parquet('spoQC_tmp/hqtr_output_ac_prob', engine="pyarrow")
+  hqtr_ac_ddf = dd.read_parquet('spoQC_tmp/ac_density_output_hqtr', engine="pyarrow")
   ```
 
   Structure:
 
   * index: pixel_id
-  * columns: ac_density, p_ac_density, norm_p_ac_density
+  * columns: ac_density
 
   Explanation:
 
-  * ac_density: Density of maximum gene autocorrelation at the pixel, used to flag potential ambient/spillover RNA.
-  * p_ac_density: Probability that the pixel's autocorrelation density indicates good (non-ambient) quality.
-  * norm_p_ac_density: Min-max normalized version of p_ac_density. This is one of the components summed into hqtr_beliefs above.
+  * ac_density: Combined autocorrelation (AC) density of the pixel, used to flag potential ambient/spillover RNA (see [Transcript (density) metrics](metrics_transcript_layer.md)). The AC prior (`prob_ac_density`) is stored in `mask_raw_output_hqtr`.
 
 </details>

@@ -7,6 +7,7 @@ import sys
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib_venn import venn3
 
+from .. import core
 from .. import helperfuncs
 from .. import metrics
 
@@ -14,22 +15,25 @@ def start_combining_masks(
         sdata,
         figure_path,
         spoqc_tmp_folder,
-        image_type,
-        resolution,
         imagedim,
         dim_x,
         dim_y,
         staining,
+        image_type,
+        resolution,
+        overwrite,
+        chunk_size,
         *,
         celltype_refined=False
 ):
+    print("[NOTE] Combining masks zoom")
 
     x_1_org = 18000
     y_1_org = 0
     x_2_org = 22000
     y_2_org = 2500
 
-    imagedim_zoom = helperfuncs.ImageDimStruct(
+    imagedim_zoom = core._data.ImageDimStruct(
         imagedim.bb_xmin + x_1_org,
         imagedim.bb_ymin + y_1_org,
         imagedim.bb_xmin + x_2_org,
@@ -188,12 +192,15 @@ def start_combining_masks(
             intensities = None
             if ( modality == 'hqtr' ):
                 # Intensities already flipped
-                intensities = metrics.transcript_density.transcript_density_image.generate_transcript_density_image(
+                intensities = metrics.hqtr.transcript_density_image.generate_transcript_density_image(
                     sdata,
                     figure_path,
+                    spoqc_tmp_folder,
                     imagedim,
-                    image_type,
-                    resolution
+                    dim_x,
+                    dim_y,
+                    overwrite,
+                    chunk_size,
                 )
                 xy_intensities = intensities.reshape(dim_x, dim_y)
             else:

@@ -8,6 +8,7 @@ import sys
 import os
 import gc
 import dask.dataframe as dd
+import dask.array as da
 import dask
 import time
 import pyarrow as pa
@@ -17,6 +18,8 @@ import scanpy as sc
 import matplotlib
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
+import concurrent.futures
+import anndata as ad
 
 from typing import NamedTuple, Dict, List, Union, Tuple, Any, Optional, Sequence
 from anndata import AnnData
@@ -27,16 +30,6 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 from scipy.ndimage import gaussian_filter
 from scipy.stats import norm
-
-class ImageDimStruct(NamedTuple):
-    bb_xmin: int
-    bb_ymin: int
-    bb_xmax: int
-    bb_ymax: int
-
-class AnnotationStruct(NamedTuple):
-    ncelltypes: int
-    celltypes: int
 
 class Timer:
     def __init__(self):
@@ -125,83 +118,54 @@ def create_fraction_df(adata: AnnData, group: str, category: str) -> Dict[str, U
     return(d)    
 
 
-def deduplicate_dask_index(ddf: Any) -> Any:
-    """
-    Return a copy of a dask DataFrame with a globally unique, monotonically
-    increasing RangeIndex.
+def read_data_as_dda(tmp_files, chunk_size):
+    # Preallocate a Dask Array with correct shape and chunks
+    col_series = [
+        dd.read_parquet(file).iloc[:, 0].reset_index(drop=True)
+        for file in tmp_files
+    ]
 
-    Some readers (e.g. the Xenium zarr reader) build points partitions that
-    each carry their own locally-scoped 0..n index, so the same index value
-    repeats across partitions. `ddf.reset_index(drop=True)` does not fix this
-    because dask resets the index independently per partition. Here we
-    compute the (cheap) per-partition lengths and offset each partition's
-    index by the cumulative length of the partitions before it.
-    """
-    def _assign_partition_index(df, offsets, partition_info=None):
-        start = offsets[partition_info["number"]]
-        df = df.copy()
-        df.index = pd.RangeIndex(start, start + len(df))
-        return df
+    # Compute all per-file partition lengths together (in parallel) instead of
+    # letting to_dask_array(lengths=True) block on each file one at a time.
+    lengths_per_col = dask.compute(*[s.map_partitions(len) for s in col_series])
 
-    lengths = ddf.map_partitions(len).compute().to_numpy()
-    offsets = np.concatenate(([0], np.cumsum(lengths)[:-1]))
-    return ddf.map_partitions(_assign_partition_index, offsets, meta=ddf._meta)
+    array_columns = []
+    for col_ddf, lengths in zip(col_series, lengths_per_col):
+        col_arr = col_ddf.to_dask_array(lengths=tuple(lengths)).rechunk((chunk_size,))
+        array_columns.append(col_arr[:, None])  # make 2D for stacking
+
+    # Stack columns into 2D Dask Array
+    dask_array = da.hstack(array_columns).astype(np.float32)  # Much cheaper than dd.concat
+    dask_array = dask_array.rechunk((chunk_size, -1))
+    # Optional but recommended to avoid re-reading Parquet each epoch:
+    # da.to_zarr(dask_array, "dask_array.zarr", overwrite=True); dask_array = da.from_zarr("dask_array.zarr")
+
+    return dask_array
 
 
-def image_crop(sdata: Any, bb_xmin: float, bb_ymin: float,
-               bb_xmax: float, bb_ymax: float, coordsystem: str) -> Tuple[Any, float, float]:
-    """
-    Crop a spatial dataset to a specified bounding box within a given coordinate system.
+def read_data_as_ddf(tmp_file, chunk_size):
 
-    Parameters:
-    sdata (SpatialData): The spatial dataset to crop.
-    bb_xmin (float): Minimum x-coordinate of the bounding box.
-    bb_ymin (float): Minimum y-coordinate of the bounding box.
-    bb_xmax (float): Maximum x-coordinate of the bounding box.
-    bb_ymax (float): Maximum y-coordinate of the bounding box.
-    coordsystem (str): The coordinate system used for cropping.
+    # Read parquet
+    ddf = dd.read_parquet(tmp_file).reset_index(drop=True)
 
-    Returns:
-    Tuple[SpatialData, float, float]: A tuple containing:
-        - The cropped spatial dataset.
-        - The minimum x-coordinate of the bounding box.
-        - The minimum y-coordinate of the bounding box.
-    """
+    # Compute current partition lengths
+    lengths = tuple(
+        ddf.map_partitions(len).compute()
+    )
 
-    sdata_filtered_cs = sdata.filter_by_coordinate_system(coordsystem)
+    # Convert to Dask Array with known row chunks
+    arr = ddf.to_dask_array(lengths=lengths)
 
-    cropped_sdata = None
-    try:
-        cropped_sdata = sdata_filtered_cs.query.bounding_box(
-            axes=["x", "y"],
-            min_coordinate=[bb_xmin, bb_ymin],
-            max_coordinate=[bb_xmax, bb_ymax],
-            target_coordinate_system=coordsystem,
-        )
-    except: 
-        # This erorr sometimes happen - ValueError: Number of partitions do not match (1 != 8)
-        print(f"[Error] Cropping failed with {bb_xmin}, {bb_ymin}, {bb_xmax}, {bb_ymax}. \
-              Please check the coordinates and try again.")
-        return None, None, None
+    # Rechunk rows to chunk_size
+    arr = arr.rechunk((chunk_size, -1))
 
-    if ( 'table' in cropped_sdata._shared_keys ):
-        # This has to be done because else those levels have different cell_ids captures.
-        # I think this happends because the cropping does not capture polygons on the cropping border.
-        ids = cropped_sdata['table'].obs.index
-        ids = ids.astype(type(sdata['cell_boundaries'].index[0])).tolist()
-            
-        for id in ids:
-            if ( id not in sdata['cell_boundaries'].index ):
-                sys.exit(f"[Error] Please check your indexing of sdata['table'].obs.index" + \
-                        f" and sdata['cell_boundaries'].index the index {id} is not in the latter index.")
+    # Convert back to Dask DataFrame
+    ddf = dd.from_dask_array(
+        arr,
+        columns=ddf.columns,
+    )
 
-        cropped_sdata['cell_boundaries'] = sdata['cell_boundaries'].loc[ids]
-        cropped_sdata['nucleus_boundaries'] = sdata['nucleus_boundaries'].loc[ids]
-
-        return cropped_sdata, bb_xmin, bb_ymin
-    else:
-        print("[NOTE] No table in sdata so returning None")
-        return None, None, None
+    return ddf
 
 
 def plotly_save_as_png(fig, plot_path, w=4, h=3, dpi=300):
@@ -234,6 +198,8 @@ def generate_distinct_colors(num_colors: int) -> List[str]:
 
     return colors
 
+
+
 def generate_distinct_colors_with_jitter(num_colors: int) -> List[str]:
     colors = []
     golden_ratio_conjugate = 0.618033988749895
@@ -262,12 +228,18 @@ def get_cbar_shrink(df_shrink):
 
 
 def fast_kde2d(
-    x, y,
+    x,
+    y,
+    *,
     weights=None,
     bins=300,                 # grid resolution (increase for smoother look)
     bw_adjust=0.5,            # <1 sharper, >1 smoother
-    xlim=None, ylim=None
-):
+    xlim=None,
+    ylim=None,
+) -> Tuple[np.ndarray[tuple[int], np.dtype[np.floating]],
+           np.ndarray[tuple[int], np.dtype[np.floating]],
+           np.ndarray[tuple[int], np.dtype[np.floating]],
+           Tuple[Tuple[float, float], Tuple[float, float]]]:
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
     n = x.size
@@ -402,9 +374,18 @@ def plot_scatter_by_category(df: pd.DataFrame, key: str, figure_path: str, suffi
     plt.close()
 
 
-def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path: Union[str, None], suffix: str,
-                                        palette: Union[str, dict, None],
-                                        title: Optional[str], pointsize=1.0, flip=False) -> None:
+def plot_scatter_density_by_category_df(
+        df: pd.DataFrame,
+        key: str, figure_path:
+        Union[str, None],
+        suffix: str,
+        palette: Union[str, dict, None],
+        title: Optional[str],
+        *,
+        pointsize=1.0,
+        flip=False,
+        plot_categories=None,
+    ) -> None:
     """
     Generate and save density plots for each category in a given column of a DataFrame.
 
@@ -418,7 +399,8 @@ def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path:
     """
 
     categories = df[key].unique()
-
+    if plot_categories:
+        categories = plot_categories
     fig, axes = plt.subplots(1, len(categories), figsize=(5 * len(categories), 5), squeeze=False)
     axes = axes.ravel()
 
@@ -426,33 +408,44 @@ def plot_scatter_density_by_category_df(df: pd.DataFrame, key: str, figure_path:
         ax = axes[i]
         subset = df[df[key] == category]
 
-        # Scatter
-        sns.scatterplot(
-            data=subset, x='x', y='y', s=pointsize,
-            palette=palette, legend=False, ax=ax
-        )
+        if len(subset) != 0:
 
-        # KDE
-        xc, yc, z, (xlim, ylim) = fast_kde2d(
-            subset['x'].values, subset['y'].values,
-            bins=1000, bw_adjust=0.5
-        )
-        xx, yy = np.meshgrid(xc, yc)
-        cf = ax.contourf(xx, yy, z, levels=20, cmap=_CMAP_DENSITY, alpha=0.7, zorder=2)
+            # Scatter
+            sns.scatterplot(
+                data=subset, x='x', y='y', s=pointsize,
+                palette=palette, legend=False, ax=ax
+            )
 
-        # Individual colorbar
-        cbar = plt.colorbar(cf, ax=ax, fraction=0.046, pad=0.04, shrink=get_cbar_shrink(df))
-        cbar.set_label('Density' if key is None else f'Density (weighted by {key})')
+            # KDE
+            try:
+                xc, yc, z, (xlim, ylim) = fast_kde2d(
+                    subset['x'].values, subset['y'].values,
+                    bins=1000, bw_adjust=0.5
+                )
+                xx, yy = np.meshgrid(xc, yc)
+                cf = ax.contourf(xx, yy, z, levels=20, cmap=_CMAP_DENSITY, alpha=0.7, zorder=2)
 
-        ax.set_title(category)
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_xlim(np.min(df['x']), np.max(df['x']))
-        ax.set_ylim(np.min(df['y']), np.max(df['y']))
-        ax.set_aspect('equal', adjustable='box')
+                # Individual colorbar
+                cbar = plt.colorbar(cf, ax=ax, fraction=0.046, pad=0.04, shrink=get_cbar_shrink(df))
+                cbar.set_label('Density' if key is None else f'Density (weighted by {key})')
+            except Exception as e:
+                print(f"[WARN] Probably because not enough data points for your chosen density category: {e}")
+                print("Just plotting scatter plot.")
+            
 
-        if flip:
-            ax.invert_yaxis()
+            ax.set_title(category)
+            ax.set_xlabel('x')
+            ax.set_ylabel('y')
+            ax.set_xlim(np.min(df['x']), np.max(df['x']))
+            ax.set_ylim(np.min(df['y']), np.max(df['y']))
+            ax.set_aspect('equal', adjustable='box')
+
+
+            if flip:
+                ax.invert_yaxis()
+
+        else:
+            print(f"[WARN] No data points for category {category}")
 
     plt.tight_layout()
     if figure_path is not None:
@@ -658,10 +651,20 @@ def plot_scatter_density(adata: AnnData, figure_path: str, suffix: str,
     plt.close()
 
 
-def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
-                         scattercat: Optional[str], densitycat: Optional[str],
-                         palette: Union[str, dict, None], title: Optional[str],
-                         pointsize=1.0, flip=False) -> None:
+def plot_scatter_density_df(
+    df: pd.DataFrame,
+    figure_path: str,
+    suffix: str,
+    scattercat: Optional[str],
+    densitycat: Optional[str],
+    palette: Union[str, dict, None],
+    title: Optional[str],
+    *,
+    pointsize=1.0,
+    flip=False
+) -> Tuple[np.ndarray[tuple[int], np.dtype[np.floating]],
+           np.ndarray[tuple[int], np.dtype[np.floating]],
+           np.ndarray[tuple[int], np.dtype[np.floating]]]:
     
     plt.figure(figsize=(13, 10))
     ax = plt.gca()
@@ -670,6 +673,9 @@ def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
     scatter = sns.scatterplot(data=df, x='x', y='y', s=pointsize, hue=scattercat, palette=palette)
 
     # Create a kernel density estimate (KDE) plot
+    xc = np.array([])
+    yc = np.array([])
+    z = np.array([])
     try:
         xc, yc, z, (xlim, ylim) = fast_kde2d(
             df['x'].values, df['y'].values,
@@ -710,6 +716,8 @@ def plot_scatter_density_df(df: pd.DataFrame, figure_path: str, suffix: str,
     plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.png', bbox_inches='tight', dpi=300)
     plt.savefig(f'{figure_path}/scatterplot_densityplot_{suffix}.pdf', bbox_inches='tight', dpi=300)
     plt.close()
+
+    return xc, yc, z
 
 
 def plot_original_image_cell_circles(sdata, figure_path, suffix):
@@ -900,60 +908,118 @@ def apply_general_plotly_layout(fig, showlegend):
     )
 
 
-def leiden_silhouette(adata, resolution, rs, n_clusters):
+def leiden_silhouette(adata, resolution, res_index, ninits=5):
     '''
-    returns a silhouette score based on a given resolution and random state
+    Returns average silhouette score and average number of clusters based on a given resolution and random state 
+    with ninits=random initializations.
     '''
 
-    sc.tl.leiden(adata, resolution=resolution, key_added='temp_leiden', random_state=rs)
+    scores = []
+    num_clusters = []
+    adata_test = adata.copy()
 
-    score = silhouette_score(adata.obsm['X_umap'], adata.obs['temp_leiden'])
-    num_clusters = len(list(set(adata.obs['temp_leiden'])))
+    for rs in range(0, ninits): #since the random seed will change result - multiple samples per resolution
+        sc.tl.leiden(adata_test, resolution=resolution, key_added='temp_leiden', random_state=rs)
 
-    adata.obs.drop(columns=['temp_leiden'], inplace=True)
+        if ( len(set(adata_test.obs['temp_leiden'])) > 1 ):
+            scores.append(silhouette_score(adata_test.obsm['X_umap'], adata_test.obs['temp_leiden']))
+            num_clusters.append(len(set(adata_test.obs['temp_leiden'])))
+            adata_test.obs.drop(columns=['temp_leiden'], inplace=True)
+        else:
+            scores.append(0.0)
+            num_clusters.append(0.0)
+            adata_test.obs.drop(columns=['temp_leiden'], inplace=True)
 
-    return (score, num_clusters == n_clusters, num_clusters)
+    return [res_index, [resolution]*ninits, scores, list(range(0, ninits)), num_clusters]
+
 
 # This is for checking which leiden cluster resoltuion would work the best.
 # Pick the one with the highest silhouette score but not the one from the beginning.
-def test_resolutions_leiden(rna, figure_path, n_clusters):
-    resolutions = np.linspace(0, 2, num = 21)[1:]
+def test_resolutions_leiden(
+        rna, 
+        figure_path,
+        threads,
+        annotation_key=None,
+        k=None,
+        steps=None,
+        end=2.0,
+        start=0.0,
+        resolutions=None,
+    ):
+    
+    if ( resolutions == None ):
+        resolutions = np.linspace(0, 3, num = 21)[1:]
+        if ( steps ):
+            resolutions = np.linspace(start, end, num = steps)[1:]
 
-    resolutions
+    out = [-1] * len(resolutions)
+    win_res = 0.5
+    diff_clusters = 100
 
-    out = []
-    for res in tqdm(resolutions):
-        for rs in [0,1,2]: #since the random seed will change result - multiple samples per resolution
-            score, hit_n_clusters, num_clusters = leiden_silhouette(rna, res, rs, n_clusters)
-            out.append([res, score, rs, hit_n_clusters, num_clusters])
+    # Parallel testing for resolutions.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+        futures = [executor.submit(leiden_silhouette, rna, res, res_index) for res_index, res in enumerate(resolutions)]
+        for future in concurrent.futures.as_completed(futures):
+            results = future.result()
+            out[results[0]] = results[1:]
 
-    ss = pd.DataFrame(out, columns = ['res','ss', 'rs', 'hit_n_clusters', 'num_clusters'])
+    for res in range(0, len(resolutions)):
+        average_num_clusters = int(np.mean(out[res][-1]))
 
-    # Set up the plot grid
+        if ( annotation_key ):
+            diff_clusters_new = np.abs(average_num_clusters-( len(set(rna.obs[annotation_key])) + 3 ) )
+            if ( diff_clusters_new < diff_clusters ):
+                diff_clusters = diff_clusters_new
+                win_res = resolutions[res]
+        if ( k ):
+            diff_clusters_new = np.abs(average_num_clusters-k)
+            if ( diff_clusters_new < diff_clusters ):
+                diff_clusters = diff_clusters_new
+                win_res = resolutions[res]
+
+    # Unpack data into dataframe.    
+    rows = []
+    for block in out:
+        rows.extend(zip(*block))
+    ss = pd.DataFrame(rows, columns=['res','ss', 'rs', 'num_clusters'])
+
     plt.figure(figsize=(15, 5))
-
     ax = sns.lineplot(data = ss, x = 'res', y = 'ss')
-
-    # Set y-axis limit
-    plt.ylim(min(ss['ss']) * 0.9, max(ss['ss']) * 1.1)  # Adding a little padding (10%)
-
-    # Adding labels
     plt.xlabel('resolutions')
     plt.ylabel('silhouettescore')
-
-    # Adding vertical grey lines for each step in 'res'
     for res_value in ss['res'].unique():  # Assuming 'res' contains the breakpoints
         plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)  # Adding vertical lines
-
-    # Setting the breaks on the x-axis
     plt.xticks(ss['res'].unique())  # Ensure all 'res' values are shown on the x-axis
-
-    # Saving the figure
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering.png')
-    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering.pdf')
+    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.png')
+    plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_ss.pdf')
     plt.close()
 
-    return ss
+    if ( annotation_key or k):
+        title = ''
+        if ( annotation_key ):
+            title = len(set(rna.obs[annotation_key]))
+        else:
+            title = str(k)
+
+        plt.figure(figsize=(15, 5))
+        ax = sns.lineplot(data=ss, x='res', y='num_clusters')
+        plt.xlabel('resolutions')
+        plt.ylabel('number of clusters')
+        plt.ylim([0, 40])
+        for res_value in ss['res'].unique():
+            plt.axvline(x=res_value, color='grey', linestyle='--', alpha=0.7)
+        for y in [5, 10, 15, 20, 25, 30, 35, 40]:
+            plt.axhline(y=y, color='grey', linestyle='--', alpha=0.7)
+        plt.axvline(x=win_res, color='black', linestyle='-', alpha=0.7)
+        plt.title(f'Annotation had {title} celltypes')
+        plt.xticks(ss['res'].unique())  # ensure all 'res' values appear
+        plt.tight_layout()
+        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.png')
+        plt.savefig(f'{figure_path}/test_resolutions_leiden_clustering_num_clusters.pdf')
+        plt.close()
+
+    return win_res
+
 
 def min_max_normalize(array):
     array = np.array(array)
@@ -1055,12 +1121,14 @@ def values_to_hex_gradient(values, cmap_name='hot', reverse=False):
     return hex_colors
 
 
-def sdata_obs_to_parquet(sdata, figure_path, spoqc_tmp_folder, suffix, obs_columns):
-    new_columns = [x for x in sdata['table'].obs.columns if x not in obs_columns]
-    write_df = sdata['table'].obs.loc[:,new_columns]
-    write_df.index = sdata['table'].obs.index
-    write_df.to_parquet(f"{spoqc_tmp_folder}/{figure_path.split('/')[-2]}_output_{suffix}.parquet")
-    return(obs_columns + new_columns)
+def sdata_obs_to_parquet(enterprise, step, suffix):
+    adata = enterprise.cargo.sdata["table"]
+    new_columns = [x for x in adata.obs.columns if x not in enterprise.cargo.cols_already_written]
+    write_df = adata.obs.loc[:,new_columns]
+    write_df.index = adata.obs.index
+    write_df.to_parquet(f"{enterprise.args.tmp_dir}/{step}_output_{suffix}.parquet")
+    enterprise.cargo.cols_already_written += new_columns
+
 
 def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
     try:
@@ -1071,7 +1139,7 @@ def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
             # Check the on-disk schema (cheap, no data read) so files already joined in a
             # previous call are skipped instead of being re-read from disk every time.
             columns = pq.ParquetFile(tmp_file).schema.names
-            if all(col in sdata['table'].obs.columns for col in columns):
+            if any(col in sdata['table'].obs.columns for col in columns):
                 print(f'[NOTE] skip {tmp_file}, already loaded in')
                 continue
             print(f'[NOTE] read in {tmp_file}')
@@ -1266,3 +1334,384 @@ def dask_df_add_sequential_index(ddf, index_name="new_index"):
     ddf_with_index = dd.from_delayed(parts, meta=meta)
 
     return ddf_with_index.set_index(index_name)
+
+
+def cell_artefact_assignment(cell_df, sdata):
+    cell_df['artefact'] = 'cell'
+
+    # Assign artefacts
+    cell_df.loc[cell_df['wdoublet'] == 1, 'artefact'] = 'doublet'
+    mean_overlap = cell_df['cell_overlap_area'].mean()
+
+    cell_df.loc[(cell_df['nuceli_count'] > 1) & (cell_df['cell_overlap_area'] > mean_overlap), 'artefact'] = 'doublet'
+    cell_df.loc[cell_df['wnucleus_free'] == 1, 'artefact'] = 'nucleus_free'
+    sdata['table'].obs['artefact'] = cell_df['artefact']
+
+
+def turn_into_uint8(arr):
+    # normalize to 0–1 if needed
+    if int(arr.min()) != 0 or int(arr.max()) != 1:
+        arr = (arr - arr.min()) / (arr.max() - arr.min())
+    # scale to 0–255 and convert to uint8
+    uint8_arr = (arr * 255).astype(np.uint8)
+    return uint8_arr
+
+
+def pixel_intensity_qc(figure_path, intensities, background_intensity, hist, bin_edges, dim_x, dim_y, imagedim):
+
+    timer = Timer()
+
+    figures = []
+
+    # When you plot a histogram via plotly, it stores all the orginal data in the json file 
+    # and makes the bins and counts on the javascript side. 
+    # Thus the plot get quite large.
+    # Use therefore the precomupted histogram data from numpy.
+    bins = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+    print("[NOTE] Barplot")
+    timer.start()
+    fig = px.bar(x=bins, y=hist, labels={'x':'intensity', 'y':'count'})
+    fig.update_layout(
+        title=f"Total distribution intensity with backkground intensity {background_intensity}"
+    )
+    timer.stop()
+    apply_general_plotly_layout(fig, True)
+    figures.append(fig)
+    fig.write_image(f"{figure_path}/histogram_intensity.png", scale=3)
+    fig.write_image(f"{figure_path}/histogram_intensity.pdf", scale=3)
+
+    with open(f'{figure_path}/histogram_intensity.html', 'w') as f:
+        for fig in figures:
+            f.write(fig.to_html(full_html=False, include_plotlyjs='cdn'))
+    
+    signal_noise_ratio_log2fc = np.log2( (intensities + 1) / background_intensity )
+
+    plot_pixels(
+        figure_path,
+        np.array(signal_noise_ratio_log2fc).reshape(dim_x, dim_y),
+        imagedim,
+        'snr', 
+        'Log2 Signal-Noise-Ratio', 
+        'hot',
+        False,
+        False
+    )
+    
+    return signal_noise_ratio_log2fc
+
+
+def estimate_background_intensity_dask(sdata, image_type, resolution, staining, nbins=100, range_=None):
+    """
+    nbins: number of histogram bins
+    range_: optional (min, max); if None, computed lazily with dask
+    """
+    intensities = sdata[image_type][resolution].image.data[int(staining)]
+    intensities.ravel()
+
+    if not hasattr(intensities, "chunks"):
+        raise TypeError("Pass a dask.array for the Dask implementation.")
+
+    # Compute min/max lazily if not supplied (cheap: just scalars)
+    if range_ is None:
+        vmin = da.nanmin(intensities)
+        vmax = da.nanmax(intensities)
+        vmin, vmax = da.compute(vmin, vmax)
+        if not np.isfinite(vmin) or not np.isfinite(vmax):
+            raise ValueError("Non-finite min/max encountered.")
+        if vmin == vmax:
+            vmax = vmin + 1.0
+        range_ = (float(vmin), float(vmax))
+
+    # Dask builds the histogram in a reduction; result is tiny (nbins) -> safe to .compute()
+    hist, bin_edges = da.histogram(intensities, bins=nbins, range=range_)
+    hist, bin_edges = da.compute(hist, bin_edges)
+
+    max_bin_idx = int(np.argmax(hist))
+    # center of the winning bin
+    background = np.round((bin_edges[max_bin_idx] + bin_edges[max_bin_idx + 1]) * 0.5, 3)
+    return background, hist, bin_edges
+
+
+# TODO make this new function
+def plot_spatial_density_of_category(
+    data: Union[pd.DataFrame, ad.AnnData],
+    pointscat: Optional[str],
+    densitycat: Optional[str],
+    palette: Optional[Any],
+    title: Optional[str],
+    *,
+    plot_legend: bool = True,
+    category: Optional[str] = None,
+    cbar_title: Optional[str] = None,
+    pointsize: float = 10.0,
+    figsize: Tuple[int,int] = (10, 5),
+    title_text_size: Optional[float] = None,
+) -> None:
+    """
+    Plot spatial points as a scatter plot with an optional density (KDE) overlay.
+    Supports either a plain DataFrame with 'x'/'y' columns or an AnnData object
+    with spatial coordinates in `obsm['spatial']` and per-cell metadata in `obs`.
+
+    Parameters
+    ----------
+    data
+        Either:
+          - A pandas DataFrame containing at least columns 'x' and 'y', and
+            optionally columns named by `pointscat`, `densitycat`, and `category`.
+          - An AnnData object with:
+                * `obsm['spatial']` shaped (n_obs, 2) for x/y coordinates, and
+                * `obs` containing any requested metadata columns.
+    pointscat
+        Column name to use for color/hue in the spatial plot (e.g., a cell type).
+        Pass None for monochrome points.
+    densitycat
+        Column name whose values are used as weights for the KDE (density) layer.
+        Pass None for an unweighted KDE (or no KDE if data are insufficient).
+    palette
+        Seaborn/Matplotlib palette specification (string or iterable). Ignored if
+        `pointscat` is None.
+    plot_legend
+        If the legend should be plotted.
+    title
+        Optional title for the (non-faceted) plot. Ignored when `category` is set.
+    category
+        Optional column name to facet by. When provided, creates one subplot per
+        category level, each showing spatial points + KDE for that subset.
+    cbar_title
+        Optional cbar_title for the (non-faceted) plot.
+    pointsize
+        Marker size for the spatial points.
+    title_text_size
+        Optional title_text_size to define the size of the title text.
+
+    Notes
+    -----
+    - For AnnData input, 'x'/'y' are taken from `obsm['spatial'][:, 0/1]`.
+    - The function calls `plt.show()` and returns None.
+    """
+
+    
+    df = data
+    weights = None  
+    
+    if ( isinstance(df, ad.AnnData) ): 
+
+        df = pd.DataFrame({
+            'x': data.obsm['spatial'][:,0],
+            'y': data.obsm['spatial'][:,1]
+        })
+
+        # Add points category
+        if ( pointscat != None ):
+            df[pointscat] = list(data.obs[pointscat])
+        if densitycat is not None:
+            df[densitycat] = list(data.obs[densitycat])
+            weights = df[densitycat]
+        if category is not None:
+            df[category] = list(data.obs[category])
+
+    if ( category != None ):
+        categories = df[category].unique()
+        n_categories = len(categories)
+
+        ncol = 5
+        if n_categories < ncol:
+            ncol = n_categories
+        nrow = np.ceil(n_categories/ncol).astype(int)
+
+        plt.figure(figsize=figsize)
+        for i, cat in enumerate(categories):
+            plt.subplot(nrow, ncol, i + 1)
+            subset = df[df[category] == cat]
+
+            sns.scatterplot(data=subset, x='x', y='y', s=pointsize, palette=palette, legend=False)
+            if densitycat is not None:
+                sns.kdeplot(
+                    data=subset, x='x', y='y', cmap="viridis", fill=True, alpha=0.5, bw_adjust=0.5,
+                    cbar=True, cbar_kws={'label': f'{cbar_title} {cat}'}
+                )
+            plt.title(cat, **({'fontsize': title_text_size} if title_text_size is not None else {}))
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.xlim(np.min(df['x']), np.max(df['x']))
+            plt.ylim(np.min(df['y']), np.max(df['y']))
+            plt.gca().invert_yaxis()
+
+        plt.show()
+
+    else:
+
+        plt.figure(figsize=figsize)
+        scatter = sns.scatterplot(data=df, x='x', y='y', s=pointsize, hue=pointscat, palette=palette)
+        handles, labels = scatter.get_legend_handles_labels()
+        if plot_legend and handles:
+            plt.legend(handles=handles, labels=labels, bbox_to_anchor=(1.35, 1),
+                    loc='upper left', borderaxespad=0., markerscale=1)
+        elif scatter.get_legend() is not None:
+            scatter.get_legend().remove()
+
+        try:
+            kde = sns.kdeplot(
+                data=df,
+                x='x', y='y',
+                fill=True,
+                alpha=0.5,
+                cmap="viridis",
+                bw_adjust=0.5,
+                weights=weights,
+                cbar=True,
+                cbar_kws={'label': f'{cbar_title}'}
+            )
+        except Exception as e:
+            print(f"[WARNING] Failed to plot density with KDE " +
+                f"probably because not enough data points for your chosen density category: {e}")
+            print("Just plotting spatial point plot.")
+
+        if ( title ):
+            plt.title(title, **({'fontsize': title_text_size} if title_text_size is not None else {}))
+
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.xlim(np.min(df['x']), np.max(df['x']))
+        plt.ylim(np.min(df['y']), np.max(df['y']))
+        plt.show()
+
+
+# TODO make this new function
+def plot_marker_density_in_spatial_context(
+    sdata: Dict[str, Any],
+    markers: Dict[str, List[str]],
+    figsize: Tuple[int, int] = (15, 5)
+) -> None:
+    """
+    Plot spatial points and density (KDE) maps for marker gene expression.
+
+    Parameters
+    ----------
+    sdata : dict
+        Spatial data container with:
+        - `sdata['table']` as an AnnData-like object containing:
+            * `obsm['spatial']` : ndarray of shape (n_obs, 2) with x/y coordinates.
+            * `var.index` : index containing marker (gene) names.
+            * `X` : expression matrix (sparse or dense) of shape (n_obs, n_vars).
+    markers : dict
+        Dictionary mapping cell type names (str) to lists of marker names (str)
+        to be plotted for each cell type.
+
+    Returns
+    -------
+    None
+        Displays spatial points + KDE plots for each marker in each cell type.
+    """
+
+    df = pd.DataFrame({
+            'x': sdata['table'].obsm['spatial'][:,0],
+            'y': sdata['table'].obsm['spatial'][:,1]
+        })
+
+    # Get expression values for each marker
+    for celltype_markers in markers.values():
+        for marker in celltype_markers:
+            idx = list(sdata['table'].var.index).index(marker)
+            df[marker] = sdata['table'].X.todense()[:,idx].flatten().tolist()[0]
+
+    for celltype in markers:
+        celltype_markers = markers[celltype]
+        n_celltype_markers = len(celltype_markers)
+        plt.figure(figsize=figsize)
+
+        ncol = 5
+        if n_celltype_markers < ncol:
+            ncol = n_celltype_markers
+        nrow = np.ceil(n_celltype_markers/ncol).astype(int)
+
+        for i, marker in enumerate(celltype_markers):
+            plt.subplot(nrow, len(celltype_markers), i + 1)
+            plt.title(f'{celltype}_{marker}')
+            sns.scatterplot(data=df, x='x', y='y', s=20, hue=marker, legend=False)
+            sns.kdeplot(
+                data=df, x='x', y='y', cmap="viridis", weights=marker,
+                shade=True, alpha=0.5, bw_adjust=0.5, cbar=True
+            )
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.xlim(np.min(df['x']), np.max(df['x']))
+            plt.ylim(np.min(df['y']), np.max(df['y']))
+        plt.show()
+
+
+# TODO make this new function
+def plot_marker_boxplot(
+    sdata: Dict[str, Any],
+    markers: Dict[str, List[str]],
+    ANNOTATION_KEY: str,
+    name: str
+) -> None:
+    """
+    Plot boxplots of log2 fold change in marker expression between each cell type
+    and all other cells.
+
+    Parameters
+    ----------
+    sdata : dict
+        Spatial data container with:
+        - `sdata['table']` as an AnnData-like object containing:
+            * `var.index` : index of feature/marker names.
+            * `obs` : DataFrame with cell annotations (includes `ANNOTATION_KEY`).
+            * `X` : expression matrix (sparse or dense) of shape (n_obs, n_vars).
+    markers : dict
+        Dictionary mapping cell type names to lists of marker names to analyze.
+    ANNOTATION_KEY : str
+        Column in `sdata['table'].obs` used to identify the cell type of each cell.
+    name : str
+        Descriptive name of the marker set, used in the y-axis label.
+
+    Returns
+    -------
+    None
+        Displays the boxplot using matplotlib.
+    """
+    log2fc_list = []
+    celltype_list = []
+
+    rna = sdata['table']
+    rna.X = sdata['table'].X
+
+    for celltype in markers.keys():
+        idx_var = [True if v in markers[celltype] else False for v in rna.var.index]
+        num_features = len(markers[celltype])
+        celltype_list = celltype_list + [celltype] * num_features
+
+        # Just take cells of celltype
+        idx_obs = rna.obs[ANNOTATION_KEY] == celltype
+        subset_rna = rna[idx_obs,idx_var]
+
+        mtx = subset_rna.X.todense()
+        celltype_mean_list = [np.mean(mtx[:,i]) for i in range(0,num_features)]
+            
+        # For background take all cells that are not celltype                
+        idx_obs = rna.obs[ANNOTATION_KEY] != celltype
+        subset_rna = rna[idx_obs,idx_var]
+
+        mtx = subset_rna.X.todense()
+        background_mean_list = [np.mean(mtx[:,i]) for i in range(0,num_features)]
+
+        for i in range(0, num_features):
+            log2fc_list.append(np.log2(celltype_mean_list[i] / background_mean_list[i]))
+        
+    df = pd.DataFrame({'celltype': celltype_list,
+                    'log2fc': log2fc_list})
+
+    plt.figure(figsize=(8, 8))
+
+    sns.boxplot(data=df, x='celltype', y='log2fc')
+
+    plt.xticks(rotation=45, fontsize=18)
+    plt.yticks(fontsize=18)
+    plt.xlabel('Celltype', fontsize=18)
+    plt.ylabel(f"Log2 foldchange {name.replace('_',' ')} expression", fontsize=18)
+    plt.title("Celltype vs Non-Celltype", fontsize=20)
+
+    plt.tight_layout()
+    plt.show()

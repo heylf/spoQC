@@ -4,7 +4,7 @@
 
 spoQC can be executed sequentially, but processing a full-resolution spatial transcriptomics dataset typically takes **4–5 days** to complete.
 
-To significantly reduce runtime, we provide a dedicated Nextflow subworkflow that parallelizes many of the processing steps. Using the Nextflow workflow can reduce the total runtime to approximately **1–2 days**, depending on the available computational resources.
+To significantly reduce runtime, we provide a dedicated Nextflow subworkflow that parallelizes many of the processing steps. Using the Nextflow workflow can reduce the total runtime to approximately **~1 day**, depending on the available computational resources.
 
 The workflow is available on the **dev branch** of [nf-core/spatialaxe](https://github.com/nf-core/spatialaxe/tree/dev).
 
