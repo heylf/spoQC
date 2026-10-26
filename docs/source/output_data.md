@@ -4,14 +4,14 @@ SpoQC's output data that is useful.
 
 ## staining_log
 `report/` holds a file named `staining_log.txt`.
-Currently spoQC analysis all image channels and uses and integer index because channel names can be very arbitrary in their naming.
+Currently spoQC analyses all image channels and uses an integer index because channel names can be very arbitrary in their naming.
 Therefore, some of the folder and files for the analysis of pixel quality (HQPR) will have integers standing for the individual image channels.
-To know which integer belongs to which channel, please look in to `staining_log.txt`.
+To know which integer belongs to which channel, please look into `staining_log.txt`.
 
 ## Anndata: rna_qc_annotated
-`report/analsis` holds a file named `rna_qc_annotated.h5ad`.
-SpoQC maps QC metrics and masks to cells with a designed function so you can invstigate spoQC metrics per cell.
-The file has the following columnn in `anndata.obs`:
+`report/analysis` holds a file named `rna_qc_annotated.h5ad`.
+SpoQC maps QC metrics and masks to cells with a designed function so you can investigate spoQC metrics per cell.
+The file has the following columns in `anndata.obs`:
 
 ### Masks
 
@@ -38,15 +38,21 @@ For each modality the pixel-level values are aggregated to the cell polygon in t
 | transcript_counts (or canorm_transcript_counts if canorm normalization was used) | Number of transcripts assigned to the cell. |
 | control_probe_counts | Number of control probe counts assigned to the cell. |
 | n_genes_by_counts | Number of genes detected in the cell. |
-| doublet | If cell was identified by ovrlpy being involved in a potential doublet event. |
+| doublet / wdoublet | If the cell is within a distance of 10 to a doublet event detected by ovrlpy (boolean / 0-1). |
+| doublet_distance | Distance of the cell to the closest doublet event (100,000 if no doublet event was detected). |
+| doublet_density | Kernel density of cells close to doublet events at the position of the cell. |
+| doublet_ddd | Doublet density divided by doublet distance, used for the doublet prior. |
+| valid_cell_geometry / wvalid_cell_geometry | If the cell polygon is a valid geometry (boolean) / invalid (1) or valid (0). |
+| valid_nucleus_geometry / wvalid_nucleus_geometry | If the nucleus polygon is a valid geometry (boolean) / invalid (1) or valid (0). |
 | thinness_score | Bubble score. |
-| convexhull_outside_trnascripts | Number of transcript in the convex hull of the cell not assigned to a cell (uRNAs). |
+| convexhull_outside_trnascripts | Number of transcripts in the convex hull of the cell not assigned to a cell (uRNAs). |
 | convexity_cell | Binary label if the cell is convex (convexity_metric_cell > 0.5). |
 | convexity_metric_cell | Convexity score of the cell. |
 | convexity_mean_nuceli | Mean convexity of all nuclei if at least one is present. |
 | convexity_min_nuceli | Min convexity of all nuclei if at least one is present. |
+| convexity_nuclei | Binary label if the nuclei are convex (convexity_min_nuceli > 0.5). |
 | multi_nuceli | If the cell has more than one nuclei. |
-| nucleus_free | If the cell is nucelus free. |
+| nucleus_free | If the cell is nucleus free. |
 | nuceli_count | Number of nuclei in the cell. |
 | border_cell | If the cell is a border cell (border_scores above threshold). |
 | border_scores | Border score of the cell, used to derive border_cell. |
@@ -55,6 +61,7 @@ For each modality the pixel-level values are aggregated to the cell polygon in t
 | small_islands | If the cell belongs to a small cell island (island_score below threshold). |
 | num_low_qc_transcript | Number of low quality transcripts (qv < 20). |
 | cell_overlap_area | Overlap area of the cell with neighbouring cells. |
+| hqcr_traffic_light | Traffic light QC level of the cell (green, yellow or red) based on the HQCR priors, see [Segmentation (cell) metrics](metrics_cell_layer.md). |
 
 ### Image metrics
 
@@ -81,10 +88,10 @@ For each modality the pixel-level values are aggregated to the cell polygon in t
 | hqr_filtered_out | Binary label if the cell was filtered out by any of hqcr, hqtr or hqpr (OR of the columns above). |
 
 ## Anndata: rna_cluster
-`report/analsis` holds a file named `rna_cluster.h5ad`. This anndata is from the subcluster analysis and holds the same columns as `rna_qc_annotated.h5ad`, but only for the cells of the analysed cluster. In addition, `anndata.uns` holds `spoqc_celltype_colors` and `spoqc_leiden_colors`, the label-to-color mappings used for the analysis plots.
+`report/analysis` holds a file named `rna_cluster.h5ad`. This anndata is from the subcluster analysis and holds the same columns as `rna_qc_annotated.h5ad`, but only for the cells of the analysed cluster. In addition, `anndata.uns` holds `spoqc_celltype_colors` and `spoqc_leiden_colors`, the label-to-color mappings used for the analysis plots.
 
 ## Spatialdata metadata
-`rna_qc_annotated.h5ad` also holde the metadata for the HQCRs, HQPRs and HQTRs which is stored under `anndata.uns`. 
+`rna_qc_annotated.h5ad` also holds the metadata for the HQCRs, HQPRs and HQTRs which is stored under `anndata.uns`. 
 
 The `hqcr` is a json formatted pandas dataframe of the format:
 ```
@@ -100,9 +107,9 @@ The `hqpr` and `hqtr` are a numpy array of the form:
 ```
 [[10525.0, 10561.0, 10808.0, 11007.0], [11272.0, 10587.0, 11579.0, 10915.0], [12578.0, 10784.0, 13000.0, 11465.0]]
 ```
-, where each entry `hqpr[i]` or `hqtr[i]` is a HQPR or HQTR, repsectively.
+, where each entry `hqpr[i]` or `hqtr[i]` is a HQPR or HQTR, respectively.
 
-Currenlty you can find the individual metadata files also under:
-* `report/hqcr_ident/hqcr.json`
-* `report/hqpr/hqtr_bounding_box/*/hqpr.txt`
-* `report/hqtr/hqtr_bounding_box/hqtr.txt`
+Currently you can find the individual metadata files also under:
+* `report/hqcr/hqcr_ident/hqcr.json`
+* `report/hqpr/hqpr_bounding_box/{channel}/hqprs_{channel}.txt`
+* `report/hqtr/hqtr_bounding_box/hqtrs.txt`
