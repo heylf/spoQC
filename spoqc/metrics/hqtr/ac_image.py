@@ -99,7 +99,8 @@ def _calculate_local_moran_I_values(sdata, threads):
     num_genes = len(genes_list)
 
     # keep sparse if possible
-    rna_X = sdata['table'].X  # typically CSR/CSC
+    # Use normlog explicitly (same as the global Moran's I), X holds the raw counts at this point.
+    rna_X = sdata['table'].layers['normlog']  # typically CSR/CSC
     coords_all = np.asarray(sdata['table'].obsm['spatial'], dtype=np.float64)
     center_cell_ids = sdata['table'].obs.index.to_numpy()
 

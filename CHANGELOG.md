@@ -24,6 +24,8 @@
 - HQR metadata in `adata.uns` (cluster analysis): `uns` was overwritten with the metadata dict, wiping `pca`/`umap`/colors; it is now updated instead. The metadata files were also looked up under `analysis/overview/` instead of the output root, and the HQCR file as `hqcrs.json` instead of `hqcr.json`, so no metadata was ever found.
 - Markov random field: the `lbp_messages_*.mmap` file (~32 B/pixel, tens of GB for whole slides) was never deleted. It is now removed in a `finally` block after the beliefs are computed, also when the LBP fails.
 - HQTR transcript density cache never hit: it was looked up as `transcript_density_output_hqtr` but written as `transcript_density_output_hqtr.parquet`, so the density image was recomputed on every run. The cache is now used unless `--overwrite` is set or its size does not match the current image.
+- Local Moran's I (HQTR ambient contamination) was computed on raw counts (`X`), while the global Moran's I uses `normlog`. Spatially varying library sizes inflated the local autocorrelation. It now uses the `normlog` layer as well.
+- HQCR prior combination: a NaN prior turned the aggregated quality of the cell into NaN and counted as "green" in the traffic light (`NaN < t` is always False). NaN priors are now treated as missing evidence and ignored (with a warning per prior); cells without any valid prior get 0.5 and "yellow".
 - Raw counts were not copied properly `spoqc/core/starship.py:63 adata.layers['raw'] = adata.X`
 - Bug for annotation cell types count: `spoqc/metrics/hqcr/doublet_score.py:261 is inverted (== None)`. Fix: is not None.
 

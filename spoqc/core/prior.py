@@ -55,7 +55,12 @@ class PriorSet:
                 timer.start()
                 prior_df[prior.name] = prior.calculate()
                 timer.stop()
-            
+
+                # NaN priors are treated as missing evidence in the combination, so at least report them.
+                num_nans = int(prior_df[prior.name].isna().sum())
+                if ( num_nans > 0 ):
+                    print(f"[WARN] {prior.name} has {num_nans} NaN values, they are ignored when combining priors")
+
             self.prior_df = prior_df
             self.priors_calculated = True
 
@@ -80,10 +85,14 @@ class PriorSet:
     # Asymetric evidence aggregation will put a penalty on priors that are extremely bad.
     # Example A: [.90,.90,.90,.90,.90,.90], result = 0.900
     # Example B: [.99,.99,.99,.99,.99,.10], result = 0.391
+    # NaN priors are missing evidence and ignored. If all priors are NaN, the result is uninformative (0.5).
     def combine_prior_asymmetric_evidence_aggregation(self):
 
         def _asymmetric_evidence_aggregation(priors, gamma=2.0, axis=-1):
             priors = np.asarray(priors, dtype=float)
+            priors = priors[~np.isnan(priors)]
+            if ( priors.size == 0 ):
+                return 0.5
             priors = np.clip(priors, 1e-12, 1.0)
             surprise = -np.log(priors)
             weighted_surprise = np.mean(surprise ** gamma, axis=axis) ** (1 / gamma)
@@ -94,7 +103,13 @@ class PriorSet:
     
     def combine_prior_traffic_light_system(self):
 
+        # NaN priors are missing evidence and not counted (NaN < t is always False and would look "green").
+        # If all priors are NaN the cell can not be judged, thus "yellow".
         def _traffic_light(row, bad_threshold=0.3, warning_threshold=0.6):
+            row = row.dropna()
+            if ( len(row) == 0 ):
+                return "yellow"
+
             n_bad = sum(p < bad_threshold for p in row)
             n_warning = sum(
                 bad_threshold <= p < warning_threshold
