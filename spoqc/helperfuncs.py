@@ -1357,50 +1357,6 @@ def turn_into_uint8(arr):
     return uint8_arr
 
 
-def pixel_intensity_qc(figure_path, intensities, background_intensity, hist, bin_edges, dim_x, dim_y, imagedim):
-
-    timer = Timer()
-
-    figures = []
-
-    # When you plot a histogram via plotly, it stores all the orginal data in the json file 
-    # and makes the bins and counts on the javascript side. 
-    # Thus the plot get quite large.
-    # Use therefore the precomupted histogram data from numpy.
-    bins = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-
-    print("[NOTE] Barplot")
-    timer.start()
-    fig = px.bar(x=bins, y=hist, labels={'x':'intensity', 'y':'count'})
-    fig.update_layout(
-        title=f"Total distribution intensity with backkground intensity {background_intensity}"
-    )
-    timer.stop()
-    apply_general_plotly_layout(fig, True)
-    figures.append(fig)
-    fig.write_image(f"{figure_path}/histogram_intensity.png", scale=3)
-    fig.write_image(f"{figure_path}/histogram_intensity.pdf", scale=3)
-
-    with open(f'{figure_path}/histogram_intensity.html', 'w') as f:
-        for fig in figures:
-            f.write(fig.to_html(full_html=False, include_plotlyjs='cdn'))
-    
-    signal_noise_ratio_log2fc = np.log2( (intensities + 1) / background_intensity )
-
-    plot_pixels(
-        figure_path,
-        np.array(signal_noise_ratio_log2fc).reshape(dim_x, dim_y),
-        imagedim,
-        'snr', 
-        'Log2 Signal-Noise-Ratio', 
-        'hot',
-        False,
-        False
-    )
-    
-    return signal_noise_ratio_log2fc
-
-
 def estimate_background_intensity_dask(sdata, image_type, resolution, staining, nbins=100, range_=None):
     """
     nbins: number of histogram bins
