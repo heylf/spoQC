@@ -37,10 +37,10 @@ def _calc_probs_doublet_distance(sdata, figure_path, nstds = 1.0):
 # The closer ddd is to 0 the better the quality.
 # The bigger log10_ddds is the better the quality.
 def _calc_probs_ddd(sdata, figure_path, max_std, nstds = 1.0, tail = "right", mean=None):
-    n_doublets = len(sdata['table'].obs[sdata['table'].obs['doublet_ddd'] != 100_000.0])
+    # Without doublets all ddds are 0 and every cell keeps the best probability.
     probs = np.array([1.0] * sdata['table'].n_obs)
 
-    if n_doublets != 0:
+    if np.any(sdata['table'].obs['doublet_ddd'] != 0.0):
 
         log10_ddds = -np.log10(np.array(sdata['table'].obs['doublet_ddd']) + 1e-10)
 
@@ -65,9 +65,7 @@ def _calc_probs_ddd(sdata, figure_path, max_std, nstds = 1.0, tail = "right", me
         elif tail == "right":
             pdf = np.where(log10_ddds > mean, np.max(pdf), pdf)
 
-        if ( len(log10_ddds[log10_ddds == 100_000]) != len(log10_ddds) ):
-            print("[NOTE] Doublets are in data, thus normalize probs.")
-            probs = helperfuncs.min_max_normalize(pdf)
+        probs = helperfuncs.min_max_normalize(pdf)
 
         helperfuncs.plot_histogram_for_array(
             log10_ddds,

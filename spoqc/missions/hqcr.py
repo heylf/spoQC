@@ -131,7 +131,8 @@ def map_values_to_cells(
     # Define transform: (origin_x, origin_y, pixel_width, pixel_height)
     transform = from_origin(0, height, 1, 1)  # top-left at (0, height), cell size = 1
 
-    polygons_with_values = zip(polys['geometry'], polys.index)
+    # Burn index + 1 so that 0 is reserved for the background (fill=0).
+    polygons_with_values = zip(polys['geometry'], polys.index + 1)
 
     shapes = [(mapping(geom), value) for geom, value in polygons_with_values]
 
@@ -148,10 +149,10 @@ def map_values_to_cells(
     flat_index = index_map.ravel()
     flat_labels = labels.ravel()
 
-    # Extract only valid pixels (index_map > 0 or > -1 depending on background)
-    valid = flat_index >= 0  # change to >0 if background is 0
+    # Extract only pixels covered by a polygon and shift back to the polygon index.
+    valid = flat_index > 0
 
-    flat_index = flat_index[valid]
+    flat_index = flat_index[valid] - 1
     flat_labels = flat_labels[valid]
 
     # Get unique polygon indices from your GeoDataFrame

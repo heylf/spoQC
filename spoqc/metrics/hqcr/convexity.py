@@ -83,7 +83,9 @@ def _calc_convexity(sdata, figure_path):
     timer.start()
     cell_convexity_metric_list = []
     for poly in sdata['cell_boundaries']['geometry']:
-        cell_is_polygon_convex, cell_convexity_metric = _is_convex(list(poly.exterior.coords))
+        # [:-1] because starting point is in the poly twice, so we have to remove it once, 
+        # else we produce two zero cross products.
+        cell_is_polygon_convex, cell_convexity_metric = _is_convex(list(poly.exterior.coords)[:-1])
         cell_convexity_metric_list.append(cell_convexity_metric)
     timer.stop()
 
@@ -106,7 +108,9 @@ def _calc_convexity(sdata, figure_path):
                 convexities = []
                 for nuceuls_idx in cell_nuclei:
                     nuceuls_poly = sdata['nucleus_boundaries']['geometry'].loc[nuceuls_idx]
-                    is_polygon_convex, convexity_metric = _is_convex(list(nuceuls_poly.exterior.coords))
+                    # [:-1] because starting point is in the poly twice, so we have to remove it once, 
+                    # else we produce two zero cross products.
+                    is_polygon_convex, convexity_metric = _is_convex(list(nuceuls_poly.exterior.coords)[:-1])
                     convexities.append(convexity_metric)
                 nulcei_convexity_metric_list.append(np.mean(convexities))
                 min_convexity_metric_list.append(np.min(convexities))

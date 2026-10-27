@@ -51,10 +51,15 @@ def _pixel_relevance(
     timer.stop()
 
     # Apply binary thresholding for segmentation
+    # With THRESH_OTSU cv2 ignores the passed threshold, so first get Otsu's threshold and then
+    # use the background intensity as a lower bound, i.e., pixels at background level are never relevant.
     print("[NOTE] Otsu thresholding")
     timer.start()
-    _, segmented_image = cv2.threshold(blur, background_intensity, 
-                                       max(xy_intensities.flatten()), cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    max_intensity = max(xy_intensities.flatten())
+    otsu_threshold, _ = cv2.threshold(blur, 0, max_intensity, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    threshold = max(otsu_threshold, background_intensity)
+    print(f"[NOTE] Otsu threshold {otsu_threshold}, background intensity {background_intensity}, using {threshold}")
+    _, segmented_image = cv2.threshold(blur, threshold, max_intensity, cv2.THRESH_BINARY)
     timer.stop()
 
     # Compute relevance map: pixels in the segmented region have value 1, others have 0

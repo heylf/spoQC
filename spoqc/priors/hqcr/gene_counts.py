@@ -46,24 +46,37 @@ def _reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts)
     qc_domains_adata.obs['qc_cluster'] = qc_clusters
     helperfuncs.plot_scatter(qc_domains_adata, figure_path, 'qc_cluster', None, 'qc_cluster', None, None)
 
+    return n
+
 
 def _calc_counts_probs(sdata, figure_path, cell_df, qc_domains_adata, counts, thres_counts = 0.5):
 
-    _reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts)
+    # Work on local copies, the cell_clustering_df/adata are shared with the other priors.
+    shared_cell_df = cell_df
+    cell_df = cell_df.copy()
+    qc_domains_adata = qc_domains_adata.copy()
+
+    n_clusters = _reduce_cluster_num_for_hqcr(cell_df, qc_domains_adata, figure_path, counts)
+
+    # The HQCR html report groups the cells by this column, so write it back on purpose.
+    shared_cell_df['qc_cluster_str'] = cell_df['qc_cluster_str'].values
 
     # Get bad cluster
-    mean_counts = [np.mean(cell_df.loc[cell_df['qc_cluster'] == c][counts]) for c in [0,1,2]]
-    bad_cluster = np.argmin(mean_counts)
-    t = np.min(mean_counts)
+    # With less than 3 leiden clusters some quality levels are empty (NaN means), so use the hard threshold.
+    if ( n_clusters >= 3 ):
+        mean_counts = [np.mean(cell_df.loc[cell_df['qc_cluster'] == c][counts]) for c in [0,1,2]]
+        bad_cluster = np.argmin(mean_counts)
+        t = np.min(mean_counts)
 
     # Apply hard threshold just to check if the bad cluster is really bad and not just a specific domain.
-    if ( np.min(mean_counts) > thres_counts ):
-        print(f"[NOTE] Bad cluster is actually not bad." + \
-            "Switching to hard theshold of {thres_counts} transcripts per cell")
+    if ( n_clusters < 3 or t > thres_counts ):
+        print(f"[NOTE] Bad cluster is actually not bad or less than 3 leiden clusters ({n_clusters}). " + \
+            f"Switching to hard theshold of {thres_counts} transcripts per cell")
         hard_qc_clusters = np.zeros(len(cell_df))
         hard_qc_clusters[cell_df[counts] > thres_counts] = 1
         cell_df['qc_cluster'] = hard_qc_clusters
-        t = thres_counts 
+        bad_cluster = 0
+        t = thres_counts
 
     helperfuncs.plot_histogram_for_array(
         cell_df[counts],

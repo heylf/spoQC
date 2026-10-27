@@ -52,8 +52,7 @@ def start_image_celltype_analysis(
     )
     mask_df = mask_ddf.compute()
 
-    for col in image_df.columns:
-        image_df[col] = np.flipud(np.array(image_df[col]).reshape(dim_x, dim_y)).flatten()
+    # Intensities and scores are already flipped in pixel_score.py, same orientation as the mask.
 
     # Just sanity check for image orientation
     helperfuncs.plot_pixels(
@@ -130,18 +129,15 @@ def start_image_celltype_analysis(
             fig_bar.write_image(f"{figure_path}/barplot_celltypes_{modality}.png", scale=3)
             fig_bar.write_image(f"{figure_path}/barplot_celltypes_{modality}.pdf", scale=3)
 
-            bar_plot_pct = (
-                bar_plot_df
-                .groupby("celltype")
-                .apply(lambda g: g.assign(pct=100 * g["num_class"] / g["num_class"].sum()))
-                .reset_index(drop=True)
+            bar_plot_pct = bar_plot_df.assign(
+                pct=100 * bar_plot_df["num_class"] / bar_plot_df.groupby(annotation_key)["num_class"].transform("sum")
             )
             bar_plot_pct["pct_rounded"] = bar_plot_pct["pct"].round(2)
 
             fig_pct = px.bar(
                 bar_plot_pct,
                 x="pct",
-                y="celltype",
+                y=annotation_key,
                 color="class",
                 orientation="h",
                 title=f"Percentage of cells classified as {modality} per celltype",

@@ -197,17 +197,13 @@ def _calc_probs_pixel_score(pixel_scores, figure_path, gmm_mod=3, nstds=1, t=Non
 
 
 def _dask_clustering_mini_batches(
-        spoqc_tmp_folder,
-        suffix,
+        tmp_files,
         n_clusters,
         seed,
         chunk_size,
         threads,
         kmeans_sample_size,
     ):
-
-    tmp_files = [f'{spoqc_tmp_folder}/{file}' for file in os.listdir(spoqc_tmp_folder)
-             if file.endswith(f'{suffix}.parquet')]
 
     timer = helperfuncs.Timer()
 
@@ -285,9 +281,11 @@ def _calc_pixel_score_prior(
         figure_path = f'{figure_path}/{modality}/{modality}_clustering/'
 
     # Sanitycheck if files exists
+    # Explicit list: the metrices folder also holds transcript_density_output_hqtr.parquet,
+    # which must not be used as a clustering feature.
     metrices = ['edge_strength', 'energy', 'relevance', 'entropy', 'homogeneity', 'uniformity']
-    for metric in metrices:
-        metric_file = f"{spoqc_tmp_folder_metrices}/{metric}_output_{tmp_suffix}.parquet"
+    metric_files = [f"{spoqc_tmp_folder_metrices}/{metric}_output_{tmp_suffix}.parquet" for metric in metrices]
+    for metric_file in metric_files:
         if ( not os.path.exists(metric_file) ):
             sys.exit(f"[ERROR] File {metric_file} is missing")
 
@@ -298,8 +296,7 @@ def _calc_pixel_score_prior(
     timer.start()
     n_clusters = 100
     image_ddf = image_ddf.assign(cluster = _dask_clustering_mini_batches(
-        spoqc_tmp_folder_metrices,
-        tmp_suffix,
+        metric_files,
         n_clusters,
         seed,
         chunk_size,

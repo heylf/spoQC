@@ -204,123 +204,133 @@ def first_version_loopy_belief_propagation_parallel(
     mm_path = os.path.join(spoqc_tmp_folder, f"lbp_messages_{modality}.mmap")
     messages = np.memmap(mm_path, mode="w+", dtype=np.float32,
                          shape=(4, n_pad, m_pad, 2))
-    messages[:] = 0.0
+    try:
+        messages[:] = 0.0
 
-    # -----------------------
-    # Initialize unary in tiles (Numba kernel)
-    # -----------------------
-    eps = np.float32(1e-8)
-    for i0 in range(0, n, tile[0]):
-        i1 = min(n, i0 + tile[0])
-        for j0 in range(0, m, tile[1]):
-            j1 = min(m, j0 + tile[1])
+        # -----------------------
+        # Initialize unary in tiles (Numba kernel)
+        # -----------------------
+        eps = np.float32(1e-8)
+        for i0 in range(0, n, tile[0]):
+            i1 = min(n, i0 + tile[0])
+            for j0 in range(0, m, tile[1]):
+                j1 = min(m, j0 + tile[1])
 
-            p = prob_map[i0:i1, j0:j1]  # (Ti, Tj), avoid [:]
-            u = np.empty((i1 - i0, j1 - j0, 2), dtype=np.float32)
+                p = prob_map[i0:i1, j0:j1]  # (Ti, Tj), avoid [:]
+                u = np.empty((i1 - i0, j1 - j0, 2), dtype=np.float32)
 
-            compute_unary_tile_numba(p, eps, u)
-            unary[i0:i1, j0:j1, :] = u
+                compute_unary_tile_numba(p, eps, u)
+                unary[i0:i1, j0:j1, :] = u
 
-    # Normalize mode for Numba (avoid strings in kernels)
-    if normalize == "min":
-        normalize_mode = 0
-    elif normalize == "total":
-        normalize_mode = 1
-    else:
-        raise SystemExit("[ERROR] Normalization not supported")
-
-    eps_norm = np.float32(1e-8)  # small guard to avoid 0-division in kernels
-
-    # -----------------------
-    # LBP iterations (tile-wise, delta vs current tile; no snapshot copy)
-    # -----------------------
-    early_flipping_stop = 0.0
-
-    for it in range(max_iter):
-        start = time.time()
-        print(it)
-        change = 0.0
-
-        for direction_idx in range(4):
-            for i0 in range(0, n, tile[0]):
-                i1 = min(n, i0 + tile[0])
-                for j0 in range(0, m, tile[1]):
-                    j1 = min(m, j0 + tile[1])
-
-                    # Load incoming messages for this tile (NumPy arrays)
-                    up    = messages[0, i0: i1,     j0+1: j1+1, :]
-                    down  = messages[1, i0+2: i1+2, j0+1: j1+1, :]
-                    left_ = messages[2, i0+1: i1+1, j0:   j1,   :]
-                    right_= messages[3, i0+1: i1+1, j0+2: j1+2, :]
-
-                    u = unary[i0:i1, j0:j1, :]  # (Ti, Tj, 2)
-
-                    # Target slice for this direction update
-                    cur  = messages[direction_idx, i0+1:i1+1, j0+1:j1+1, :]  # (Ti, Tj, 2)
-                    updated = np.empty_like(cur)
-
-                    delta_tile = update_messages_tile_numba(
-                        u, up, down, left_, right_, pairwise, direction_idx,
-                        np.float32(alpha), normalize_mode, eps_norm,
-                        cur, updated
-                    )
-
-                    # Write back the updated messages (no extra axis gymnastics)
-                    messages[direction_idx, i0+1:i1+1, j0+1:j1+1, :] = updated
-
-                    if float(delta_tile) > change:
-                        change = float(delta_tile)
-
-        flipping_change = abs((early_flipping_stop / flip_check) - change)
-        if it % flip_check == 0:
-            print(f"flipping {flipping_change:.3e}")
-
-        if change < tolerance:
-            print(f"[NOTE] LBP converged after {it} iterations with {change:.3e} change")
-            break
-        elif flipping_change < flip_tolerance and it % flip_check == 0:
-            print(f"[NOTE] LBP converged after {it} iterations with {flipping_change:.3e} flipping change")
-            break
+        # Normalize mode for Numba (avoid strings in kernels)
+        if normalize == "min":
+            normalize_mode = 0
+        elif normalize == "total":
+            normalize_mode = 1
         else:
-            # No global copy; just update the rolling sum for flipping heuristic
-            early_flipping_stop += change
+            raise SystemExit("[ERROR] Normalization not supported")
+
+        eps_norm = np.float32(1e-8)  # small guard to avoid 0-division in kernels
+
+        # -----------------------
+        # LBP iterations (tile-wise, delta vs current tile; no snapshot copy)
+        # -----------------------
+        early_flipping_stop = 0.0
+
+        for it in range(max_iter):
+            start = time.time()
+            print(it)
+            change = 0.0
+
+            for direction_idx in range(4):
+                for i0 in range(0, n, tile[0]):
+                    i1 = min(n, i0 + tile[0])
+                    for j0 in range(0, m, tile[1]):
+                        j1 = min(m, j0 + tile[1])
+
+                        # Load incoming messages for this tile (NumPy arrays)
+                        # incoming from UP    = upper neighbor's DOWN message  = messages[1]
+                        # incoming from DOWN  = lower neighbor's UP message    = messages[0]
+                        # incoming from LEFT  = left neighbor's RIGHT message  = messages[3]
+                        # incoming from RIGHT = right neighbor's LEFT message  = messages[2]
+                        up    = messages[1, i0: i1,     j0+1: j1+1, :]
+                        down  = messages[0, i0+2: i1+2, j0+1: j1+1, :]
+                        left_ = messages[3, i0+1: i1+1, j0:   j1,   :]
+                        right_= messages[2, i0+1: i1+1, j0+2: j1+2, :]
+
+                        u = unary[i0:i1, j0:j1, :]  # (Ti, Tj, 2)
+
+                        # Target slice for this direction update
+                        cur  = messages[direction_idx, i0+1:i1+1, j0+1:j1+1, :]  # (Ti, Tj, 2)
+                        updated = np.empty_like(cur)
+
+                        delta_tile = update_messages_tile_numba(
+                            u, up, down, left_, right_, pairwise, direction_idx,
+                            np.float32(alpha), normalize_mode, eps_norm,
+                            cur, updated
+                        )
+
+                        # Write back the updated messages (no extra axis gymnastics)
+                        messages[direction_idx, i0+1:i1+1, j0+1:j1+1, :] = updated
+
+                        if float(delta_tile) > change:
+                            change = float(delta_tile)
+
+            flipping_change = abs((early_flipping_stop / flip_check) - change)
             if it % flip_check == 0:
-                early_flipping_stop = 0.0
+                print(f"flipping {flipping_change:.3e}")
 
-        end = time.time()
-        print(f"[Time] {end - start:.3f} seconds")
+            if change < tolerance:
+                print(f"[NOTE] LBP converged after {it} iterations with {change:.3e} change")
+                break
+            elif flipping_change < flip_tolerance and it % flip_check == 0:
+                print(f"[NOTE] LBP converged after {it} iterations with {flipping_change:.3e} flipping change")
+                break
+            else:
+                # No global copy; just update the rolling sum for flipping heuristic
+                early_flipping_stop += change
+                if it % flip_check == 0:
+                    early_flipping_stop = 0.0
 
-    # Ensure memmap contents are flushed
-    messages.flush()
+            end = time.time()
+            print(f"[Time] {end - start:.3f} seconds")
 
-    # -----------------------
-    # Beliefs & labels (tile-wise via kernel)
-    # -----------------------
-    for i0 in range(0, n, tile[0]):
-        i1 = min(n, i0 + tile[0])
-        for j0 in range(0, m, tile[1]):
-            j1 = min(m, j0 + tile[1])
+        # Ensure memmap contents are flushed
+        messages.flush()
 
-            up    = messages[0, i0: i1,     j0+1: j1+1, :]
-            down  = messages[1, i0+2: i1+2, j0+1: j1+1, :]
-            left_ = messages[2, i0+1: i1+1, j0:   j1,   :]
-            right_= messages[3, i0+1: i1+1, j0+2: j1+2, :]
+        # -----------------------
+        # Beliefs & labels (tile-wise via kernel)
+        # -----------------------
+        for i0 in range(0, n, tile[0]):
+            i1 = min(n, i0 + tile[0])
+            for j0 in range(0, m, tile[1]):
+                j1 = min(m, j0 + tile[1])
 
-            u = unary[i0:i1, j0:j1, :]
+                up    = messages[1, i0: i1,     j0+1: j1+1, :]
+                down  = messages[0, i0+2: i1+2, j0+1: j1+1, :]
+                left_ = messages[3, i0+1: i1+1, j0:   j1,   :]
+                right_= messages[2, i0+1: i1+1, j0+2: j1+2, :]
 
-            b = np.empty_like(u)
-            lab = np.empty((i1 - i0, j1 - j0), dtype=np.int8)
+                u = unary[i0:i1, j0:j1, :]
 
-            beliefs_and_labels_tile_numba(u, up, down, left_, right_, eps_norm, b, lab)
+                b = np.empty_like(u)
+                lab = np.empty((i1 - i0, j1 - j0), dtype=np.int8)
 
-            beliefs[i0:i1, j0:j1, :] = b
-            labels[i0:i1, j0:j1] = lab
+                beliefs_and_labels_tile_numba(u, up, down, left_, right_, eps_norm, b, lab)
 
-    print(f"Done. Zarr store at: {spoqc_tmp_folder}/lbp_store_{modality}_zarr")
-    print(f"Messages memmap at: {mm_path}")
-    timer.stop()
-    # beliefs[:,:,0] is prob for good quality
-    return beliefs[:,:,0], labels
+                beliefs[i0:i1, j0:j1, :] = b
+                labels[i0:i1, j0:j1] = lab
+
+        print(f"Done. Zarr store at: {spoqc_tmp_folder}/lbp_store_{modality}_zarr")
+        timer.stop()
+        # beliefs[:,:,0] is prob for good quality
+        return beliefs[:,:,0], labels
+    finally:
+        # The messages memmap is ~32 B/pixel (tens of GB for whole slides) and only needed during LBP.
+        # Drop our reference and delete the file (on Linux the space is freed once the last view is gone).
+        del messages
+        if os.path.exists(mm_path):
+            os.remove(mm_path)
 
 def visualize_markov_calculation(average_cell_probability_image, labels, figure_path, flip=False):
     # Automatically scale figure size based on image resolution

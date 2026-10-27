@@ -1,5 +1,35 @@
 # Summary of Changes
 
+# 0.1.1
+
+### `Dependencies`
+- `pyproject.toml` dependencies are now compatible ranges (`>=tested,<next major`, `<next minor` for 0.x packages) instead of exact `==` pins, so spoQC can be installed next to other packages. The exact tested environment stays pinned in `requirements.txt`.
+- `requirements.txt` (used by the Dockerfile) now only pins the runtime dependencies of spoQC. GPU/CUDA, torch, napari/Qt, squidpy and other development-only packages (~4 GB) moved to `requirements-dev.txt`.
+- `scikit-misc` is now a declared dependency, it is required by scanpy's `highly_variable_genes(flavor="seurat_v3")` but was only installed by chance.
+
+### `Fixed`
+- Markov random field (loopy belief propagation): incoming messages were read from the wrong direction slot (e.g. the upper neighbour's UP message instead of its DOWN message), so a pixel's own message was never excluded. Affects all smoothed HQCR/HQPR/HQTR masks.
+- Convexity metric: the closing vertex of shapely exteriors was passed to `_is_convex`, producing two zero cross products and making every polygon non-convex (square scored 0.6, triangle 0.5).
+- Doublet score: without detected doublets, `doublet_density` and `doublet_ddd` were set to a 100 000 sentinel that downstream consumers (clustering, visualization) treated as a real "maximum doublet" value. They are now 0 (no doublet signal).
+- `map_values_to_cells`: polygon index 0 collided with the rasterize background value (`fill=0`), so all background pixels were credited to cell 0. Polygons are now burned as `index + 1` and only covered pixels are kept.
+- Celltype image analysis: intensities and scores were flipped a second time (already flipped in `pixel_score.py`), so per-cell intensity/score means were taken from the vertically mirrored location.
+- HQTR pixel clustering: the `*hqtr.parquet` glob also picked up `transcript_density_output_hqtr.parquet` as a 7th KMeans feature. Clustering now uses the explicit list of the 6 image metrics.
+- Gene/transcript count priors: with fewer than 3 Leiden clusters a quality level was empty, its NaN mean went into `argmin` and every cell got probability 1 (prior silently disabled). They now fall back to the hard count threshold. The priors also work on local copies of the shared `cell_clustering_df`/`cell_clustering_adata` (only `qc_cluster_str` is still written back for the HQCR report).
+- `helperfuncs.min_max_normalize`: constant input (e.g., all negative probe counts 0) divided by zero and produced all-NaN priors. It now returns 1.0 for every value.
+- Pixel relevance (HQPR/HQTR): `background_intensity` was passed as the threshold to `cv2.threshold` together with `THRESH_OTSU`, which ignores it. Otsu's threshold is now computed first and the background intensity is used as an explicit lower bound.
+- Final report: `analysis/overview` figures were loaded unconditionally, so `--step all` without `--annotation_file` raised `FileNotFoundError`. These sections are now skipped (with a note in the report) when the cell type analysis did not run.
+- Celltype image analysis: the percentage barplot used a hard-coded `"celltype"` column instead of `annotation_key`, failing for annotations with a different key.
+- `hqcr_celltype.py`: the threshold log was reopened (truncated) for every QC metric and closed outside the loop (`UnboundLocalError` if no count metric was present); nucleus-free cells were looked up as `'nucleusfree'` instead of `'nucleus_free'`, so they were never used for the left threshold; chained assignment for `qc_celltype_class` was a no-op under Copy-on-Write.
+- Valid nucleus geometries: with fewer nuclei than cells the nucleus `RangeIndex` was used as cell id (flags landed on the wrong cells), and unassigned nuclei (`cell_id -1`) raised a `KeyError`. `correct_indexing` now keeps the nucleus' cell as `cell_id` column, which is used for the mapping.
+- HQR metadata in `adata.uns` (cluster analysis): `uns` was overwritten with the metadata dict, wiping `pca`/`umap`/colors; it is now updated instead. The metadata files were also looked up under `analysis/overview/` instead of the output root, and the HQCR file as `hqcrs.json` instead of `hqcr.json`, so no metadata was ever found.
+- Markov random field: the `lbp_messages_*.mmap` file (~32 B/pixel, tens of GB for whole slides) was never deleted. It is now removed in a `finally` block after the beliefs are computed, also when the LBP fails.
+- HQTR transcript density cache never hit: it was looked up as `transcript_density_output_hqtr` but written as `transcript_density_output_hqtr.parquet`, so the density image was recomputed on every run. The cache is now used unless `--overwrite` is set or its size does not match the current image.
+- Raw counts were not copied properly `spoqc/core/starship.py:63 adata.layers['raw'] = adata.X`
+- Bug for annotation cell types count: `spoqc/metrics/hqcr/doublet_score.py:261 is inverted (== None)`. Fix: is not None.
+
+### `Removed`
+- Unused MRF variants `hqr/markov_random_field.py` and `hqr/markov_random_field_zarr.py`
+
 # 0.1.0
 
 ### `Added`

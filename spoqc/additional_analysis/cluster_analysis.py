@@ -556,8 +556,8 @@ def celltype_cluster_analysis(
                 metadata_file = ""
 
                 if ( modality == 'hqcr' ):
-                    metadata_path = f"{figure_path}/{modality}/hqcr_ident/"
-                    metadata_file = f"{metadata_path}/{modality}s.json"
+                    metadata_path = f"{base_figure_path}/{modality}/hqcr_ident/"
+                    metadata_file = f"{metadata_path}/{modality}.json"
                     if ( os.path.exists(metadata_file)):
                         with open(metadata_file, "r") as f:
                             metadata_json = json.load(f)
@@ -565,7 +565,7 @@ def celltype_cluster_analysis(
 
                 if ( modality == 'hqpr' ):
                     for staining in stainings:
-                        metadata_path = f"{figure_path}/{modality}/hqpr_bounding_box/{staining}/"
+                        metadata_path = f"{base_figure_path}/{modality}/hqpr_bounding_box/{staining}/"
                         metadata_file = f"{metadata_path}/{modality}s_{staining}.txt"
                         if ( os.path.exists(metadata_file)):
                             with open(metadata_file, "r") as f:
@@ -574,15 +574,16 @@ def celltype_cluster_analysis(
                             hqr_metadata_dic[f'{modality}_{staining}'] = metadata_list
 
                 if ( modality == 'hqtr' ):
-                    metadata_path = f"{figure_path}/{modality}/hqtr_bounding_box/"
+                    metadata_path = f"{base_figure_path}/{modality}/hqtr_bounding_box/"
                     metadata_file = f"{metadata_path}/{modality}s.txt"
                     if ( os.path.exists(metadata_file)):
                         with open(metadata_file, "r") as f:
                             content = f.read()
                             metadata_list = ast.literal_eval(content)
                         hqr_metadata_dic[f'{modality}'] = metadata_list
-                
-                sdata['table'].uns = hqr_metadata_dic
+
+            # Update instead of overwrite, else pca/umap/colors in uns are lost.
+            sdata['table'].uns.update(hqr_metadata_dic)
     timer.stop()
 
     ####################################################################################################################

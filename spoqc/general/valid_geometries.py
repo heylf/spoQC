@@ -23,23 +23,18 @@ def check_for_valid_geometries(sdata, figure_path):
 
         geometries = np.array(sdata[f'{obj_type}_boundaries']['geometry'])
 
-        # This can happen if you have nucleus-free cells
-        if ( len(geometries) < sdata['table'].n_obs ):
-            sdata['table'].obs[f'valid_{obj_type}_geometry'] = [True] * sdata['table'].n_obs
-            sdata['table'].obs[f'wvalid_{obj_type}_geometry'] = [0] * sdata['table'].n_obs
-            boundary_indices = np.array([str(x) for x in sdata[f'{obj_type}_boundaries'].index])
-
-            sdata['table'].obs.loc[boundary_indices, f'valid_{obj_type}_geometry'] = \
-                [True if x.is_valid else False for x in geometries]
-
-            sdata['table'].obs.loc[boundary_indices, f'wvalid_{obj_type}_geometry'] = \
-                [0 if x.is_valid else 1 for x in geometries]
-        elif ( len(geometries) > sdata['table'].n_obs ):
-            # This can happen if a cell has more than one nucleus.
+        # This can happen if you have nucleus-free cells (less) or cells with more than one nucleus (more).
+        if ( len(geometries) != sdata['table'].n_obs ):
             sdata['table'].obs[f'valid_{obj_type}_geometry'] = [True] * sdata['table'].n_obs
             sdata['table'].obs[f'wvalid_{obj_type}_geometry'] = [0] * sdata['table'].n_obs
 
-            boundary_indices = np.array([str(x) for x in sdata[f'nucleus_boundaries']['cell_id']])
+            # The obs index is str after correct_indexing. The cell boundaries index is the cell,
+            # the nucleus boundaries index is just a RangeIndex, so the cell is taken from the cell_id column.
+            boundaries = sdata[f'{obj_type}_boundaries']
+            if ( obj_type == 'nucleus' and 'cell_id' in list(boundaries.columns) ):
+                boundary_indices = np.array([str(x) for x in boundaries['cell_id']])
+            else:
+                boundary_indices = np.array([str(x) for x in boundaries.index])
             is_valid = np.array([x.is_valid for x in geometries])
 
             # A cell is invalid if at least one of its nuclei is invalid.
@@ -47,8 +42,9 @@ def check_for_valid_geometries(sdata, figure_path):
             for idx, valid in zip(boundary_indices, is_valid):
                 validity_per_cell[idx] = validity_per_cell.get(idx, True) and valid
 
-            unique_indices = np.array(list(validity_per_cell.keys()))
-            unique_valid = np.array(list(validity_per_cell.values()))
+            # Skip geometries without a cell in the table (e.g., cell_id -1).
+            unique_indices = np.array([x for x in validity_per_cell.keys() if x in sdata['table'].obs.index])
+            unique_valid = np.array([validity_per_cell[x] for x in unique_indices], dtype=bool)
 
             sdata['table'].obs.loc[unique_indices, f'valid_{obj_type}_geometry'] = unique_valid
             sdata['table'].obs.loc[unique_indices, f'wvalid_{obj_type}_geometry'] = (~unique_valid).astype(int)

@@ -25,6 +25,7 @@ from spoqc import hqr
 from spoqc import helperfuncs
 from spoqc import missions
 from spoqc import core
+from spoqc import __version__
 
 @click.command(
     help="""
@@ -32,7 +33,7 @@ from spoqc import core
     spatially resolved transcriptomics (SRT).
     """
 )
-@click.version_option(version="0.0.1")
+@click.version_option(version=__version__)
 
 # Required options
 @click.option("-i", "--input_file", type=str, required=True, 

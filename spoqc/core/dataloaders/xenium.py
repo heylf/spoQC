@@ -65,6 +65,12 @@ def correct_indexing(sdata):
         if sdata.shapes['nucleus_boundaries'].index.hasnans:
             sdata.shapes['nucleus_boundaries'].index = sdata.shapes['nucleus_boundaries']['cell_id']
         
+    # Keep the cell of each nucleus before the index is overwritten (-1 if the cell is not in the table)
+    if 'cell_id' not in list(sdata.shapes['nucleus_boundaries'].columns):
+        sdata.shapes['nucleus_boundaries']['cell_id'] = (
+            sdata.shapes['nucleus_boundaries'].index.to_series().fillna(-1).astype(int).values
+        )
+
     # make index unqiue for multinulcei cells
     sdata.shapes["nucleus_boundaries"].index = pd.RangeIndex(len(sdata.shapes["nucleus_boundaries"]))
 

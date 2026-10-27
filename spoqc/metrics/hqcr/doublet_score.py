@@ -193,8 +193,8 @@ def _calc_doublet_score(
     )
 
     # Map the kernel density bin value to a cell.
-    # Do that for all cells.
-    density_to_cell = np.array([100_000.0] * sdata['table'].n_obs)
+    # Do that for all cells. Without doublets there is no doublet density, i.e., 0.
+    density_to_cell = np.zeros(sdata['table'].n_obs)
     if n_doublets != 0:
         cells_x = cell_dobulet_df['x'].values
         cells_y = cell_dobulet_df['y'].values
@@ -217,10 +217,11 @@ def _calc_doublet_score(
     sdata['table'].obs['doublet_density'] = density_to_cell
     
     # ddd = density divided by distance (relative density)
+    # Without doublets ddd is 0, which is the best possible quality.
     if n_doublets != 0:
         sdata['table'].obs['doublet_ddd'] = density_to_cell / ( np.array(cell_dobulet_df['doublet_distance']) + 1e-8 )
     else:
-        sdata['table'].obs['doublet_ddd'] = np.array([100_000.0] * sdata['table'].n_obs)
+        sdata['table'].obs['doublet_ddd'] = np.zeros(sdata['table'].n_obs)
 
 
     # Have to call this again because overlpy corrects also the transcript coordinates
@@ -258,7 +259,7 @@ def init_metric(enterprise):
 
     # Additional code
     ncelltypes = -1
-    if ( enterprise.args.annotation_file and enterprise.cargo.celltype_annotation.ncelltypes == None ):
+    if ( enterprise.args.annotation_file and enterprise.cargo.celltype_annotation.ncelltypes != None ):
         ncelltypes = enterprise.cargo.celltype_annotation.ncelltypes
     else:
         ncelltypes = enterprise.args.ncelltypes

@@ -1023,7 +1023,11 @@ def test_resolutions_leiden(
 
 def min_max_normalize(array):
     array = np.array(array)
-    return (array - np.min(array)) / (np.max(array) - np.min(array))
+    value_range = np.max(array) - np.min(array)
+    # Guard against constant values: so every value is the maximum, i.e., 1.0 instead of 0/0 = NaN.
+    if ( value_range == 0 ):
+        return np.ones(array.shape, dtype=float)
+    return (array - np.min(array)) / value_range
 
 
 def get_stuff_from_image_around_coords(pixel_coords, radius, xy_image_feature, imagedim):
@@ -1288,7 +1292,7 @@ def read_df_parquet_tmp_files_scorify(cluster_df, spoqc_tmp_folder, suffix):
 
             if ( tmp_data.isna().any().sum() ):
                 print("[DEBUG] Number of NaNs in each column:")
-                print(tmp_data.isna().sum().compute())
+                print(tmp_data.isna().sum())
 
             # Sum across each row and add to 'score'
             cluster_df['score'] += tmp_data.sum(axis=1).values

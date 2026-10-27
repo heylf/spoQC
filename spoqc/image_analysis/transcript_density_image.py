@@ -1,7 +1,6 @@
 import spatialdata as sd
 import numpy as np
 import pandas as pd
-import dask.array as da
 import dask.dataframe as dd
 import os
 
@@ -24,8 +23,7 @@ def generate_transcript_density_image(
 ):
 
     timer = helperfuncs.Timer()
-
-    tmp_path = f"{spoqc_tmp_folder}/transcript_density_output_hqtr"
+    tmp_path = f"{spoqc_tmp_folder}/transcript_density_output_hqtr.parquet"
     if not os.path.exists(tmp_path) or ( os.path.exists(tmp_path) and overwrite ):
 
         print("[NOTE] Generate transcript density image")
@@ -95,9 +93,7 @@ def generate_transcript_density_image(
                     points=nuclei_centroid_coords
                 )
 
-        np_arr = xy_kernel_transcript_density.flatten()
-        image_ddf = dd.from_dask_array(da.from_array(np_arr, chunks=chunk_size), columns=["transcript_density"])
-        return np_arr
+        return xy_kernel_transcript_density.flatten()
     else:
         print("[NOTE] Load transcript density image")
 

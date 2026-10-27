@@ -35,11 +35,14 @@ def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_
 
         total_artefact_scores = np.zeros(len(celltypes))
 
+        # Open once for all qc metrics, else each metric truncates the log of the previous one.
+        threshold_log_file = open(f'{figure_path}/threshold_log.txt', 'w')
+
         for qc_metric in qc_metrics:
             if qc_metric in ["transcript_counts", "n_genes_by_counts", "canorm_transcript_counts",
                              "canorm_n_genes_by_counts", "num_low_qc_transcript"]:
 
-                threshold_log_file = open(f'{figure_path}/threshold_log.txt', 'w')
+                threshold_log_file.write(f"# {qc_metric}\n")
 
                 thresholds_left = []
                 thresholds_right = []
@@ -53,7 +56,7 @@ def celltype_artefact_analysis_for_hqcr(sdata, figure_path, cell_df, annotation_
                     # Distributions
                     celltype_whole_distribution = cell_df_check[qc_metric]
                     celltype_doublet_distribution = cell_df_check[cell_df_check['artefact'] == 'doublet'][qc_metric]
-                    celltype_nucleusfree_distribution = cell_df_check[cell_df_check['artefact'] == 'nucleusfree'][qc_metric]
+                    celltype_nucleusfree_distribution = cell_df_check[cell_df_check['artefact'] == 'nucleus_free'][qc_metric]
                     celltype_cell_distribution = cell_df_check[cell_df_check['artefact'] == 'cell'][qc_metric]
                     
                     bins = 100
@@ -215,11 +218,11 @@ def calc_celltype_transcript_counts_probs(
 
         # Apply left threshold
         idx_qc = df_check[df_check[qc_metric] < threshold_left_dict[qc_metric][i]].index
-        cell_df['qc_celltype_class'][idx_qc] = 1 # 1 for beeing bad
+        cell_df.loc[idx_qc, 'qc_celltype_class'] = 1 # 1 for beeing bad
 
         # Apply right threshold
         idx_qc = df_check[df_check[qc_metric] > threshold_right_dict[qc_metric][i]].index
-        cell_df['qc_celltype_class'][idx_qc] = 1 # 1 for beeing bad
+        cell_df.loc[idx_qc, 'qc_celltype_class'] = 1 # 1 for beeing bad
 
     # Calculate bad quality probability
     distance_matrix = helperfuncs.points_within_radius(df_coords, 30, False)

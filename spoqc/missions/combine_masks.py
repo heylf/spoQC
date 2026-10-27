@@ -21,7 +21,7 @@ def run_combine_masks(enterprise):
     if enterprise.args.step in ['combine_masks_zoom']:
 
         hqr.combine_masks_zoom.start_combining_masks(
-            enterprise.cardo.sdata,
+            enterprise.cargo.sdata,
             figure_path,
             enterprise.args.tmp_dir,
             enterprise.cargo.imagedim,
