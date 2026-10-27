@@ -60,7 +60,7 @@ class Enterpise:
 
         # Get RNA data and set raw data layer
         adata = self.cargo.sdata['table']
-        adata.layers['raw'] = adata.X
+        adata.layers['raw'] = adata.X.copy()
 
         # Apply standard data processing to cargo
         self.cargo.perform_standard_data_processing(
