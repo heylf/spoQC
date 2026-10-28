@@ -32,6 +32,9 @@
 ### `Removed`
 - Unused MRF variants `hqr/markov_random_field.py` and `hqr/markov_random_field_zarr.py`
 
+### `Deprecated`
+- Changing threshold for negative probes counts to `t=2`.
+
 # 0.1.0
 
 ### `Added`
