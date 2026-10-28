@@ -8,7 +8,7 @@ from scipy.stats import norm
 from sklearn.mixture import GaussianMixture
 from dask_ml.preprocessing import MinMaxScaler
 
-def _calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=1, std=1, tail="right"):
+def _calc_probs(df, figure_path, gmm_mod=1, nstds=1, t=2, std=1, tail="right"):
     values = np.array(df["control_probe_counts"])
     mix = GaussianMixture(n_components=gmm_mod, tol=1e-8, max_iter=int(1e4))
     mix.fit(values.reshape(-1, 1))
