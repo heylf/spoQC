@@ -43,7 +43,7 @@ class Args:
         # Parameters
         self.thresh_prior_pixel = kwargs['thresh_prior_pixel'] if 'thresh_prior_pixel' in kwargs else None
         self.nstds_prior_pixel = kwargs['nstds_prior_pixel']
-        self.doublet_prior_std = kwargs['doublet_prior_std']
+        self.doublet_prior_std = kwargs['doublet_prior_std'] if 'doublet_prior_std' in kwargs else None
         self.doublet_prior_mean = kwargs['doublet_prior_mean']
         self.num_variable_genes = 5000
         self.npcs = 60

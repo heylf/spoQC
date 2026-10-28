@@ -36,7 +36,7 @@ def _calc_probs_doublet_distance(sdata, figure_path, nstds = 1.0):
 # ddd = density divided by distance (relative density)
 # The closer ddd is to 0 the better the quality.
 # The bigger log10_ddds is the better the quality.
-def _calc_probs_ddd(sdata, figure_path, max_std, nstds = 1.0, tail = "right", mean=None):
+def _calc_probs_ddd(sdata, figure_path, max_std = None, nstds = 1.0, tail = "right", mean=None, n_comp=2):
     # Without doublets all ddds are 0 and every cell keeps the best probability.
     probs = np.array([1.0] * sdata['table'].n_obs)
 
@@ -47,10 +47,14 @@ def _calc_probs_ddd(sdata, figure_path, max_std, nstds = 1.0, tail = "right", me
         # There will be 2 peaks.
         # One peak is the added cosntant for the log10 (1e-10), which is basically cells without a doublet event.
         # The actual peak we are looking for is thus the min of all peaks.
-        mix = GaussianMixture(n_components=2, tol=1e-8, max_iter=int(1e4))
+        mix = GaussianMixture(n_components=n_comp, tol=1e-8, max_iter=int(1e4))
         mix.fit(log10_ddds.reshape(-1, 1))
         means = mix.means_
         cov = mix.covariances_
+        stds = [ np.sqrt(np.trace(cov[i])) for i in range(0, n_comp) ]
+
+        if max_std == None:
+            max_std = stds[np.argmax(means)]
 
         if mean == None:
             mean = np.min(means)
