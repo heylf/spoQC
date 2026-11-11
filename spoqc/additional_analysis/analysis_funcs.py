@@ -111,7 +111,9 @@ def load_cell_metrices(
         include_nucleus_free=False
     ):
 
-    helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'hqcr')
+    helperfuncs.read_sdata_parquet_tmp_files(sdata, f'{spoqc_tmp_folder}/metrices/hqcr/', 'hqcr')
+    helperfuncs.read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, 'traffic_light_output_hqcr')
+
     cell_metrices = []
     for metric in hqcr_metricset:
         cell_metrices += metric.loaded_for_visualization

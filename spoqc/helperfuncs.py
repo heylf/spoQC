@@ -1125,12 +1125,12 @@ def values_to_hex_gradient(values, cmap_name='hot', reverse=False):
     return hex_colors
 
 
-def sdata_obs_to_parquet(enterprise, step, suffix):
+def sdata_obs_to_parquet(enterprise, tmp_folder, step, suffix):
     adata = enterprise.cargo.sdata["table"]
     new_columns = [x for x in adata.obs.columns if x not in enterprise.cargo.cols_already_written]
     write_df = adata.obs.loc[:,new_columns]
     write_df.index = adata.obs.index
-    write_df.to_parquet(f"{enterprise.args.tmp_dir}/{step}_output_{suffix}.parquet")
+    write_df.to_parquet(f"{tmp_folder}/{step}_output_{suffix}.parquet")
     enterprise.cargo.cols_already_written += new_columns
 
 
@@ -1154,10 +1154,12 @@ def read_sdata_parquet_tmp_files(sdata, spoqc_tmp_folder, suffix):
         print(f"[WARN] Failed to read parquet files from {spoqc_tmp_folder}: {e}")
         return None
 
+
 def nparr_to_parquet(np_arr, prefix, spoqc_tmp_folder, suffix):
     outfile = f"{spoqc_tmp_folder}/{prefix}_output_{suffix}.parquet"
     table = pa.Table.from_arrays([pa.array(np_arr)], names=[prefix])
     pq.write_table(table, outfile)
+
 
 def df_to_parquet(df, prefix, spoqc_tmp_folder, obs_columns, suffix):
     outfile = f"{spoqc_tmp_folder}/{prefix}_output_{suffix}.parquet"

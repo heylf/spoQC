@@ -23,7 +23,13 @@ class HqcrSet:
     # TODO 'convexhull_all_trnascripts': sdata['table'].obs['convexhull_all_trnascripts'],
     def load_cell_clustering_df(self, enterprise):
         print(f"[NOTE] The following metrics will be used for further HQCR analysis {self.metrics}")
-        helperfuncs.read_sdata_parquet_tmp_files(enterprise.cargo.sdata, enterprise.args.tmp_dir, 'hqcr')
+        
+        helperfuncs.read_sdata_parquet_tmp_files(
+            enterprise.cargo.sdata,
+            f'{enterprise.args.tmp_dir}/metrices/hqcr/',
+            'hqcr'
+        )
+        
         adata_obs = enterprise.cargo.sdata['table'].obs
         cell_clustering_df = pd.DataFrame({})
         for metric in self.metrics: 

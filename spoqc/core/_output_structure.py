@@ -83,3 +83,5 @@ def create_output_structure(args):
         os.makedirs(f"{args.tmp_dir}/metrices/hqpr/{args.staining}")
     if ( not os.path.exists(f"{args.tmp_dir}/metrices/hqtr/") ):
         os.makedirs(f"{args.tmp_dir}/metrices/hqtr/")
+    if ( not os.path.exists(f"{args.tmp_dir}/metrices/hqcr/") ):
+        os.makedirs(f"{args.tmp_dir}/metrices/hqcr/")

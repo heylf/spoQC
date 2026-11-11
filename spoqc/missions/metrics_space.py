@@ -8,6 +8,7 @@ def start_exploration(enterprise):
         print("[NOTE] Write results")
         helperfuncs.sdata_obs_to_parquet(
             enterprise,
+            f'{enterprise.args.tmp_dir}/metrices/hqcr/',
             enterprise.args.step,
             'hqcr'
         )

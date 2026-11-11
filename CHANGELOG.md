@@ -28,6 +28,7 @@
 - HQCR prior combination: a NaN prior turned the aggregated quality of the cell into NaN and counted as "green" in the traffic light (`NaN < t` is always False). NaN priors are now treated as missing evidence and ignored (with a warning per prior); cells without any valid prior get 0.5 and "yellow".
 - Raw counts were not copied properly `spoqc/core/starship.py:63 adata.layers['raw'] = adata.X`
 - Bug for annotation cell types count: `spoqc/metrics/hqcr/doublet_score.py:261 is inverted (== None)`. Fix: is not None.
+- Bug for reading in masks during cluster analysis for hqcr. Changes to function `read_sdata_parquet_tmp_files`
 
 ### `Removed`
 - Unused MRF variants `hqr/markov_random_field.py` and `hqr/markov_random_field_zarr.py`

@@ -293,12 +293,14 @@ def cell_quality_probability_refinement(sdata, imagedim, image_type, resolution,
     map_values_to_cells(sdata, polys, image_type, resolution, labels[:], res_col, figure_path, 'markov_labels')
 
     # Write out hqcr mask
+    # Pixel dimenstion
     df_smoothed = pd.DataFrame({
         'hqcr_beliefs_smoothed': beliefs[:].flatten(),
         'hqcr_mask_smoothed': labels[:].flatten(),
     })
     df_smoothed.to_parquet(f"{spoqc_tmp_folder}/mask_smoothed_{prefix}_output_hqcr.parquet")
 
+    # Pixel dimenstion
     df = pd.DataFrame({
         'hqcr_beliefs': average_cell_probability_image.flatten(),
         'hqcr_mask': (average_cell_probability_image.flatten() > 0.5).astype(np.uint8),
@@ -337,9 +339,6 @@ def start_exploration(enterprise, test_res=False):
                 legend_dict={"mask": "#FFFFFF", "empty": "#000000"},
                 flip=True
             )
-
-        print("[NOTE] Gather cell QC metrices")
-        helperfuncs.read_sdata_parquet_tmp_files(enterprise.cargo.sdata, enterprise.args.tmp_dir, 'hqcr')
 
         # Leiden clustering.
         print("[NOTE] Cell QC clustering")

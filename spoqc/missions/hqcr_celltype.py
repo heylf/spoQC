@@ -310,12 +310,6 @@ def start_exploration(enterprise):
     
             figure_path = f'{enterprise.args.output_dir}/hqcr/hqcr_celltype/'
 
-            # Load data
-            helperfuncs.read_sdata_parquet_tmp_files(enterprise.cargo.sdata, enterprise.args.tmp_dir, 'hqcr')
-
-            # I have to reload the cell_clustering_df
-            enterprise.hqcr_set.load_cell_clustering_df(enterprise)
-
             # Add extra columns
             annotation_key = enterprise.cargo.celltype_annotation.annotation_key
             enterprise.hqcr_set.cell_clustering_df[annotation_key] = enterprise.cargo.sdata['table'].obs[annotation_key]
