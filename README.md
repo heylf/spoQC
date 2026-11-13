@@ -204,7 +204,7 @@ python3 -m spoqc --help
 | `--cluster_celltype` | – | Name of a cell type you want to analyse specifically. |
 | `--reference_file` | – | Transcript reference file for the transcript QC. |
 | `--overwrite` | off | Overwrite existing temporary files. |
-| `--doublet_prior_std` | `0.125` | Standard deviation of the doublet prior. Increasing it increases the impact of doublet events, i.e., doublet events affect more cells and give them a lower quality. |
+| `--doublet_prior_std` | estimated | Standard deviation of the doublet prior. Increasing it increases the impact of doublet events, i.e., doublet events affect more cells and give them a lower quality. |
 | `--doublet_prior_mean` | estimated | Mean of the doublet prior. By default it is estimated automatically from the data, but it can be set manually. |
 | `--thresh_prior_pixel` | estimated | Threshold for the pixel score prior distribution (HQPR/HQTR). Only set this if you understand the pixel prior (see [Image metrics](metrics_image_layer.md)). |
 | `--nstds_prior_pixel` | `6` | Number of standard deviations for the pixel score prior distribution (HQPR/HQTR). |

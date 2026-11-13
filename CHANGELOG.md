@@ -35,6 +35,7 @@
 
 ### `Deprecated`
 - Changing threshold for negative probes counts to `t=2`.
+- Setting `--doublet_prior_std` default to `None`. It is now estimated.
 
 # 0.1.0
 

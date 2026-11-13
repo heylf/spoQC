@@ -63,7 +63,7 @@ from spoqc import __version__
               This is used for to apply standardization to spatial data for the data used in the publication.
               """
               )
-@click.option("--doublet_prior_std", type=float, required=False, default=0.125,
+@click.option("--doublet_prior_std", type=float, required=False, default=None,
               help="""
               The std for the doublet prior estimation. If you increase it then the impact of doublet events increaes,
               that means doublets events will impact more cells and give them lower quality.
